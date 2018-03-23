@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Add Transactions</h1>
+<form action="" method="post">
+  {{ form.hidden_tag() }}
+  <p>
+    {{ form.file_upload.label }}<br>
+    {{ form.file_upload }}
+    {% for error in form.file_upload.errors %}
+      <span style="color: red;">[{{ error }}]</span>
+    {% endfor %}
+  </p>
+  <p>{{ form.submit() }}</p>
+</form>
+
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h4>Transactions</h4>
+{% for transaction in transactions | sort(attribute='date') %}
+  <p>Date: {{ transaction.date }}<br>
+  Amount: {{ transaction.amount }}<br>
+  Description: {{ transaction.description }}<br>
+  Category: {{ transaction.category.name }}
+  </p>
+{% endfor %}
+
+{% endblock %}

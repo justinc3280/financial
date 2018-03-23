@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>{{ type }} Account</h1>
+<form action="" method="post">
+  {{ form.hidden_tag() }}
+  <p>
+    {{ form.name.label }}
+    {{ form.name }}<br>
+    {% for error in form.name.errors %}
+      <span style="color: red;">[{{ error }}]</span>
+    {% endfor %}
+  </p>
+  <p>
+    {{ form.starting_balance.label }}
+    {{ form.starting_balance }}<br>
+    {% for error in form.starting_balance.errors %}
+      <span style="color: red;">[{{ error }}]</span>
+    {% endfor %}
+  </p>
+  <p>
+    {{ form.header_rows.label }}
+    {{ form.header_rows }}<br>
+    {% for error in form.header_rows.errors %}
+      <span style="color: red;">[{{ error }}]</span>
+    {% endfor %}
+  </p>
+  <p>
+    {{ form.num_columns.label }}
+    {{ form.num_columns }}<br>
+    {% for error in form.num_columns.errors %}
+      <span style="color: red;">[{{ error }}]</span>
+    {% endfor %}
+  </p>
+  <p>
+    {{ form.date_column.label }}
+    {{ form.date_column }}<br>
+    {% for error in form.date_column.errors %}
+      <span style="color: red;">[{{ error }}]</span>
+    {% endfor %}
+  </p>
+  <p>
+    {{ form.date_format.label }}
+    {{ form.date_format }}<br>
+    {% for error in form.date_format.errors %}
+      <span style="color: red;">[{{ error }}]</span>
+    {% endfor %}
+  </p>
+  <p>
+    {{ form.description_column.label }}
+    {{ form.description_column }}<br>
+    {% for error in form.description_column.errors %}
+      <span style="color: red;">[{{ error }}]</span>
+    {% endfor %}
+  </p>
+  <p>
+    {{ form.amount_column.label }}
+    {{ form.amount_column }}<br>
+    {% for error in form.amount_column.errors %}
+      <span style="color: red;">[{{ error }}]</span>
+    {% endfor %}
+  </p>
+  <p>
+    {{ form.category_column.label }}
+    {{ form.category_column }}<br>
+    {% for error in form.category_column.errors %}
+      <span style="color: red;">[{{ error }}]</span>
+    {% endfor %}
+  </p>
+  <p>
+    {{ form.account_type.label }}
+    {{ form.account_type }}<br>
+    {% for error in form.account_type.errors %}
+      <span style="color: red;">[{{ error }}]</span>
+    {% endfor %}
+  </p>
+  <p>{{ form.submit() }}</p>
+</form>
+
+{% endblock %}

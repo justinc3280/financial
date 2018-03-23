@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h4>Categories</h4>
+<table>
+  <tr>
+    <th>Category</th>
+    <th>Parent</th>
+    <th>Rank</th>
+    <th>Transaction Level</th>
+  </tr>
+  {% for category in categories %}
+    <tr>
+      <td>{{ category.name }}</td>
+      <td>{{ category.parent.name }}</td>
+      <td>{{ category.rank }}</td>
+      <td>{{ category.transaction_level }}</td>
+    </tr>
+  {% endfor %}
+</table>
+<a class="btn btn-primary" href={{ url_for('add_categories') }}>Add Categories</a>
+
+{% endblock %}

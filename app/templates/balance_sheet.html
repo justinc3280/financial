@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div>
+    <nav>
+      <a href={{ url_for('balance_sheet') }}>Balance Sheet</a> |
+      <a href={{ url_for('income_statement') }}>Income Statement</a> |
+      <a href={{ url_for('cash_flow') }}>Statement of Cash Flow</a>
+    </nav>
+  </div>
+
+  <h2>Balance Sheet</h2>
+  <div class="Assetts">
+    <h3>Assets</h3>
+      <h4>Short Term Assets</h4>
+        <ul>
+          <li>Cash: {{ cash_and_equivalents['Total'] }}</li>
+          {% for name,amount in cash_and_equivalents.items() %}
+            {% if name != 'Total' %}
+              <ul>{{ name }}: {{ amount }}</ul>
+            {% endif %}
+          {% endfor %}
+
+          <li>Stocks (Market Value)</li>
+
+        </ul>
+      <h4>Long Term Assets</h4>
+        <ul>
+          <li>Retirement Account</li>
+          <li>Car</li>
+        </ul>
+  </div>
+  <div class="Liabilities">
+    <h3>Liabilities</h3>
+      <h4>Short Term Liabilities</h4>
+        <ul>
+          <li>Accounts Payable: {{ accounts_payable['Total'] }}</li>
+          {% for name,amount in accounts_payable.items() %}
+            {% if name != 'Total' %}
+              <ul>{{ name }}: {{ amount }}</ul>
+            {% endif %}
+          {% endfor %}
+        </ul>
+      <h4>Long Term Liabilities</h4>
+        <ul>
+          <li>Car Loan Balance</li>
+          <li>Unrealized Capital Gains Tax</li>
+        </ul>
+  </div>
+  <h3>Total</h3>
+    <ul>
+      <li>Working Capital: {{ working_capital }}</li>
+      <li>Net Worth: {{ net_worth }}</li>
+    </ul>
+
+{% endblock content %}

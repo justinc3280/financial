@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div>
+    <nav>
+      <a href={{ url_for('balance_sheet') }}>Balance Sheet</a> |
+      <a href={{ url_for('income_statement') }}>Income Statement</a> |
+      <a href={{ url_for('cash_flow') }}>Statement of Cash Flow</a>
+    </nav>
+  </div>
+
+  {% for category, sub_categories in categories.items() recursive %}
+    {% if category != total_object %}
+      <li>{{ category.name }}: {{ sub_categories[total_object] | money(show_as_positive=True) }}
+    {% endif %}
+    {% if sub_categories is mapping %}
+      <ul>{{ loop(sub_categories.items()) }}</ul>
+    {% endif %}
+    </li>
+  {% endfor %}
+
+  <h2>Total</h2>
+    <ul>
+      <li>Income After Taxes: {{ income_after_taxes | money }}</li>
+      <li>Net Income: {{ net_income | money }}</li>
+    </ul>
+{% endblock %}

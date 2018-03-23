@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h4>Paychecks</h4>
+<table>
+  <tr>
+    <th>Date</th>
+    <th>Company</th>
+    <th>Gross Pay</th>
+    <th>Federal Income Tax</th>
+    <th>Social Security Tax</th>
+    <th>Medicare Tax</th>
+    <th>State Income Tax</th>
+    <th>Health Insurance</th>
+    <th>Dental Insurance</th>
+    <th>Traditional Retirement</th>
+    <th>Roth Retirement</th>
+    <th>Retirement Match</th>
+    <th>Net Pay</th>
+  </tr>
+  {% for paycheck in paychecks | sort(attribute='date') %}
+    <tr>
+      <td>{{ paycheck.date }}</td>
+      <td>{{ paycheck.company_name }}</td>
+      <td>{{ paycheck.gross_pay }}</td>
+      <td>{{ paycheck.federal_income_tax }}</td>
+      <td>{{ paycheck.social_security_tax }}</td>
+      <td>{{ paycheck.medicare_tax }}</td>
+      <td>{{ paycheck.state_income_tax }}</td>
+      <td>{{ paycheck.health_insurance }}</td>
+      <td>{{ paycheck.dental_insurance }}</td>
+      <td>{{ paycheck.traditional_retirement }}</td>
+      <td>{{ paycheck.roth_retirement }}</td>
+      <td>{{ paycheck.retirement_match }}</td>
+      <td>{{ paycheck.net_pay }}</td>
+    </tr>
+  {% endfor %}
+</table>
+<a class="btn btn-primary" href={{ url_for('add_paycheck') }}>Add Paycheck</a>
+
+{% endblock content %}

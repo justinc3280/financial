@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div>
+    	<nav>
+    		<a href={{ url_for('balance_sheet') }}>Balance Sheet</a> |
+    		<a href={{ url_for('income_statement') }}>Income Statement</a> |
+    		<a href={{ url_for('cash_flow') }}>Statement of Cash Flow</a>
+    	</nav>
+	</div>
+
+  <h2>{{ title }}</h2>
+
+  {% for category in categories %}
+    <h3>{{ category }}</h3>
+
+      {% for sub in sub_categories[category] %}
+        <h4>{{ sub }}</h4>
+      {% endfor %}
+
+  {% endfor %}
+
+{% endblock %}

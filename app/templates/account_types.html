@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h4>Account Types</h4>
+<table>
+  <tr>
+    <th>Type</th>
+    <th>Middle Level</th>
+    <th>Top Level</th>
+  </tr>
+  {% for type in account_types %}
+    <tr>
+      <td>{{ type.name }}</td>
+      <td>{{ type.middle_level }}</td>
+      <td>{{ type.top_level }}</td>
+    </tr>
+  {% endfor %}
+</table>
+<a class="btn btn-primary" href={{ url_for('add_account_type') }}>Add Account Type</a>
+
+{% endblock %}

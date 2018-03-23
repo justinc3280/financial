@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div>
+    <nav>
+      <a href={{ url_for('balance_sheet') }}>Balance Sheet</a> |
+      <a href={{ url_for('income_statement') }}>Income Statement</a> |
+      <a href={{ url_for('cash_flow') }}>Statement of Cash Flow</a>
+    </nav>
+  </div>
+
+
+    {% for name, sub_categories in categories.items() %}
+      <h4>{{ name }}: {{ sub_categories['Total'] }}</h4>
+      <ul>
+        {% for top_level_name, top_level_sub_categories in sub_categories.items() %}
+          {% if top_level_name != 'Total' %}
+          <li>{{ top_level_name }}: {{ top_level_sub_categories['Total'] }}</li>
+            <ul>
+              {% for category_name, amount in top_level_sub_categories.items() %}
+                {% if category_name != 'Total' %}
+                  <li>{{ category_name }}: {{ amount }}</li>
+                {% endif %}
+              {% endfor %}
+            </ul>
+          {% endif %}
+        {% endfor %}
+      </ul>
+    {% endfor %}
+
+    <h2>Total</h2>
+      <ul>
+        <li>Net Increase/Decrease in Cash and Equivalents</li>
+        <li>Cash and Equivalents, Beginning of Period: {{ beg_bal }}</li>
+        <li>Cash and Equivalents, End of Period</li>
+      </ul>
+{% endblock %}

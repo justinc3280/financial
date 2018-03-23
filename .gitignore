@@ -1,0 +1,4 @@
+*.db
+.DS_Store
+Categories.csv
+__pycache__/
