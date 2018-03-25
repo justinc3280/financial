@@ -3,7 +3,7 @@
 {% block content %}
 
 <h4>Paychecks</h4>
-<table>
+<table class="table table-bordered">
   <tr>
     <th>Date</th>
     <th>Company</th>
@@ -21,7 +21,7 @@
   </tr>
   {% for paycheck in paychecks | sort(attribute='date') %}
     <tr>
-      <td>{{ paycheck.date }}</td>
+      <td>{{ paycheck.date | date }}</td>
       <td>{{ paycheck.company_name }}</td>
       <td>{{ paycheck.gross_pay }}</td>
       <td>{{ paycheck.federal_income_tax }}</td>
