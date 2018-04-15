@@ -124,6 +124,23 @@ class Total():
     def __repr__(self):
         return self.name
 
+def category_dict(num_months=1):
+    categories = Category.query.all()
+    category_dict = {}
+    total = Total()
+    
+    for category in categories:
+        parent_categories = get_parent_categories(category)
+        for index, category in enumerate(parent_categories):
+            cat_dict = category_dict
+            for x in range(0, index):
+                cat_dict = cat_dict[parent_categories[x]]
+            if category not in cat_dict:
+                cat_dict[category] = {total: [0] * num_months}
+
+    category_dict = order_dict(category_dict)
+    return category_dict
+
 @app.route('/income_statement')
 @login_required
 def income_statement():
@@ -131,6 +148,9 @@ def income_statement():
     transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between('2018-02-01', '2018-02-28')).all()
 
     paychecks = Paycheck.query.filter(Paycheck.date.between('2018-02-01', '2018-02-28')).all()
+
+    month_index = 0
+
     for paycheck in paychecks:
         paycheck_dict = paycheck.__dict__
         [paycheck_dict.pop(k) for k in ['_sa_instance_state', 'id', 'user_id', 'company_name', 'date']]
@@ -147,44 +167,25 @@ def income_statement():
                     category = category
                 )
                 transactions.append(transaction)
-    #print(transactions)
-    categories = {}
-
+    
+    categories = category_dict()
+    total = Total()
     for transaction in transactions:
         parent_categories = get_parent_categories(transaction.category)
-        total = Total()
         if parent_categories[0].name in ['Income', 'Tax','Expense']:
-            #print(transaction.category.name)
-            #print(parent_categories)
             for index, category in enumerate(parent_categories):
-                #print(index)
-                if index == 0:
-                    if category in categories:
-                        categories[category][total] += transaction.amount
-                    else:
-                        categories[category] = {total: transaction.amount}
-                else:
-                    cat_dict = categories
-                    for x in range(0, index):
-                        cat_dict = cat_dict[parent_categories[x]]
-                    #print(cat_dict)
-                    if category in cat_dict:
-                        cat_dict[category][total] += transaction.amount
-                    else:
-                        cat_dict[category] = {total: transaction.amount}
-                    #cat_dict = sorted(cat_dict, key=lambda element: element[1])
-                    #print(cat_dict)
-                #print(categories)
-
-    categories = order_dict(categories)
+                cat_dict = categories
+                for x in range(0, index):
+                    cat_dict = cat_dict[parent_categories[x]]
+                cat_dict[category][total][month_index] += transaction.amount
 
     income_category = Category.query.filter(Category.name == 'Income').first()
     expense_category = Category.query.filter(Category.name == 'Expense').first()
     tax_category = Category.query.filter(Category.name == 'Tax').first()
 
-    total_income = categories[income_category][total] if income_category in categories else 0
-    total_expense = categories[expense_category][total] if expense_category in categories else 0
-    total_tax = categories[tax_category][total] if tax_category in categories else 0
+    total_income = categories[income_category][total][0] if income_category in categories else 0
+    total_expense = categories[expense_category][total][0] if expense_category in categories else 0
+    total_tax = categories[tax_category][total][0] if tax_category in categories else 0
 
     income_after_taxes = total_income + total_tax
     net_income = income_after_taxes + total_expense
@@ -198,10 +199,10 @@ def income_statement():
 @app.route('/cash_flow')
 @login_required
 def cash_flow():
-    transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).join(Category, Category.id==Transaction.category_id).filter(
-        Account.user_id==current_user.id, Category.category_type.in_(["Investment", "Transfer"])).all()
+    transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between('2018-02-01', '2018-02-28')).all()
 
-    for paycheck in current_user.paychecks:
+    paychecks = Paycheck.query.filter(Paycheck.date.between('2018-02-01', '2018-02-28')).all()
+    for paycheck in paychecks:
         paycheck_dict = paycheck.__dict__
         [paycheck_dict.pop(k) for k in ['_sa_instance_state', 'id', 'user_id', 'company_name', 'date']]
 
@@ -209,33 +210,26 @@ def cash_flow():
             #cat_name = key.replace('_', ' ').title()
             cat_name = paycheck_col_to_category_name(key)
             category = Category.query.filter(Category.name==cat_name).first()
-            if category.category_type in ["Investment", "Transfer"]:
+            top_level_category = get_parent_categories(category)[0]
+            if top_level_category.name in ["Investment", "Transfer"]:
                 transaction = Transaction(
                     amount = value,
                     category = category
                 )
                 transactions.append(transaction)
 
-    categories = {}
+    categories = category_dict()
+    total = Total()
+    month_index = 0
     for transaction in transactions:
-        category_type = transaction.category.category_type
-        top_level = transaction.category.top_level
-        category_name = transaction.category.name
-
-        if category_type in categories:
-            categories[category_type]['Total'] = round(categories[category_type]['Total'] + transaction.amount, 2)
-        else:
-            categories[category_type] = {}
-            categories[category_type]['Total'] = round(transaction.amount, 2)
-        if top_level in categories[category_type]:
-            categories[category_type][top_level]['Total'] = round(categories[category_type][top_level]['Total'] + transaction.amount, 2)
-        else:
-            categories[category_type][top_level] = {}
-            categories[category_type][top_level]['Total'] = round(transaction.amount, 2)
-        if category_name in categories[category_type][top_level]:
-            categories[category_type][top_level][category_name] = round(categories[category_type][top_level][category_name] + transaction.amount, 2)
-        else:
-            categories[category_type][top_level][category_name] = round(transaction.amount, 2)
+        parent_categories = get_parent_categories(transaction.category)
+        if parent_categories[0].name in ['Investment', 'Transfer']:
+            for index, category in enumerate(parent_categories):
+                cat_dict = categories
+                for x in range(0, index):
+                    cat_dict = cat_dict[parent_categories[x]]
+                cat_dict[category][total][month_index] += transaction.amount
+       
 
     starting_balances = [account.starting_balance for account in current_user.accounts]
     beg_bal = round(sum(starting_balances), 2)
@@ -246,10 +240,11 @@ def cash_flow():
         'Operating Activites': ['Net Income'],
         'Investing Activities': [],
         'Financing Activites': [],
-        'Total': []
+        'Total': [] 
     }
 
     return render_template("cash_flow.html",
                             categories=categories,
-                            beg_bal=beg_bal
+                            beg_bal=beg_bal,
+                            total_object=total
                             )
