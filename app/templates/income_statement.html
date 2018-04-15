@@ -10,8 +10,8 @@
   </div>
 
   {% for category, sub_categories in categories.items() recursive %}
-    {% if category != total_object %}
-      <li>{{ category.name }}: {{ sub_categories[total_object] | money(show_as_positive=True) }}
+    {% if category != total_object and sub_categories[total_object][0] != 0 %}
+      <li>{{ category.name }}: {{ sub_categories[total_object][0] | money(show_as_positive=True) }}
     {% endif %}
     {% if sub_categories is mapping %}
       <ul>{{ loop(sub_categories.items()) }}</ul>
