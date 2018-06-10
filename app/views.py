@@ -1,8 +1,9 @@
 from app import app, db
-from flask import redirect, render_template, url_for
+from flask import redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from app.models import Account, AccountType, Transaction, Category, Paycheck
 from datetime import date
+import calendar
 
 @app.route('/')
 @app.route('/index')
@@ -49,22 +50,38 @@ def paychecks():
     paychecks = Paycheck.query.filter(Paycheck.user==current_user).all()
     return render_template('paychecks.html', paychecks=paychecks)
 
+def month_choices():
+    choices = []
+    for i, month in enumerate(calendar.month_name):
+        if i == 0:
+            month = "Select Month"
+        choices.append((i, month))
+    return choices
 
 @app.route('/balance_sheet')
 @login_required
 def balance_sheet():
     cash_and_equivalents = {'Total': 0}
     accounts_payable = {'Total': 0}
-    for account in current_user.accounts:
-        #end_date = date(month=1, day=31, year=2018)
-        #end_balance = account.get_ending_balance(end_date = end_date)
-        end_balance = account.get_ending_balance()
-        if account.type.name == "Checking" or account.type.name == "Savings" or account.type.name == "Brokerage" or account.type.name == "Online":
-            cash_and_equivalents[account.name] = round(end_balance, 2)
-            cash_and_equivalents['Total'] = round(cash_and_equivalents['Total'] + end_balance, 2)
-        elif account.type.name == "Credit Card":
-            accounts_payable[account.name] = round(end_balance, 2)
-            accounts_payable['Total'] = round(accounts_payable['Total'] + end_balance, 2)
+
+    year = 2018
+    month_num = request.args.get('month', None)
+    if month_num:
+        month_num = int(month_num)
+        days = calendar.monthrange(year, month_num)
+        start_date = date(year, month_num, 1)
+        end_date = date(year, month_num, days[1])
+
+        for account in current_user.accounts:
+            #end_date = date(month=1, day=31, year=2018)
+            end_balance = account.get_ending_balance(end_date = end_date)
+            #end_balance = account.get_ending_balance()
+            if account.type.name == "Checking" or account.type.name == "Savings" or account.type.name == "Brokerage" or account.type.name == "Online":
+                cash_and_equivalents[account.name] = round(end_balance, 2)
+                cash_and_equivalents['Total'] = round(cash_and_equivalents['Total'] + end_balance, 2)
+            elif account.type.name == "Credit Card":
+                accounts_payable[account.name] = round(end_balance, 2)
+                accounts_payable['Total'] = round(accounts_payable['Total'] + end_balance, 2)
 
     working_capital = cash_and_equivalents['Total'] + accounts_payable['Total']
     net_worth = working_capital
@@ -72,6 +89,7 @@ def balance_sheet():
     return render_template("balance_sheet.html",
                             cash_and_equivalents=cash_and_equivalents,
                             accounts_payable=accounts_payable,
+                            month_choices=month_choices(),
                             working_capital=working_capital,
                             net_worth=net_worth)
 
@@ -128,7 +146,7 @@ def category_dict(num_months=1):
     categories = Category.query.all()
     category_dict = {}
     total = Total()
-    
+
     for category in categories:
         parent_categories = get_parent_categories(category)
         for index, category in enumerate(parent_categories):
@@ -144,10 +162,19 @@ def category_dict(num_months=1):
 @app.route('/income_statement')
 @login_required
 def income_statement():
-    #transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id).all()
-    transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between('2018-02-01', '2018-02-28')).all()
+    transactions = []
+    paychecks = []
 
-    paychecks = Paycheck.query.filter(Paycheck.date.between('2018-02-01', '2018-02-28')).all()
+    year = 2018
+    month_num = request.args.get('month', None)
+    if month_num:
+        month_num = int(month_num)
+        days = calendar.monthrange(year, month_num)
+        start_date = date(year, month_num, 1)
+        end_date = date(year, month_num, days[1])
+
+        transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between(start_date, end_date)).all()
+        paychecks = Paycheck.query.filter(Paycheck.user_id==current_user.id, Paycheck.date.between(start_date, end_date)).all()
 
     month_index = 0
 
@@ -167,7 +194,7 @@ def income_statement():
                     category = category
                 )
                 transactions.append(transaction)
-    
+
     categories = category_dict()
     total = Total()
     for transaction in transactions:
@@ -194,14 +221,26 @@ def income_statement():
                             categories=categories,
                             total_object=total,
                             income_after_taxes=income_after_taxes,
+                            month_choices=month_choices(),
                             net_income=net_income)
 
 @app.route('/cash_flow')
 @login_required
 def cash_flow():
-    transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between('2018-02-01', '2018-02-28')).all()
+    transactions = []
+    paychecks = []
 
-    paychecks = Paycheck.query.filter(Paycheck.date.between('2018-02-01', '2018-02-28')).all()
+    year = 2018
+    month_num = request.args.get('month', None)
+    if month_num:
+        month_num = int(month_num)
+        days = calendar.monthrange(year, month_num)
+        start_date = date(year, month_num, 1)
+        end_date = date(year, month_num, days[1])
+
+        transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between(start_date, end_date)).all()
+        paychecks = Paycheck.query.filter(Paycheck.user_id==current_user.id, Paycheck.date.between(start_date, end_date)).all()
+
     for paycheck in paychecks:
         paycheck_dict = paycheck.__dict__
         [paycheck_dict.pop(k) for k in ['_sa_instance_state', 'id', 'user_id', 'company_name', 'date']]
@@ -229,22 +268,22 @@ def cash_flow():
                 for x in range(0, index):
                     cat_dict = cat_dict[parent_categories[x]]
                 cat_dict[category][total][month_index] += transaction.amount
-       
+
 
     starting_balances = [account.starting_balance for account in current_user.accounts]
     beg_bal = round(sum(starting_balances), 2)
 
     #categories = ['Operating Activities', 'Investing Activites', 'Financing Activities', 'Total']
-
     sub_categories = {
         'Operating Activites': ['Net Income'],
         'Investing Activities': [],
         'Financing Activites': [],
-        'Total': [] 
+        'Total': []
     }
 
     return render_template("cash_flow.html",
                             categories=categories,
                             beg_bal=beg_bal,
+                            month_choices=month_choices(),
                             total_object=total
                             )

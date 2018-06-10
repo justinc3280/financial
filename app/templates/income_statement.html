@@ -9,6 +9,13 @@
     </nav>
   </div>
 
+  <select id="select-month">
+    {% for month_num, month_name in month_choices %}
+      <option value="{{month_num}}" {% if month_num == 0 %}disabled{% endif %}>{{ month_name }}</option>
+    {% endfor %}
+  </select>
+  <a class="btn btn-sm btn-info" id="navigate_to_month" href="#">View</a>
+
   {% for category, sub_categories in categories.items() recursive %}
     {% if category != total_object and sub_categories[total_object][0] != 0 %}
       <li>{{ category.name }}: {{ sub_categories[total_object][0] | money(show_as_positive=True) }}

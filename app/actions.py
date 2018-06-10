@@ -152,7 +152,9 @@ def transactions(account_id):
         if account.file_format:
             #path = '/Users/justincianci/Documents/Financial/2018/01 - January 2018/' + form.file_upload.data
             #path = '/Users/justincianci/Documents/Financial/2018/02 - February 2018/' + form.file_upload.data
-            path = '/Users/justincianci/Documents/Financial/2018/03 - March 2018/' + form.file_upload.data
+            #path = '/Users/justincianci/Documents/Financial/2018/03 - March 2018/' + form.file_upload.data
+            #path = '/Users/justincianci/Documents/Financial/2018/04 - April 2018/' + form.file_upload.data
+            path = '/Users/justincianci/Documents/Financial/2018/05 - May 2018/' + form.file_upload.data
 
             with open(path, newline='') as upload:
                 data = list(csv.reader(upload, delimiter=','))
