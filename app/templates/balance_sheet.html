@@ -9,6 +9,13 @@
     </nav>
   </div>
 
+  <select id="select-month">
+    {% for month_num, month_name in month_choices %}
+      <option value="{{month_num}}" {% if month_num == 0 %}disabled{% endif %}>{{ month_name }}</option>
+    {% endfor %}
+  </select>
+  <a class="btn btn-sm btn-info" id="navigate_to_month" href="#">View</a>
+
   <h2>Balance Sheet</h2>
   <div class="Assetts">
     <h3>Assets</h3>
