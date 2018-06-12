@@ -150,43 +150,37 @@ def transactions(account_id):
 
     if form.validate_on_submit():
         if account.file_format:
-            #path = '/Users/justincianci/Documents/Financial/2018/01 - January 2018/' + form.file_upload.data
-            #path = '/Users/justincianci/Documents/Financial/2018/02 - February 2018/' + form.file_upload.data
-            #path = '/Users/justincianci/Documents/Financial/2018/03 - March 2018/' + form.file_upload.data
-            #path = '/Users/justincianci/Documents/Financial/2018/04 - April 2018/' + form.file_upload.data
-            path = '/Users/justincianci/Documents/Financial/2018/05 - May 2018/' + form.file_upload.data
+            file_contents = form.file_upload.data.read().decode('utf-8').splitlines()
+            data = list(csv.reader(file_contents, delimiter=','))
+            for row in data[account.file_format.header_rows:]:
+                date_data = row[account.file_format.date_column-1]
+                if date_data == '** No Record found for the given criteria ** ':
+                    continue
+                date_data = date_data[:10]
 
-            with open(path, newline='') as upload:
-                data = list(csv.reader(upload, delimiter=','))
-                for row in data[account.file_format.header_rows:]:
-                    date_data = row[account.file_format.date_column-1]
-                    if date_data == '** No Record found for the given criteria ** ':
-                        continue
-                    date_data = date_data[:10]
+                amount_data = row[account.file_format.amount_column-1]
+                amount_data = amount_data.replace('$', '')
+                amount_data = amount_data.replace('+', '')
+                amount_data = amount_data.replace(' ', '')
 
-                    amount_data = row[account.file_format.amount_column-1]
-                    amount_data = amount_data.replace('$', '')
-                    amount_data = amount_data.replace('+', '')
-                    amount_data = amount_data.replace(' ', '')
+                date = datetime.strptime(date_data, account.file_format.date_format).date()
+                description = row[account.file_format.description_column-1]
+                category_name = row[account.file_format.category_column-1] if len(row) >= account.file_format.num_columns else None
+                category = Category.query.filter(Category.name == category_name).first()
+                exists = Transaction.query.filter(Transaction.date == date, Transaction.description == description,
+                                                Transaction.amount == amount_data, Transaction.account_id == account_id).first()
 
-                    date = datetime.strptime(date_data, account.file_format.date_format).date()
-                    description = row[account.file_format.description_column-1]
-                    category_name = row[account.file_format.category_column-1] if len(row) >= account.file_format.num_columns else None
-                    category = Category.query.filter(Category.name == category_name).first()
-                    exists = Transaction.query.filter(Transaction.date == date, Transaction.description == description,
-                                                    Transaction.amount == amount_data, Transaction.account_id == account_id).first()
-
-                    if not exists:
-                        transaction = Transaction(
-                            date = date,
-                            description = description,
-                            amount = amount_data,
-                            category = category,
-                            account_id = account_id,
-                        )
-                        db.session.add(transaction)
-                    else:
-                        exists.category = category
+                if not exists:
+                    transaction = Transaction(
+                        date = date,
+                        description = description,
+                        amount = amount_data,
+                        category = category,
+                        account_id = account_id,
+                    )
+                    db.session.add(transaction)
+                else:
+                    exists.category = category
             db.session.commit()
             return redirect(url_for('account_details', account_id=account_id ))
     return render_template('forms/file_upload.html', form=form)
@@ -197,37 +191,35 @@ def add_categories():
     form = FileUploadForm()
 
     if form.validate_on_submit():
-        path = "/Users/justincianci/Documents/Development/Financial/" + form.file_upload.data
-        with open(path, newline='') as upload:
-            data = list(csv.reader(upload, delimiter=','))
-            for row in data[1:]:
-                category_name = row[0]
-                parent_name = row[1] if row[1] != "None" else None
-                exists = Category.query.filter(Category.name == category_name).first()
-                parent_exists = Category.query.filter(Category.name == parent_name).first() if parent_name else None
-                parent_category = None
-                if not parent_exists:
-                    if parent_name:
-                        parent_category = Category(
-                            name = parent_name
-                        )
-                        db.session.add(parent_category)
-                        db.session.commit()
-                if not exists:
-                    category = Category(
-                        name = category_name,
-                        parent = parent_exists if parent_exists else parent_category,
-                        rank = row[2],
-                        transaction_level = (row[3] == 'TRUE')
+        file_contents = form.file_upload.data.read().decode('utf-8').splitlines()
+        data = list(csv.reader(file_contents, delimiter=','))
+        for row in data[1:]:
+            category_name = row[0]
+            parent_name = row[1] if row[1] != "None" else None
+            exists = Category.query.filter(Category.name == category_name).first()
+            parent_exists = Category.query.filter(Category.name == parent_name).first() if parent_name else None
+            parent_category = None
+            if not parent_exists:
+                if parent_name:
+                    parent_category = Category(
+                        name = parent_name
                     )
-                    db.session.add(category)
-                else:
-                    exists.parent = parent_exists if parent_exists else (parent_category if parent_category else None)
-                    exists.rank = row[2]
-                    exists.transaction_level = (row[3] == 'TRUE')
-            db.session.commit()
+                    db.session.add(parent_category)
+                    db.session.commit()
+            if not exists:
+                category = Category(
+                    name = category_name,
+                    parent = parent_exists if parent_exists else parent_category,
+                    rank = row[2],
+                    transaction_level = (row[3] == 'TRUE')
+                )
+                db.session.add(category)
+            else:
+                exists.parent = parent_exists if parent_exists else (parent_category if parent_category else None)
+                exists.rank = row[2]
+                exists.transaction_level = (row[3] == 'TRUE')
+        db.session.commit()
         return redirect(url_for('categories'))
-
     return render_template('forms/file_upload.html', form=form)
 
 @app.route('/add_paycheck', methods=['GET', 'POST'])
@@ -250,45 +242,44 @@ def add_paycheck():
     company_col = 13
 
     if form.validate_on_submit():
-        path = "/Users/justincianci/Documents/Financial/2018/Pay Statements/" + form.file_upload.data
-        with open(path, newline='') as upload:
-            data = list(csv.reader(upload, delimiter=','))
-            for row in data[1:]:
-                date = row[date_col - 1]
-                date = datetime.strptime(date, '%m/%d/%Y').date()
-                gross_pay = row[gross_pay_col - 1]
-                federal_income_tax = row[fed_tax_col - 1]
-                social_security_tax = row[ss_tax_col - 1]
-                medicare_tax = row[med_tax_col - 1]
-                state_income_tax = row[state_tax_col - 1]
-                dental_insurance = row[dental_col - 1]
-                health_insurance = row[health_col - 1]
-                traditional_retirement = row[traditional_ret_col - 1]
-                roth_retirement = row[roth_ret_col - 1]
-                net_pay = row[net_pay_col - 1]
-                retirement_match = row[ret_match_col - 1]
-                company_name = row[company_col - 1]
+        file_contents = form.file_upload.data.read().decode('utf-8').splitlines()
+        data = list(csv.reader(file_contents, delimiter=','))
+        for row in data[1:]:
+            date = row[date_col - 1]
+            date = datetime.strptime(date, '%m/%d/%Y').date()
+            gross_pay = row[gross_pay_col - 1]
+            federal_income_tax = row[fed_tax_col - 1]
+            social_security_tax = row[ss_tax_col - 1]
+            medicare_tax = row[med_tax_col - 1]
+            state_income_tax = row[state_tax_col - 1]
+            dental_insurance = row[dental_col - 1]
+            health_insurance = row[health_col - 1]
+            traditional_retirement = row[traditional_ret_col - 1]
+            roth_retirement = row[roth_ret_col - 1]
+            net_pay = row[net_pay_col - 1]
+            retirement_match = row[ret_match_col - 1]
+            company_name = row[company_col - 1]
 
-                exists = Paycheck.query.filter(Paycheck.date == date, Paycheck.company_name == company_name, Paycheck.gross_pay == gross_pay, Paycheck.net_pay == net_pay).first()
-                if not exists:
-                    paycheck = Paycheck(
-                        date = date,
-                        company_name = company_name,
-                        gross_pay = gross_pay,
-                        federal_income_tax = federal_income_tax,
-                        social_security_tax = social_security_tax,
-                        medicare_tax = medicare_tax,
-                        state_income_tax = state_income_tax,
-                        health_insurance = health_insurance,
-                        dental_insurance = dental_insurance,
-                        traditional_retirement = traditional_retirement,
-                        roth_retirement = roth_retirement,
-                        retirement_match = retirement_match,
-                        net_pay = net_pay,
-                        user = current_user
-                    )
-                    db.session.add(paycheck)
-            db.session.commit()
+            exists = Paycheck.query.filter(Paycheck.date == date, Paycheck.company_name == company_name, Paycheck.gross_pay == gross_pay, Paycheck.net_pay == net_pay).first()
+            if not exists:
+                paycheck = Paycheck(
+                    date = date,
+                    company_name = company_name,
+                    gross_pay = gross_pay,
+                    federal_income_tax = federal_income_tax,
+                    social_security_tax = social_security_tax,
+                    medicare_tax = medicare_tax,
+                    state_income_tax = state_income_tax,
+                    health_insurance = health_insurance,
+                    dental_insurance = dental_insurance,
+                    traditional_retirement = traditional_retirement,
+                    roth_retirement = roth_retirement,
+                    retirement_match = retirement_match,
+                    net_pay = net_pay,
+                    user = current_user
+                )
+                db.session.add(paycheck)
+        db.session.commit()
         return redirect(url_for('paychecks'))
     return render_template('forms/file_upload.html', form=form)
     '''
