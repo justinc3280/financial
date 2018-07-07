@@ -1,7 +1,7 @@
 from app import app, db
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_user, logout_user, login_required
-from app.forms import LoginForm, AccountForm, AccountTypeForm, FileUploadForm, RegistrationForm, PaychecksForm
+from app.forms import LoginForm, AccountForm, AccountTypeForm, EditCategoryForm, FileUploadForm, RegistrationForm, PaychecksForm
 from app.models import Account, AccountType, User, FileFormat, Transaction, Category, Paycheck
 from werkzeug.urls import url_parse
 import csv
@@ -152,21 +152,33 @@ def transactions(account_id):
         if account.file_format:
             file_contents = form.file_upload.data.read().decode('utf-8').splitlines()
             data = list(csv.reader(file_contents, delimiter=','))
+            category_defined = True
+
+            if len(data[account.file_format.header_rows]) < account.file_format.category_column:
+                category_defined = False
+                # combine these queries
+                uncategorized_expense_category = Category.query.filter(Category.name == "Uncategorized Expense").first()
+                uncategorized_income_category = Category.query.filter(Category.name == "Other Income").first()
+
             for row in data[account.file_format.header_rows:]:
                 date_data = row[account.file_format.date_column-1]
                 if date_data == '** No Record found for the given criteria ** ':
                     continue
-                date_data = date_data[:10]
+                date_data = date_data[:10] #use regex and convert if year only has 2 nums
+                date = datetime.strptime(date_data, account.file_format.date_format).date()
 
                 amount_data = row[account.file_format.amount_column-1]
                 amount_data = amount_data.replace('$', '')
                 amount_data = amount_data.replace('+', '')
                 amount_data = amount_data.replace(' ', '')
 
-                date = datetime.strptime(date_data, account.file_format.date_format).date()
                 description = row[account.file_format.description_column-1]
-                category_name = row[account.file_format.category_column-1] if len(row) >= account.file_format.num_columns else None
-                category = Category.query.filter(Category.name == category_name).first()
+                if category_defined:
+                    category_name = row[account.file_format.category_column-1]
+                    category = Category.query.filter(Category.name == category_name).first()
+                else:
+                    category = uncategorized_expense_category if float(amount_data) < 0 else uncategorized_income_category
+
                 exists = Transaction.query.filter(Transaction.date == date, Transaction.description == description,
                                                 Transaction.amount == amount_data, Transaction.account_id == account_id).first()
 
@@ -182,8 +194,24 @@ def transactions(account_id):
                 else:
                     exists.category = category
             db.session.commit()
-            return redirect(url_for('account_details', account_id=account_id ))
+        return redirect(url_for('account_details', account_id=account_id ))
     return render_template('forms/file_upload.html', form=form)
+
+@app.route('/transaction/<int:transaction_id>/edit_category', methods=['GET', 'POST'])
+@login_required
+def edit_category(transaction_id):
+    transaction = Transaction.query.filter(Transaction.id == transaction_id).first_or_404()
+
+    form = EditCategoryForm(data={'category': transaction.category.id})
+    categories = Category.query.filter(Category.transaction_level == True).all()
+    form.category.choices = [(category.id, category.name) for category in categories if category.top_level_parent().name in [('Expense' if transaction.amount < 0 else 'Income'), 'Transfer', 'Investment']]
+
+    if form.validate_on_submit():
+        if transaction.category_id != form.category.data:
+            transaction.category_id = form.category.data
+            db.session.commit()
+        return redirect(url_for('view_transactions', account_id=transaction.account_id ))
+    return render_template('forms/edit_category.html', form=form, transaction=transaction)
 
 @app.route('/add_categories', methods=['GET', 'POST'])
 @login_required

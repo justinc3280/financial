@@ -85,6 +85,11 @@ class Category(db.Model):
     parent = db.relationship('Category', remote_side=[id])
     children = db.relationship('Category')
 
+    def top_level_parent(self):
+        if self.parent is None:
+            return self
+        return self.parent.top_level_parent()
+
     def __repr__(self):
         return '<Category {}>'.format(self.name)
 

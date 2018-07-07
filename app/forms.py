@@ -51,6 +51,10 @@ class FileUploadForm(FlaskForm):
     file_upload = FileField('File')
     submit = SubmitField('Submit')
 
+class EditCategoryForm(FlaskForm):
+    category = SelectField('Select Category', coerce=int, validators=[DataRequired()])
+    submit = SubmitField('Submit')
+
 class PaychecksForm(FlaskForm):
     date = StringField('Date', validators=[DataRequired()])
     company_name = StringField('Company', validators=[DataRequired()])
