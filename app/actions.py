@@ -191,8 +191,6 @@ def transactions(account_id):
                         account_id = account_id,
                     )
                     db.session.add(transaction)
-                else:
-                    exists.category = category
             db.session.commit()
         return redirect(url_for('account_details', account_id=account_id ))
     return render_template('forms/file_upload.html', form=form)
