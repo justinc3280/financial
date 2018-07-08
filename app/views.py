@@ -73,15 +73,16 @@ def balance_sheet():
         end_date = date(year, month_num, days[1])
 
         for account in current_user.accounts:
-            #end_date = date(month=1, day=31, year=2018)
-            end_balance = account.get_ending_balance(end_date = end_date)
-            #end_balance = account.get_ending_balance()
-            if account.type.name == "Checking" or account.type.name == "Savings" or account.type.name == "Brokerage" or account.type.name == "Online":
-                cash_and_equivalents[account.name] = round(end_balance, 2)
-                cash_and_equivalents['Total'] = round(cash_and_equivalents['Total'] + end_balance, 2)
-            elif account.type.name == "Credit Card":
-                accounts_payable[account.name] = round(end_balance, 2)
-                accounts_payable['Total'] = round(accounts_payable['Total'] + end_balance, 2)
+            if account.type:
+                #end_date = date(month=1, day=31, year=2018)
+                end_balance = account.get_ending_balance(end_date = end_date)
+                #end_balance = account.get_ending_balance()
+                if account.type.name == "Checking" or account.type.name == "Savings" or account.type.name == "Brokerage" or account.type.name == "Online":
+                    cash_and_equivalents[account.name] = round(end_balance, 2)
+                    cash_and_equivalents['Total'] = round(cash_and_equivalents['Total'] + end_balance, 2)
+                elif account.type.name == "Credit Card":
+                    accounts_payable[account.name] = round(end_balance, 2)
+                    accounts_payable['Total'] = round(accounts_payable['Total'] + end_balance, 2)
 
     working_capital = cash_and_equivalents['Total'] + accounts_payable['Total']
     net_worth = working_capital

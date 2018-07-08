@@ -19,11 +19,14 @@
 					<td>{{ transaction.date | date }}</td>
 					<td>{{ transaction.amount | money }}</td>
 					<td>{{ transaction.description }}</td>
-					<td>{{ transaction.category.name }}</td>
+					<td>
+						{{ transaction.category.name }}
+						<a href={{ url_for('edit_category', transaction_id=transaction.id) }}><i class="fa fa-pencil-square-o" aria-hidden="true"></i></a>
+					</td>
 				</tr>
 			{% endfor %}
 		</tbody>
-	</table>														
+	</table>
 {% else %}
   No transactions to display
 {% endif %}

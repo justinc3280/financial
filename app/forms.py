@@ -34,7 +34,7 @@ class AccountForm(FlaskForm):
     header_rows = StringField('Number of Header Rows')
     num_columns = StringField('Number of Columns')
     date_column = StringField('Date Column')
-    date_format = SelectField('Date Format', choices=[('%m/%d/%Y', 'MM/DD/YYYY'), ('%Y-%m-%d', 'YYYY-MM-DD')])
+    date_format = SelectField('Date Format', choices=[('%m/%d/%Y', 'MM/DD/YYYY'), ('%m/%d/%y', 'MM/DD/YY'), ('%Y-%m-%d', 'YYYY-MM-DD'), ('%Y-%m-%dT%H:M:S', 'YYYY-MM-DDTHH:MM:SS')])
     description_column = StringField('Description Column')
     amount_column = StringField('Amount Column')
     category_column = StringField('Category Column')
@@ -49,6 +49,10 @@ class AccountTypeForm(FlaskForm):
 
 class FileUploadForm(FlaskForm):
     file_upload = FileField('File')
+    submit = SubmitField('Submit')
+
+class EditCategoryForm(FlaskForm):
+    category = SelectField('Select Category', coerce=int, validators=[DataRequired()])
     submit = SubmitField('Submit')
 
 class PaychecksForm(FlaskForm):
