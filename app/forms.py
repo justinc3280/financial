@@ -34,7 +34,7 @@ class AccountForm(FlaskForm):
     header_rows = StringField('Number of Header Rows')
     num_columns = StringField('Number of Columns')
     date_column = StringField('Date Column')
-    date_format = SelectField('Date Format', choices=[('%m/%d/%Y', 'MM/DD/YYYY'), ('%Y-%m-%d', 'YYYY-MM-DD')])
+    date_format = SelectField('Date Format', choices=[('%m/%d/%Y', 'MM/DD/YYYY'), ('%m/%d/%y', 'MM/DD/YY'), ('%Y-%m-%d', 'YYYY-MM-DD')])
     description_column = StringField('Description Column')
     amount_column = StringField('Amount Column')
     category_column = StringField('Category Column')

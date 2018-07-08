@@ -152,19 +152,18 @@ def transactions(account_id):
         if account.file_format:
             file_contents = form.file_upload.data.read().decode('utf-8').splitlines()
             data = list(csv.reader(file_contents, delimiter=','))
-            category_defined = True
+            # combine these queries
+            uncategorized_expense_category = Category.query.filter(Category.name == "Uncategorized Expense").first()
+            uncategorized_income_category = Category.query.filter(Category.name == "Other Income").first()
 
             if len(data[account.file_format.header_rows]) < account.file_format.category_column:
                 category_defined = False
-                # combine these queries
-                uncategorized_expense_category = Category.query.filter(Category.name == "Uncategorized Expense").first()
-                uncategorized_income_category = Category.query.filter(Category.name == "Other Income").first()
+
 
             for row in data[account.file_format.header_rows:]:
                 date_data = row[account.file_format.date_column-1]
                 if date_data == '** No Record found for the given criteria ** ':
                     continue
-                date_data = date_data[:10] #use regex and convert if year only has 2 nums
                 date = datetime.strptime(date_data, account.file_format.date_format).date()
 
                 amount_data = row[account.file_format.amount_column-1]
@@ -173,9 +172,10 @@ def transactions(account_id):
                 amount_data = amount_data.replace(' ', '')
 
                 description = row[account.file_format.description_column-1]
-                if category_defined:
+                if len(data[account.file_format.header_rows]) >= account.file_format.category_column:
                     category_name = row[account.file_format.category_column-1]
-                    category = Category.query.filter(Category.name == category_name).first()
+                    category_obj = Category.query.filter(Category.name == category_name).first()
+                    category = category_obj if category_obj else (uncategorized_expense_category if float(amount_data) < 0 else uncategorized_income_category)
                 else:
                     category = uncategorized_expense_category if float(amount_data) < 0 else uncategorized_income_category
 
