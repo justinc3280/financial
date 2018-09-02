@@ -16,15 +16,31 @@
   </select>
   <a class="btn btn-sm btn-info" id="navigate_to_month" href="#">View</a>
 
+  <table class="table table-responsive">
+    <thead>
+      <tr>
+      <th></th>
+      {% for _, month_name in month_choices[1:] %}
+        <th>{{ month_name }}</th>
+      {% endfor %}
+      </tr>
+    </thead>
   {% for category, sub_categories in categories.items() recursive %}
     {% if category != total_object and sub_categories[total_object][0] != 0 %}
-      <li>{{ category.name }}: {{ sub_categories[total_object][0] | money(show_as_positive=True) }}
+      <tr>
+        <td>{{ category.name }}</td>
+        {% for total in sub_categories[total_object] %}
+          <td>{{ total | money(show_as_positive=True) }}</td>
+        {% endfor %}
+      </tr>
     {% endif %}
+
     {% if sub_categories is mapping %}
-      <ul>{{ loop(sub_categories.items()) }}</ul>
+      {{ loop(sub_categories.items()) }}
     {% endif %}
-    </li>
   {% endfor %}
+  </table>
+
 
   <h2>Total</h2>
     <ul>

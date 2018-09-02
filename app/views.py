@@ -4,6 +4,7 @@ from flask_login import current_user, login_required
 from app.models import Account, AccountType, Transaction, Category, Paycheck
 from datetime import date
 import calendar
+from collections import defaultdict
 
 @app.route('/')
 @app.route('/index')
@@ -143,7 +144,7 @@ class Total():
     def __repr__(self):
         return self.name
 
-def category_dict(num_months=1):
+def category_dict(num_months=12):
     categories = Category.query.all()
     category_dict = {}
     total = Total()
@@ -167,6 +168,7 @@ def income_statement():
     paychecks = []
 
     year = 2018
+    '''
     month_num = request.args.get('month', None)
     if month_num:
         month_num = int(month_num)
@@ -176,11 +178,15 @@ def income_statement():
 
         transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between(start_date, end_date)).all()
         paychecks = Paycheck.query.filter(Paycheck.user_id==current_user.id, Paycheck.date.between(start_date, end_date)).all()
-
-    month_index = 0
+    '''
+    start_date = date(year, 1, 1)
+    end_date = date(year, 12, 31)
+    transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between(start_date, end_date)).all()
+    paychecks = Paycheck.query.filter(Paycheck.user_id==current_user.id, Paycheck.date.between(start_date, end_date)).all()
 
     for paycheck in paychecks:
         paycheck_dict = paycheck.__dict__
+        paycheck_date = paycheck_dict.get('date')
         [paycheck_dict.pop(k) for k in ['_sa_instance_state', 'id', 'user_id', 'company_name', 'date']]
 
         for key, value in paycheck_dict.items():
@@ -192,20 +198,26 @@ def income_statement():
             if top_level_category.name in ["Income", "Expense", "Tax"]:
                 transaction = Transaction(
                     amount = value,
+                    date = paycheck_date,
                     category = category
                 )
                 transactions.append(transaction)
 
+    transactions_by_month = defaultdict(list)
+    for transaction in transactions:
+        transactions_by_month[transaction.date.month - 1].append(transaction)
+
     categories = category_dict()
     total = Total()
-    for transaction in transactions:
-        parent_categories = get_parent_categories(transaction.category)
-        if parent_categories[0].name in ['Income', 'Tax','Expense']:
-            for index, category in enumerate(parent_categories):
-                cat_dict = categories
-                for x in range(0, index):
-                    cat_dict = cat_dict[parent_categories[x]]
-                cat_dict[category][total][month_index] += transaction.amount
+    for month_index, transaction_list in transactions_by_month.items():
+        for transaction in transaction_list:
+            parent_categories = get_parent_categories(transaction.category)
+            if parent_categories[0].name in ['Income', 'Tax','Expense']:
+                for index, category in enumerate(parent_categories):
+                    cat_dict = categories
+                    for x in range(0, index):
+                        cat_dict = cat_dict[parent_categories[x]]
+                    cat_dict[category][total][month_index] += transaction.amount
 
     income_category = Category.query.filter(Category.name == 'Income').first()
     expense_category = Category.query.filter(Category.name == 'Expense').first()
