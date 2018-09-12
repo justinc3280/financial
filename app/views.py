@@ -167,6 +167,7 @@ def income_statement():
     transactions = []
     paychecks = []
 
+    num_months = 12
     year = 2018
     '''
     month_num = request.args.get('month', None)
@@ -207,7 +208,7 @@ def income_statement():
     for transaction in transactions:
         transactions_by_month[transaction.date.month - 1].append(transaction)
 
-    categories = category_dict()
+    categories = category_dict(num_months)
     total = Total()
     for month_index, transaction_list in transactions_by_month.items():
         for transaction in transaction_list:
@@ -223,12 +224,21 @@ def income_statement():
     expense_category = Category.query.filter(Category.name == 'Expense').first()
     tax_category = Category.query.filter(Category.name == 'Tax').first()
 
-    total_income = categories[income_category][total][0] if income_category in categories else 0
-    total_expense = categories[expense_category][total][0] if expense_category in categories else 0
-    total_tax = categories[tax_category][total][0] if tax_category in categories else 0
+    def add_lists(list1, list2):
+        if len(list1) != len(list2):
+            return None
+        length = len(list1)
+        sum = []
+        for ind in range(length):
+            sum.append(list1[ind] + list2[ind])
+        return sum
 
-    income_after_taxes = total_income + total_tax
-    net_income = income_after_taxes + total_expense
+    total_income = categories[income_category][total] if income_category in categories else [0] * num_months
+    total_expense = categories[expense_category][total] if expense_category in categories else [0] * num_months
+    total_tax = categories[tax_category][total] if tax_category in categories else [0] * num_months
+
+    income_after_taxes = add_lists(total_income, total_tax)
+    net_income = add_lists(income_after_taxes, total_expense)
 
     return render_template("income_statement.html",
                             categories=categories,
