@@ -16,19 +16,45 @@
   </select>
   <a class="btn btn-sm btn-info" id="navigate_to_month" href="#">View</a>
 
+  <table class="table table-responsive">
+    <thead>
+      <tr>
+        <th></th>
+        {% for _, month_name in month_choices[1:] %}
+          <th>{{ month_name }}</th>
+        {% endfor %}
+        <th>Total</th>
+      </tr>
+    </thead>
   {% for category, sub_categories in categories.items() recursive %}
-    {% if category != total_object and sub_categories[total_object][0] != 0 %}
-      <li>{{ category.name }}: {{ sub_categories[total_object][0] | money(show_as_positive=True) }}
+    {% if category != total_object and not sub_categories[total_object]|max == sub_categories[total_object]|min == 0 %}
+      <tr>
+        <td>{{ category.name }}</td>
+        {% for total in sub_categories[total_object] %}
+          <td>{{ total | money(show_as_positive=True) }}</td>
+        {% endfor %}
+        <td>{{ sub_categories[total_object] | sum | money(show_as_positive=True) }}</td>
+      </tr>
     {% endif %}
+
     {% if sub_categories is mapping %}
-      <ul>{{ loop(sub_categories.items()) }}</ul>
+      {{ loop(sub_categories.items()) }}
     {% endif %}
-    </li>
   {% endfor %}
 
-  <h2>Total</h2>
-    <ul>
-      <li>Income After Taxes: {{ income_after_taxes | money }}</li>
-      <li>Net Income: {{ net_income | money }}</li>
-    </ul>
+  <tr>
+    <td>Income After Taxes</td>
+    {% for income in income_after_taxes %}
+      <td>{{ income | money }}</td>
+    {% endfor %}
+    <td>{{ income_after_taxes | sum | money }}</td>
+  </tr>
+  <tr>
+    <td>Net Income</td>
+    {% for net in net_income %}
+      <td>{{ net | money }}</td>
+    {% endfor %}
+    <td>{{ net_income | sum | money }}</td>
+  </tr>
+  </table>
 {% endblock %}

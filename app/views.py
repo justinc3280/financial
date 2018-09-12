@@ -4,6 +4,7 @@ from flask_login import current_user, login_required
 from app.models import Account, AccountType, Transaction, Category, Paycheck
 from datetime import date
 import calendar
+from collections import defaultdict
 
 @app.route('/')
 @app.route('/index')
@@ -143,7 +144,7 @@ class Total():
     def __repr__(self):
         return self.name
 
-def category_dict(num_months=1):
+def category_dict(num_months=12):
     categories = Category.query.all()
     category_dict = {}
     total = Total()
@@ -166,7 +167,9 @@ def income_statement():
     transactions = []
     paychecks = []
 
+    num_months = 12
     year = 2018
+    '''
     month_num = request.args.get('month', None)
     if month_num:
         month_num = int(month_num)
@@ -176,11 +179,15 @@ def income_statement():
 
         transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between(start_date, end_date)).all()
         paychecks = Paycheck.query.filter(Paycheck.user_id==current_user.id, Paycheck.date.between(start_date, end_date)).all()
-
-    month_index = 0
+    '''
+    start_date = date(year, 1, 1)
+    end_date = date(year, 12, 31)
+    transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between(start_date, end_date)).all()
+    paychecks = Paycheck.query.filter(Paycheck.user_id==current_user.id, Paycheck.date.between(start_date, end_date)).all()
 
     for paycheck in paychecks:
         paycheck_dict = paycheck.__dict__
+        paycheck_date = paycheck_dict.get('date')
         [paycheck_dict.pop(k) for k in ['_sa_instance_state', 'id', 'user_id', 'company_name', 'date']]
 
         for key, value in paycheck_dict.items():
@@ -192,31 +199,46 @@ def income_statement():
             if top_level_category.name in ["Income", "Expense", "Tax"]:
                 transaction = Transaction(
                     amount = value,
+                    date = paycheck_date,
                     category = category
                 )
                 transactions.append(transaction)
 
-    categories = category_dict()
-    total = Total()
+    transactions_by_month = defaultdict(list)
     for transaction in transactions:
-        parent_categories = get_parent_categories(transaction.category)
-        if parent_categories[0].name in ['Income', 'Tax','Expense']:
-            for index, category in enumerate(parent_categories):
-                cat_dict = categories
-                for x in range(0, index):
-                    cat_dict = cat_dict[parent_categories[x]]
-                cat_dict[category][total][month_index] += transaction.amount
+        transactions_by_month[transaction.date.month - 1].append(transaction)
+
+    categories = category_dict(num_months)
+    total = Total()
+    for month_index, transaction_list in transactions_by_month.items():
+        for transaction in transaction_list:
+            parent_categories = get_parent_categories(transaction.category)
+            if parent_categories[0].name in ['Income', 'Tax','Expense']:
+                for index, category in enumerate(parent_categories):
+                    cat_dict = categories
+                    for x in range(0, index):
+                        cat_dict = cat_dict[parent_categories[x]]
+                    cat_dict[category][total][month_index] += transaction.amount
 
     income_category = Category.query.filter(Category.name == 'Income').first()
     expense_category = Category.query.filter(Category.name == 'Expense').first()
     tax_category = Category.query.filter(Category.name == 'Tax').first()
 
-    total_income = categories[income_category][total][0] if income_category in categories else 0
-    total_expense = categories[expense_category][total][0] if expense_category in categories else 0
-    total_tax = categories[tax_category][total][0] if tax_category in categories else 0
+    def add_lists(list1, list2):
+        if len(list1) != len(list2):
+            return None
+        length = len(list1)
+        sum = []
+        for ind in range(length):
+            sum.append(list1[ind] + list2[ind])
+        return sum
 
-    income_after_taxes = total_income + total_tax
-    net_income = income_after_taxes + total_expense
+    total_income = categories[income_category][total] if income_category in categories else [0] * num_months
+    total_expense = categories[expense_category][total] if expense_category in categories else [0] * num_months
+    total_tax = categories[tax_category][total] if tax_category in categories else [0] * num_months
+
+    income_after_taxes = add_lists(total_income, total_tax)
+    net_income = add_lists(income_after_taxes, total_expense)
 
     return render_template("income_statement.html",
                             categories=categories,
