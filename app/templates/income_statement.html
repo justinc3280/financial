@@ -19,19 +19,21 @@
   <table class="table table-responsive">
     <thead>
       <tr>
-      <th></th>
-      {% for _, month_name in month_choices[1:] %}
-        <th>{{ month_name }}</th>
-      {% endfor %}
+        <th></th>
+        {% for _, month_name in month_choices[1:] %}
+          <th>{{ month_name }}</th>
+        {% endfor %}
+        <th>Total</th>
       </tr>
     </thead>
   {% for category, sub_categories in categories.items() recursive %}
-    {% if category != total_object and sub_categories[total_object][0] != 0 %}
+    {% if category != total_object and not sub_categories[total_object]|max == sub_categories[total_object]|min == 0 %}
       <tr>
         <td>{{ category.name }}</td>
         {% for total in sub_categories[total_object] %}
           <td>{{ total | money(show_as_positive=True) }}</td>
         {% endfor %}
+        <td>{{ sub_categories[total_object] | sum | money(show_as_positive=True) }}</td>
       </tr>
     {% endif %}
 
@@ -45,12 +47,14 @@
     {% for income in income_after_taxes %}
       <td>{{ income | money }}</td>
     {% endfor %}
+    <td>{{ income_after_taxes | sum | money }}</td>
   </tr>
   <tr>
     <td>Net Income</td>
     {% for net in net_income %}
       <td>{{ net | money }}</td>
     {% endfor %}
+    <td>{{ net_income | sum | money }}</td>
   </tr>
   </table>
 {% endblock %}
