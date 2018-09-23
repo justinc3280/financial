@@ -5,9 +5,10 @@
     {% else %}
         {{ field.label }}<br>
         {{ field }}<br>
-        {% for error in field.errors %}
-          <span style="color: red;">[{{ error }}]</span>
-        {% endfor %}
     {% endif %}
+    
+    {% for error in field.errors %}
+      <span style="color: red;">[{{ error }}]</span>
+    {% endfor %}
   </p>
 {% endmacro %}
