@@ -1,16 +1,14 @@
-{% extends "base.html" %}
-{% from 'forms/form_utils.html' import render_field %}
+{% extends "forms/base.html" %}
 
-{% block content %}
+{% block form_title %}Sign In{% endblock form_title %}
 
-<h1>Sign In</h1>
-<form action="" method="post">
-  {{ form.hidden_tag() }}
-
+{% block form_content %}
   {{ render_field(form.username) }}
   {{ render_field(form.password) }}
-  {{ render_field(form.remember_me, label_above=False) }}
-  <p>{{ form.submit() }}</p>
-</form>
-<p>New User? <a href="{{ url_for('register') }}">Click to Register!</a></p>
-{% endblock %}
+  {{ render_field(form.remember_me) }}
+{% endblock form_content %}
+
+{% block form_submit %}
+  {{ super() }}
+  <p>New User? <a href="{{ url_for('register') }}">Click to Register!</a></p>
+{% endblock form_submit %}

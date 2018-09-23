@@ -1,14 +1,11 @@
-{% extends "base.html" %}
-{% from 'forms/form_utils.html' import render_field %}
+{% extends "forms/base.html" %}
 
-{% block content %}
+{% block form_title %}Add Transactions{% endblock form_title %}
 
-<h1>Add Transactions</h1>
-<form action="" method="post" enctype="multipart/form-data">
-  {{ form.hidden_tag() }}
+{% block form_attributes %}
+  enctype="multipart/form-data"
+{% endblock form_attributes %}
 
+{% block form_content %}
   {{ render_field(form.file_upload) }}
-  <p>{{ form.submit() }}</p>
-</form>
-
-{% endblock %}
+{% endblock form_content %}

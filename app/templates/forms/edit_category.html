@@ -1,20 +1,16 @@
-{% extends "base.html" %}
-{% from 'forms/form_utils.html' import render_field %}
+{% extends "forms/base.html" %}
 
-{% block content %}
+{% block form_title %}Edit Category{% endblock form_title %}
 
-<h2>Edit Category</h2>
-<form action="" method="post">
-  {{ form.hidden_tag() }}
-  
+{% block form_content %}
   <p>Transaction: {{ transaction.description }}</p>
   {{ render_field(form.category) }}
-  <p>{{ form.submit() }}</p>
-</form>
+{% endblock form_content %}
 
-<script>
-$(document).ready(function() {
-    $('#category').select2();
-});
-</script>
-{% endblock content %}
+{% block form_script %}
+  <script>
+  $(document).ready(function() {
+      $('#category').select2();
+  });
+  </script>
+{% endblock form_script %}
