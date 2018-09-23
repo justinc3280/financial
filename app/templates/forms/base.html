@@ -3,7 +3,7 @@
 
 {% block content %}
 
-<h2>{% block title %}{% endblock title %}</h2>
+<h2>{% block form_title %}{% endblock form_title %}</h2>
 <form action="" method="post" {% block form_attributes %}{% endblock form_attributes %}>
   {{ form.hidden_tag() }}
 
