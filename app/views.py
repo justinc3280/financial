@@ -15,7 +15,7 @@ def index():
 @app.route('/accounts')
 @login_required
 def accounts():
-    accounts = Account.query.all()
+    accounts = Account.query.filter(Account.user==current_user).all()
     return render_template('accounts.html', title='Accounts', accounts=accounts)
 
 @app.route('/account/<int:account_id>/')
@@ -41,7 +41,7 @@ def stocks():
 @app.route('/stock_transactions')
 @login_required
 def stock_transactions():
-    stock_transactions = StockTransaction.query.all()
+    stock_transactions = StockTransaction.query.filter(StockTransaction.user==current_user).all()
 
     return render_template("stock_transactions.html", stock_transactions=stock_transactions)
 
