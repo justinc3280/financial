@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField, SelectField, SubmitField, FileField
+from wtforms import  BooleanField, DateField, FileField, FloatField, PasswordField, SelectField, StringField, SubmitField
 from flask_wtf.file import FileAllowed, FileRequired
 from wtforms.validators import DataRequired, Email, EqualTo, ValidationError
 from app.models import User
@@ -78,3 +78,12 @@ class PaychecksForm(FlaskForm):
                     self.roth_retirement
                 )
     '''
+
+class StockTransactionForm(FlaskForm):
+    date = DateField('Date', validators=[DataRequired()], format='%m/%d/%Y')
+    symbol = StringField('Symbol', validators=[DataRequired()])
+    quantity = FloatField('Quantity', validators=[DataRequired()])
+    price_per_share = FloatField('Price Per Share', validators=[DataRequired()])
+    transaction_fee = FloatField('Fee', validators=[DataRequired()])
+    transaction_type = SelectField('Type', choices=[('buy', 'Buy'), ('sell', 'Sell')], validators=[DataRequired()])
+    submit = SubmitField('Submit')

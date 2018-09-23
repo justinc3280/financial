@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h4>Stocks</h4>
+<table>
+  <tr>
+    <th>Type</th>
+    <th>Date</th>
+    <th>Symbol</th>
+    <th>Quantity</th>
+    <th>PPS</th>
+    <th>Fee</th>
+    <th>Total</th>
+  </tr>
+  {% for stock_transaction in stock_transactions %}
+    <tr>
+      <td>{{ stock_transaction.transaction_type | capitalize }}</td>
+      <td>{{ stock_transaction.date }}</td>
+      <td>{{ stock_transaction.symbol }}</td>
+      <td>{{ stock_transaction.quantity }}</td>
+      <td>{{ stock_transaction.price_per_share | money }}</td>
+      <td>{{ stock_transaction.transaction_fee | money }}</td>
+      <td>{{ stock_transaction.total_cost() | money }}</td>
+    </tr>
+  {% endfor %}
+</table>
+<a class="btn btn-primary" href={{ url_for('add_stock_transaction') }}>Add Stock Transaction</a>
+
+{% endblock %}

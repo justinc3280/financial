@@ -32,7 +32,8 @@
     <a href={{ url_for('accounts') }}>Accounts</a>
     <a href={{ url_for('paychecks') }}>Paychecks</a>
     <a href={{ url_for('categories') }}>Categories</a>
-    <a href={{ url_for('account_types')}}>Account Types</a>
+    <a href={{ url_for('account_types') }}>Account Types</a>
+    <a href={{ url_for('stocks') }}>Stocks</a>
     {% if current_user.is_anonymous %}
       <a class="btn btn-primary float-right" href={{ url_for('login') }}>Login</a>
     {% else %}

@@ -1,8 +1,8 @@
 from app import app, db
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_user, logout_user, login_required
-from app.forms import LoginForm, AccountForm, AccountTypeForm, EditCategoryForm, FileUploadForm, RegistrationForm, PaychecksForm
-from app.models import Account, AccountType, User, FileFormat, Transaction, Category, Paycheck
+from app.forms import AccountForm, AccountTypeForm, EditCategoryForm, FileUploadForm, LoginForm, PaychecksForm, RegistrationForm, StockTransactionForm
+from app.models import Account, AccountType, Category, FileFormat, Transaction, StockTransaction, Paycheck, User
 from werkzeug.urls import url_parse
 import csv
 from datetime import datetime
@@ -334,3 +334,22 @@ def add_paycheck():
         return redirect(url_for('paychecks'))
     return render_template('forms/add_paycheck.html', form=form)
     '''
+
+@app.route('/add_stock_transaction', methods=['GET', 'POST'])
+@login_required
+def add_stock_transaction():
+    form = StockTransactionForm()
+    if form.validate_on_submit():
+        stock_transaction = StockTransaction(
+            date=form.date.data,
+            symbol=form.symbol.data,
+            quantity=form.quantity.data,
+            price_per_share=form.price_per_share.data,
+            transaction_fee=form.transaction_fee.data,
+            transaction_type=form.transaction_type.data,
+            user=current_user
+        )
+        db.session.add(stock_transaction)
+        db.session.commit()
+        return redirect(url_for('stocks'))
+    return render_template('forms/add_stock_transaction.html', form=form)

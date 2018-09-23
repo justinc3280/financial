@@ -1,7 +1,7 @@
 from app import app, db
 from flask import redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from app.models import Account, AccountType, Transaction, Category, Paycheck
+from app.models import Account, AccountType, Category, Paycheck, StockTransaction, Transaction
 from datetime import date
 import calendar
 from collections import defaultdict
@@ -31,6 +31,12 @@ def account_types():
 
     return render_template("account_types.html", account_types=account_types)
 
+@app.route('/stocks')
+@login_required
+def stocks():
+    stock_transactions = StockTransaction.query.all()
+
+    return render_template("stocks.html", stock_transactions=stock_transactions)
 
 @app.route('/account/<int:account_id>/view_transactions')
 @login_required
