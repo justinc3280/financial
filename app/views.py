@@ -34,8 +34,6 @@ def account_types():
 @app.route('/stocks')
 @login_required
 def stocks():
-    stock_transactions = StockTransaction.query.all()
-
     return render_template("stocks.html")
 
 @app.route('/stock_transactions')

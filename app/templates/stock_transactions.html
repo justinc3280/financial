@@ -2,33 +2,33 @@
 
 {% block content %}
 
-<h4>Stock Transactions</h4>
-<table class="table">
-  <tr>
-    <th>Type</th>
-    <th>Date</th>
-    <th>Symbol</th>
-    <th>Quantity</th>
-    <th>PPS</th>
-    <th>Fee</th>
-    <th>Total</th>
-    <th><th>
-  </tr>
-  {% for stock_transaction in stock_transactions %}
+  <h4>Stock Transactions</h4>
+  <table class="table">
     <tr>
-      <td>{{ stock_transaction.transaction_type | capitalize }}</td>
-      <td>{{ stock_transaction.date | date }}</td>
-      <td>{{ stock_transaction.symbol }}</td>
-      <td>{{ stock_transaction.quantity }}</td>
-      <td>{{ stock_transaction.price_per_share | money }}</td>
-      <td>{{ stock_transaction.transaction_fee | money }}</td>
-      <td>{{ stock_transaction.total_cost() | money }}</td>
-      <td>
-        <a href={{ url_for('edit_stock_transaction', stock_transaction_id=stock_transaction.id) }}><i class="fa fa-pencil-square-o" aria-hidden="true"></i></a>
-      </td>
+      <th>Type</th>
+      <th>Date</th>
+      <th>Symbol</th>
+      <th>Quantity</th>
+      <th>PPS</th>
+      <th>Fee</th>
+      <th>Total</th>
+      <th><th>
     </tr>
-  {% endfor %}
-</table>
-<a class="btn btn-primary" href={{ url_for('edit_stock_transaction', stock_transaction_id=0) }}>Add Stock Transaction</a>
+    {% for stock_transaction in stock_transactions %}
+      <tr>
+        <td>{{ stock_transaction.transaction_type | capitalize }}</td>
+        <td>{{ stock_transaction.date | date }}</td>
+        <td>{{ stock_transaction.symbol }}</td>
+        <td>{{ stock_transaction.quantity }}</td>
+        <td>{{ stock_transaction.price_per_share | money }}</td>
+        <td>{{ stock_transaction.transaction_fee | money }}</td>
+        <td>{{ stock_transaction.total_cost() | money }}</td>
+        <td>
+          <a href={{ url_for('edit_stock_transaction', stock_transaction_id=stock_transaction.id) }}><i class="fa fa-pencil-square-o" aria-hidden="true"></i></a>
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+  <a class="btn btn-primary" href={{ url_for('edit_stock_transaction', stock_transaction_id=0) }}>Add Stock Transaction</a>
 
 {% endblock %}

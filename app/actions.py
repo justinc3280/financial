@@ -340,10 +340,10 @@ def add_paycheck():
 def edit_stock_transaction(stock_transaction_id):
     if stock_transaction_id > 0:
         stock_transaction = StockTransaction.query.get(stock_transaction_id)
-        type = "Edit"
+        label = "Edit"
     else:
         stock_transaction = None
-        type = "Add"
+        label = "Add"
 
     data = {}
     if stock_transaction:
@@ -375,5 +375,5 @@ def edit_stock_transaction(stock_transaction_id):
             )
             db.session.add(stock_transaction)
         db.session.commit()
-        return redirect(url_for('stocks'))
-    return render_template('forms/edit_stock_transaction.html', type=type, form=form)
+        return redirect(url_for('stock_transactions'))
+    return render_template('forms/edit_stock_transaction.html', type=label, form=form)
