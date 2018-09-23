@@ -1,24 +1,16 @@
-{% extends "base.html" %}
+{% extends "forms/base.html" %}
 
-{% block content %}
+{% block form_title %}Edit Category{% endblock form_title %}
 
-<h2>Edit Category</h2>
-<form action="" method="post">
-  {{ form.hidden_tag() }}
+{% block form_content %}
   <p>Transaction: {{ transaction.description }}</p>
-  <p>
-    {{ form.category.label }}
-    {{ form.category }}<br>
-    {% for error in form.category.errors %}
-      <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
-  <p>{{ form.submit() }}</p>
-</form>
+  {{ render_field(form.category) }}
+{% endblock form_content %}
 
-<script>
-$(document).ready(function() {
-    $('#category').select2();
-});
-</script>
-{% endblock content %}
+{% block form_script %}
+  <script>
+  $(document).ready(function() {
+      $('#category').select2();
+  });
+  </script>
+{% endblock form_script %}
