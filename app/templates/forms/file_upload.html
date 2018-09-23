@@ -1,18 +1,11 @@
-{% extends "base.html" %}
+{% extends "forms/base.html" %}
 
-{% block content %}
+{% block form_title %}Add Transactions{% endblock form_title %}
 
-<h1>Add Transactions</h1>
-<form action="" method="post" enctype="multipart/form-data">
-  {{ form.hidden_tag() }}
-  <p>
-    {{ form.file_upload.label }}<br>
-    {{ form.file_upload }}
-    {% for error in form.file_upload.errors %}
-      <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
-  <p>{{ form.submit() }}</p>
-</form>
+{% block form_attributes %}
+  enctype="multipart/form-data"
+{% endblock form_attributes %}
 
-{% endblock %}
+{% block form_content %}
+  {{ render_field(form.file_upload) }}
+{% endblock form_content %}
