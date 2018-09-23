@@ -1,0 +1,12 @@
+{% extends "forms/base.html" %}
+
+{% block form_title %}{{ type }} Stock Transaction{% endblock form_title %}
+
+{% block form_content %}
+  {{ render_field(form.transaction_type) }}
+  {{ render_field(form.date) }}
+  {{ render_field(form.symbol) }}
+  {{ render_field(form.quantity) }}
+  {{ render_field(form.price_per_share) }}
+  {{ render_field(form.transaction_fee) }}
+{% endblock form_content %}

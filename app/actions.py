@@ -335,21 +335,45 @@ def add_paycheck():
     return render_template('forms/add_paycheck.html', form=form)
     '''
 
-@app.route('/add_stock_transaction', methods=['GET', 'POST'])
+@app.route('/stock_transaction/<int:stock_transaction_id>/edit', methods=['GET', 'POST'])
 @login_required
-def add_stock_transaction():
-    form = StockTransactionForm()
+def edit_stock_transaction(stock_transaction_id):
+    if stock_transaction_id > 0:
+        stock_transaction = StockTransaction.query.get(stock_transaction_id)
+        type = "Edit"
+    else:
+        stock_transaction = None
+        type = "Add"
+
+    data = {}
+    if stock_transaction:
+        data['date'] = stock_transaction.date
+        data['symbol'] = stock_transaction.symbol
+        data['quantity'] = stock_transaction.quantity
+        data['price_per_share'] = stock_transaction.price_per_share
+        data['transaction_fee'] = stock_transaction.transaction_fee
+        data['transaction_type'] = stock_transaction.transaction_type
+
+    form = StockTransactionForm(data=data)
     if form.validate_on_submit():
-        stock_transaction = StockTransaction(
-            date=form.date.data,
-            symbol=form.symbol.data,
-            quantity=form.quantity.data,
-            price_per_share=form.price_per_share.data,
-            transaction_fee=form.transaction_fee.data,
-            transaction_type=form.transaction_type.data,
-            user=current_user
-        )
-        db.session.add(stock_transaction)
+        if stock_transaction:
+            stock_transaction.date = form.date.data
+            stock_transaction.symbol = form.symbol.data
+            stock_transaction.quantity = form.quantity.data
+            stock_transaction.price_per_share = form.price_per_share.data
+            stock_transaction.transaction_fee = form.transaction_fee.data
+            stock_transaction.transaction_type = form.transaction_type.data
+        else:
+            stock_transaction = StockTransaction(
+                date=form.date.data,
+                symbol=form.symbol.data,
+                quantity=form.quantity.data,
+                price_per_share=form.price_per_share.data,
+                transaction_fee=form.transaction_fee.data,
+                transaction_type=form.transaction_type.data,
+                user=current_user
+            )
+            db.session.add(stock_transaction)
         db.session.commit()
         return redirect(url_for('stocks'))
-    return render_template('forms/add_stock_transaction.html', form=form)
+    return render_template('forms/edit_stock_transaction.html', type=type, form=form)
