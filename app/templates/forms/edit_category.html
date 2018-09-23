@@ -1,18 +1,14 @@
 {% extends "base.html" %}
+{% from 'forms/form_utils.html' import render_field %}
 
 {% block content %}
 
 <h2>Edit Category</h2>
 <form action="" method="post">
   {{ form.hidden_tag() }}
+  
   <p>Transaction: {{ transaction.description }}</p>
-  <p>
-    {{ form.category.label }}
-    {{ form.category }}<br>
-    {% for error in form.category.errors %}
-      <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
+  {{ render_field(form.category) }}
   <p>{{ form.submit() }}</p>
 </form>
 

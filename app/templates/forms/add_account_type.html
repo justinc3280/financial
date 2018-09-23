@@ -1,31 +1,15 @@
 {% extends "base.html" %}
+{% from 'forms/form_utils.html' import render_field %}
 
 {% block content %}
 
 <h2>Add Account Type</h2>
 <form action="" method="post">
   {{ form.hidden_tag() }}
-  <p>
-    {{ form.name.label }}
-    {{ form.name }}<br>
-    {% for error in form.name.errors %}
-      <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
-  <p>
-    {{ form.middle_level.label }}
-    {{ form.middle_level }}<br>
-    {% for error in form.middle_level.errors %}
-      <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
-  <p>
-    {{ form.top_level.label }}
-    {{ form.top_level }}<br>
-    {% for error in form.top_level.errors %}
-      <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
+
+  {{ render_field(form.name) }}
+  {{ render_field(form.middle_level) }}
+  {{ render_field(form.top_level) }}
   <p>{{ form.submit() }}</p>
 </form>
 

@@ -1,101 +1,25 @@
 {% extends "base.html" %}
+{% from 'forms/form_utils.html' import render_field %}
 
 {% block content %}
 
 <h2>Add Paycheck</h2>
 <form action="" method="post">
   {{ form.hidden_tag() }}
-  <p>
-    {{ form.date.label }}
-    {{ form.date }}<br>
-    {% for error in form.date.errors %}
-      <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
-  <p>
-    {{ form.company_name.label }}
-    {{ form.company_name }}<br>
-    {% for error in form.company_name.errors %}
-      <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
-  <p>
-    {{ form.gross_pay.label }}
-    {{ form.gross_pay }}<br>
-    {% for error in form.gross_pay.errors %}
-      <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
-  <p>
-    {{ form.federal_income_tax.label }}
-    {{ form.federal_income_tax }}<br>
-    {% for error in form.federal_income_tax.errors %}
-      <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
-  <p>
-    {{ form.social_security_tax.label }}
-    {{ form.social_security_tax }}<br>
-    {% for error in form.social_security_tax.errors %}
-      <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
-  <p>
-    {{ form.medicare_tax.label }}
-    {{ form.medicare_tax }}<br>
-    {% for error in form.medicare_tax.errors %}
-      <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
-  <p>
-    {{ form.state_income_tax.label }}
-    {{ form.state_income_tax }}<br>
-    {% for error in form.state_income_tax.errors %}
-      <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
-  <p>
-    {{ form.health_insurance.label }}
-    {{ form.health_insurance }}<br>
-    {% for error in form.health_insurance.errors %}
-      <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
-  <p>
-    {{ form.dental_insurance.label }}
-    {{ form.dental_insurance }}<br>
-    {% for error in form.dental_insurance.errors %}
-      <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
-  <p>
-    {{ form.traditional_retirement.label }}
-    {{ form.traditional_retirement }}<br>
-    {% for error in form.traditional_retirement.errors %}
-      <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
-  <p>
-    {{ form.roth_retirement.label }}
-    {{ form.roth_retirement }}<br>
-    {% for error in form.roth_retirement.errors %}
-      <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
-  <p>
-    {{ form.retirement_match.label }}
-    {{ form.retirement_match }}<br>
-    {% for error in form.retirement_match.errors %}
-      <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
-  <p>
-    {{ form.net_pay.label }}
-    {{ form.net_pay }}<br>
-    {% for error in form.net_pay.errors %}
-      <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
+
+  {{ render_field(form.date) }}
+  {{ render_field(form.company_name) }}
+  {{ render_field(form.gross_pay) }}
+  {{ render_field(form.federal_income_tax) }}
+  {{ render_field(form.social_security_tax) }}
+  {{ render_field(form.medicare_tax) }}
+  {{ render_field(form.state_income_tax) }}
+  {{ render_field(form.health_insurance) }}
+  {{ render_field(form.dental_insurance) }}
+  {{ render_field(form.traditional_retirement) }}
+  {{ render_field(form.roth_retirement) }}
+  {{ render_field(form.retirement_match) }}
+  {{ render_field(form.net_pay) }}
   <p>{{ form.submit() }}</p>
 </form>
 {% endblock content %}
