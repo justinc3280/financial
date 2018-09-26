@@ -34,7 +34,10 @@ def account_types():
 @app.route('/stocks')
 @login_required
 def stocks():
-    return render_template("stocks.html")
+    stock_symbols = []
+    for stock_transaction in StockTransaction.query.filter(StockTransaction.user==current_user).distinct(StockTransaction.symbol):
+        stock_symbols.append(stock_transaction.symbol)
+    return render_template("stocks.html", symbols=stock_symbols)
 
 @app.route('/stock_transactions')
 @login_required

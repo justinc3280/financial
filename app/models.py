@@ -125,7 +125,7 @@ class StockTransaction(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
 
     def total_cost(self):
-        return (self.quantity * self.price_per_share) + self.transaction_fee
+        return round((self.quantity * self.price_per_share) + self.transaction_fee, 2)
 
     def adjusted_price_per_share(self):
         return self.total_cost() / self.quantity
