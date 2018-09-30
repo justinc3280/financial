@@ -47,8 +47,10 @@ def stock_transactions():
 @login_required
 def view_transactions(account_id):
     account = Account.query.filter(Account.id == account_id).first_or_404()
-
-    return render_template('transactions.html', transactions=account.transactions)
+    categories = Category.query.filter(Category.transaction_level == True).all()
+    income_choices = [(category.id, category.name) for category in categories if category.top_level_parent().name in ['Income', 'Transfer', 'Investment']]
+    expense_choices = [(category.id, category.name) for category in categories if category.top_level_parent().name in ['Expense', 'Transfer', 'Investment']]
+    return render_template('transactions.html', transactions=account.transactions, income_choices=income_choices, expense_choices=expense_choices)
 
 @app.route('/categories')
 @login_required

@@ -198,7 +198,18 @@ def transactions(account_id):
 @app.route('/transaction/<int:transaction_id>/edit_category', methods=['GET', 'POST'])
 @login_required
 def edit_category(transaction_id):
-    transaction = Transaction.query.filter(Transaction.id == transaction_id).first_or_404()
+
+    if request.form:
+        transaction_id = int(request.form.get('transaction_id'))
+        new_category_id = int(request.form.get('category_id'))
+
+        transaction = Transaction.query.get_or_404(transaction_id)
+
+        transaction.category_id = new_category_id
+        db.session.commit()
+        return(transaction.category.name)
+
+    transaction = Transaction.query.get_or_404(transaction_id)
 
     form = EditCategoryForm(data={'category': transaction.category.id})
     categories = Category.query.filter(Category.transaction_level == True).all()
