@@ -21,8 +21,8 @@
 					<td>{{ transaction.description }}</td>
 					<td>
 						<div id="category_name_{{ transaction.id }}">{{ transaction.category.name }}</div>
-						{% set url = url_for('edit_category', transaction_id=transaction.id) | string %}
-						<button type="button" id="openModal{{ transaction.id }}" class="fa fa-pencil-square-o" data-url={{ url }} onclick="getEditCategoryModal({{ transaction.id }})"></button>
+						{% set url = url_for('edit_category', transaction_id=transaction.id) %}
+						<button type="button" class="fa fa-pencil-square-o" data-display-result-id="category_name_{{ transaction.id }}" data-url={{ url }} onclick="getEditCategoryModal(event)"></button>
 					</td>
 				</tr>
 			{% endfor %}
@@ -36,28 +36,41 @@
 
 <script>
 
-	function getEditCategoryModal(transaction_id) {
-		$button = $('#openModal'+transaction_id);
-		url = $button.attr('data-url');
+	function getEditCategoryModal(e) {
+		var button = (e.target) ? e.target : e.srcElement;
+		var url = button.getAttribute('data-url');
+		var display_result_id = button.getAttribute('data-display-result-id')
+
+		var $modal_slot = $("#modal_slot");
 
 		$.ajax({type:'POST', url:url, success: function(response) {
-				$("#modal_slot").html(response)
-				$("#modal_slot").find(".modal").modal('show');
+				$modal_slot.html(response)
+				$modal = $modal_slot.find(".modal")
+				$form = $modal.find("form")
+
+				$form.attr('data-display-result-id', display_result_id)
+				$form.attr('data-url', url)
+				$form.attr('onsubmit', "return submitForm(event);")
+
+				$modal.modal('show');
 		}})
 	}
 
-	function submitForm(transaction_id) {
-			$form = $('#editCategory' + transaction_id);
-			var url_name = $form.attr('data-url');
-			console.log(url_name)
-			category_name_display = $('#category_name_' + transaction_id);
+	function submitForm(e) {
+			var form = (e.target) ? e.target : e.srcElement;
+			var url_name = form.getAttribute('data-url');
+			var display_result_id = form.getAttribute('data-display-result-id');
 
-	    $.ajax({type:'POST', url: url_name, data:$form.serialize(), success: function(response) {
-					category_name_display.html(response);
-	    }});
+			$.ajax({type:'POST', url: url_name, data:$(form).serialize(), success: function(response) {
+					displayResult(response, display_result_id);
+			}});
 
-			$("#modal_slot").find(".modal").modal('hide');
-	    return false;
+			return false;
+	}
+
+	function displayResult(result, display_result_id) {
+		$("#" + display_result_id).html(result)
+		$("#modal_slot").find(".modal").modal('hide');
 	}
 </script>
 {% endblock %}

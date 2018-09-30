@@ -1,11 +1,6 @@
 {% extends "forms/base_modal.html" %}
 
-{% set form_id = 'editCategory' + transaction.id|string %}
-{% set url = url_for('edit_category', transaction_id=transaction.id) | string %}
-
-{% block modal_attributes %}
-  id={{ form_id }} data-url={{url}} onsubmit="return submitForm({{ transaction.id }});"
-{% endblock modal_attributes %}
+{% block modal_id %}editCategoryModal{% endblock modal_id %}
 
 {% block modal_title %}Edit Category{% endblock modal_title %}
 
@@ -22,8 +17,11 @@
 
 {% block modal_script %}
   <script>
-  $(document).ready(function() {
-      $('#category').select2({width: '100%'});
-  });
+    $(document).ready(function() {
+        $('#category').select2({
+          dropdownParent: $('#editCategoryModal'),
+          width: '100%'
+        });
+    });
   </script>
 {% endblock modal_script %}

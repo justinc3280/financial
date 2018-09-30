@@ -1,8 +1,8 @@
 {% from 'forms/form_utils.html' import render_field %}
 
-<div class="modal" tabindex="-1" role="dialog">
+<div class="modal" id="{% block modal_id %}{% endblock modal_id %}" tabindex="-1" role="dialog">
   <div class="modal-dialog" role="document">
-    <form method="POST" {% block modal_attributes %}{% endblock modal_attributes %}>
+    <form method="POST">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title font-weight-bold">
