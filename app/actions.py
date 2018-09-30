@@ -201,7 +201,7 @@ def edit_category(transaction_id):
 
     if request.form:
         transaction_id = int(request.form.get('transaction_id'))
-        new_category_id = int(request.form.get('category_id'))
+        new_category_id = int(request.form.get('category'))
 
         transaction = Transaction.query.get_or_404(transaction_id)
 

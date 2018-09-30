@@ -1,16 +1,29 @@
-{% extends "forms/base.html" %}
+{% extends "forms/base_modal.html" %}
 
-{% block form_title %}Edit Category{% endblock form_title %}
+{% set form_id = 'editCategory' + transaction.id|string %}
+{% set url = url_for('edit_category', transaction_id=transaction.id) | string %}
 
-{% block form_content %}
-  <p>Transaction: {{ transaction.description }}</p>
+{% block modal_attributes %}
+  id={{ form_id }} data-url={{url}} onsubmit="return submitForm({{ transaction.id }});"
+{% endblock modal_attributes %}
+
+{% block modal_title %}Edit Category{% endblock modal_title %}
+
+{% block modal_content %}
+  <p>
+    <strong>Date:</strong> {{ transaction.date | date }} <br>
+    <strong>Amount:</strong> {{ transaction.amount | money}} <br>
+    <strong>Description:</strong> {{ transaction.description }} <br>
+  </p>
+
+  <input hidden name='transaction_id' value={{ transaction.id }}></input>
   {{ render_field(form.category) }}
-{% endblock form_content %}
+{% endblock modal_content %}
 
-{% block form_script %}
+{% block modal_script %}
   <script>
   $(document).ready(function() {
-      $('#category').select2();
+      $('#category').select2({width: '100%'});
   });
   </script>
-{% endblock form_script %}
+{% endblock modal_script %}

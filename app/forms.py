@@ -52,7 +52,7 @@ class FileUploadForm(FlaskForm):
     submit = SubmitField('Submit')
 
 class EditCategoryForm(FlaskForm):
-    category = SelectField('Select Category', coerce=int, validators=[DataRequired()])
+    category = SelectField('Category', coerce=int, validators=[DataRequired()])
     submit = SubmitField('Submit')
 
 class PaychecksForm(FlaskForm):

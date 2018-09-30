@@ -21,70 +21,42 @@
 					<td>{{ transaction.description }}</td>
 					<td>
 						<div id="category_name_{{ transaction.id }}">{{ transaction.category.name }}</div>
-						<button type="button" class="fa fa-pencil-square-o" data-toggle="modal" data-target="#edit-category-{{ transaction.id }}"></button>
+						{% set url = url_for('edit_category', transaction_id=transaction.id) | string %}
+						<button type="button" id="openModal{{ transaction.id }}" class="fa fa-pencil-square-o" data-url={{ url }} onclick="getEditCategoryModal({{ transaction.id }})"></button>
 					</td>
 				</tr>
-
-
-					<div class="modal edit-category-modal" id="edit-category-{{ transaction.id }}" tabindex="-1" role="dialog">
-						<div class="modal-dialog" role="document">
-							{% set form_id = 'editCategory' + transaction.id|string %}
-							{% set url = url_for('edit_category', transaction_id=transaction.id) | string %}
-							<form method="POST" id={{ form_id }} data-url={{url}} onsubmit="return submitForm({{ transaction.id }});">
-								<div class="modal-content">
-									<div class="modal-header">
-										<h5 class="modal-title">
-											Edit Category
-										</h5>
-										<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-											<span aria-hidden="true">&times;</span>
-										</button>
-									</div>
-									<div class="modal-body">
-										<p>Transaction: {{ transaction.description }}</p>
-										<input hidden name='transaction_id' value={{ transaction.id }}></input>
-										<select id="category-field-{{transaction.id}}" name="category_id">
-											{% set choices = income_choices if transaction.amount >=0 else expense_choices  %}
-											{% for choice in choices %}
-												<option value={{ choice[0] }} {% if choice[0] == transaction.category_id %}selected{% endif %}>{{ choice[1] }}</option>
-											{% endfor %}
-										</select>
-									</div>
-									<div class="modal-footer">
-										<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-										<input type="submit" class='btn btn-primary'>
-									</div>
-								</div>
-							</form>
-						</div>
-					</div>
-
-					<script>
-						$(document).ready(function() {
-						  $("#category-field-{{transaction.id}}").select2({
-						    dropdownParent: $('#edit-category-{{ transaction.id }}'),
-								width: '100%'
-						  });
-						});
-					</script>
-
 			{% endfor %}
 		</tbody>
 	</table>
 {% else %}
   No transactions to display
 {% endif %}
+
+<div id="modal_slot" role="dialog"></div>
+
 <script>
+
+	function getEditCategoryModal(transaction_id) {
+		$button = $('#openModal'+transaction_id);
+		url = $button.attr('data-url');
+
+		$.ajax({type:'POST', url:url, success: function(response) {
+				$("#modal_slot").html(response)
+				$("#modal_slot").find(".modal").modal('show');
+		}})
+	}
+
 	function submitForm(transaction_id) {
 			$form = $('#editCategory' + transaction_id);
 			var url_name = $form.attr('data-url');
+			console.log(url_name)
 			category_name_display = $('#category_name_' + transaction_id);
 
 	    $.ajax({type:'POST', url: url_name, data:$form.serialize(), success: function(response) {
-					category_name_display.html(response)
+					category_name_display.html(response);
 	    }});
 
-			$('.edit-category-modal').modal('hide')
+			$("#modal_slot").find(".modal").modal('hide');
 	    return false;
 	}
 </script>

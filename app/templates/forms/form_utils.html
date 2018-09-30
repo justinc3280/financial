@@ -1,9 +1,9 @@
 {% macro render_field(field) %}
   <p>
     {% if field.type == "BooleanField" %}
-      {{ field }} {{ field.label }}<br>
+      {{ field }} <strong>{{ field.label }}<strong><br>
     {% else %}
-        {{ field.label }}<br>
+        <strong>{{ field.label }}</strong><br>
         {{ field }}<br>
     {% endif %}
 
