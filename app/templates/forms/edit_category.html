@@ -1,16 +1,26 @@
-{% extends "forms/base.html" %}
+{% extends "forms/base_modal.html" %}
 
-{% block form_title %}Edit Category{% endblock form_title %}
+{% block modal_id %}editCategoryModal{% endblock modal_id %}
 
-{% block form_content %}
-  <p>Transaction: {{ transaction.description }}</p>
+{% block modal_title %}Edit Category{% endblock modal_title %}
+
+{% block modal_content %}
+  <p>
+    <strong>Date:</strong> {{ transaction.date | date }} <br>
+    <strong>Amount:</strong> {{ transaction.amount | money}} <br>
+    <strong>Description:</strong> {{ transaction.description }} <br>
+  </p>
+
   {{ render_field(form.category) }}
-{% endblock form_content %}
+{% endblock modal_content %}
 
-{% block form_script %}
+{% block modal_script %}
   <script>
-  $(document).ready(function() {
-      $('#category').select2();
-  });
+    $(document).ready(function() {
+        $('#category').select2({
+          dropdownParent: $('#editCategoryModal'),
+          width: '100%'
+        });
+    });
   </script>
-{% endblock form_script %}
+{% endblock modal_script %}

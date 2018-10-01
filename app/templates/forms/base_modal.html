@@ -1,0 +1,27 @@
+{% from 'forms/form_utils.html' import render_field %}
+
+<div class="modal" id="{% block modal_id %}{% endblock modal_id %}" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <form method="POST">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title font-weight-bold">
+            {% block modal_title %}{% endblock modal_title %}
+          </h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          {% block modal_content %}{% endblock modal_content %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          <input type="submit" class='btn btn-primary'>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% block modal_script %}{% endblock modal_script %}

@@ -47,7 +47,6 @@ def stock_transactions():
 @login_required
 def view_transactions(account_id):
     account = Account.query.filter(Account.id == account_id).first_or_404()
-
     return render_template('transactions.html', transactions=account.transactions)
 
 @app.route('/categories')
