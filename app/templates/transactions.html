@@ -21,8 +21,12 @@
 					<td>{{ transaction.description }}</td>
 					<td>
 						<span id="category_name_{{ transaction.id }}">{{ transaction.category.name }}</span>
-						{% set url = url_for('edit_category', transaction_id=transaction.id) %}
-						<button type="button" class="fa fa-pencil-square-o" data-display-result-id="category_name_{{ transaction.id }}" data-url={{ url }} onclick="getModal(event)"></button>
+						<button type="button"
+										class="fa fa-pencil-square-o"
+										data-display-result-id="category_name_{{ transaction.id }}"
+										data-url={{ url_for('edit_category', transaction_id=transaction.id) }}
+										onclick="getModal(event)">
+						</button>
 					</td>
 				</tr>
 			{% endfor %}
