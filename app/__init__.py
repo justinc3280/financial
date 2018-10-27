@@ -4,13 +4,19 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
 
+db = SQLAlchemy()
+migrate = Migrate()
+login = LoginManager()
+login.login_view = 'auth.login'
+
 app = Flask(__name__)
 app.config.from_object(Config)
 
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+db.init_app(app)
+migrate.init_app(app, db)
+login.init_app(app)
 
-login = LoginManager(app)
-login.login_view = 'login'
+from app.auth import auth as auth_bp
+app.register_blueprint(auth_bp, url_prefix='/auth')
 
 from app import actions, jinja, models, views
