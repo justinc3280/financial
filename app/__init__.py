@@ -19,4 +19,7 @@ login.init_app(app)
 from app.auth import auth as auth_bp
 app.register_blueprint(auth_bp, url_prefix='/auth')
 
-from app import actions, jinja, models, views
+from app.finance import finance as finance_bp
+app.register_blueprint(finance_bp)
+
+from app import jinja, models

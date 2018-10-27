@@ -1,13 +1,14 @@
-from app import app, db
+from app import db
 from flask import redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from app.forms import AccountForm, AccountTypeForm, EditCategoryForm, FileUploadForm, PaychecksForm, StockTransactionForm
+from app.finance import finance
+from app.finance.forms import AccountForm, AccountTypeForm, EditCategoryForm, FileUploadForm, PaychecksForm, StockTransactionForm
 from app.models import Account, AccountType, Category, FileFormat, Transaction, StockTransaction, Paycheck
 import csv
 from datetime import datetime
 
 
-@app.route('/account/<int:account_id>/edit', methods=['GET', 'POST'])
+@finance.route('/account/<int:account_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_account(account_id):
     if account_id > 0:
@@ -66,12 +67,12 @@ def edit_account(account_id):
             )
             db.session.add(new_format)
         db.session.commit()
-        return redirect(url_for('account_details', account_id=account.id))
+        return redirect(url_for('finance.account_details', account_id=account.id))
 
-    return render_template('forms/edit_account.html', type=label, form=form)
+    return render_template('finance/forms/edit_account.html', type=label, form=form)
 
 
-@app.route('/account/<int:account_id>/delete/', methods=['GET', 'POST'])
+@finance.route('/account/<int:account_id>/delete/', methods=['GET', 'POST'])
 @login_required
 def delete_account(account_id):
     account = Account.query.filter(Account.id == account_id).first_or_404()
@@ -80,9 +81,9 @@ def delete_account(account_id):
     db.session.delete(account.file_format)
     db.session.delete(account)
     db.session.commit()
-    return redirect(url_for('accounts'))
+    return redirect(url_for('finance.accounts'))
 
-@app.route('/add_account_type', methods=['GET', 'POST'])
+@finance.route('/add_account_type', methods=['GET', 'POST'])
 @login_required
 def add_account_type():
     form = AccountTypeForm()
@@ -91,11 +92,11 @@ def add_account_type():
         account_type = AccountType(name = form.name.data, middle_level = form.middle_level.data, top_level = form.top_level.data)
         db.session.add(account_type)
         db.session.commit()
-        return redirect(url_for('account_types'))
+        return redirect(url_for('finance.account_types'))
 
-    return render_template('forms/add_account_type.html', form=form)
+    return render_template('finance/forms/add_account_type.html', form=form)
 
-@app.route('/account/<int:account_id>/transactions', methods=['GET', 'POST'])
+@finance.route('/account/<int:account_id>/transactions', methods=['GET', 'POST'])
 @login_required
 def transactions(account_id):
     form = FileUploadForm()
@@ -145,10 +146,10 @@ def transactions(account_id):
                     )
                     db.session.add(transaction)
             db.session.commit()
-        return redirect(url_for('account_details', account_id=account_id ))
-    return render_template('forms/file_upload.html', form=form)
+        return redirect(url_for('finance.account_details', account_id=account_id ))
+    return render_template('finance/forms/file_upload.html', form=form)
 
-@app.route('/transaction/<int:transaction_id>/edit_category', methods=['GET', 'POST'])
+@finance.route('/transaction/<int:transaction_id>/edit_category', methods=['GET', 'POST'])
 @login_required
 def edit_category(transaction_id):
     transaction = Transaction.query.get_or_404(transaction_id)
@@ -167,10 +168,10 @@ def edit_category(transaction_id):
         if transaction.category_id != form.category.data:
             transaction.category_id = form.category.data
             db.session.commit()
-        return redirect(url_for('view_transactions', account_id=transaction.account_id ))
-    return render_template('forms/edit_category.html', form=form, transaction=transaction)
+        return redirect(url_for('finance.view_transactions', account_id=transaction.account_id ))
+    return render_template('finance/forms/edit_category.html', form=form, transaction=transaction)
 
-@app.route('/add_categories', methods=['GET', 'POST'])
+@finance.route('/add_categories', methods=['GET', 'POST'])
 @login_required
 def add_categories():
     form = FileUploadForm()
@@ -204,10 +205,10 @@ def add_categories():
                 exists.rank = row[2]
                 exists.transaction_level = (row[3] == 'TRUE')
         db.session.commit()
-        return redirect(url_for('categories'))
-    return render_template('forms/file_upload.html', form=form)
+        return redirect(url_for('finance.categories'))
+    return render_template('finance/forms/file_upload.html', form=form)
 
-@app.route('/add_paycheck', methods=['GET', 'POST'])
+@finance.route('/add_paycheck', methods=['GET', 'POST'])
 @login_required
 def add_paycheck():
     form = FileUploadForm()
@@ -265,8 +266,8 @@ def add_paycheck():
                 )
                 db.session.add(paycheck)
         db.session.commit()
-        return redirect(url_for('paychecks'))
-    return render_template('forms/file_upload.html', form=form)
+        return redirect(url_for('finance.paychecks'))
+    return render_template('finance/forms/file_upload.html', form=form)
     '''
     form = PaychecksForm()
 
@@ -290,11 +291,11 @@ def add_paycheck():
         db.session.add(paycheck)
         db.session.commit()
 
-        return redirect(url_for('paychecks'))
-    return render_template('forms/add_paycheck.html', form=form)
+        return redirect(url_for('finance.paychecks'))
+    return render_template('finance/forms/add_paycheck.html', form=form)
     '''
 
-@app.route('/stock_transaction/<int:stock_transaction_id>/edit', methods=['GET', 'POST'])
+@finance.route('/stock_transaction/<int:stock_transaction_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_stock_transaction(stock_transaction_id):
     if stock_transaction_id > 0:
@@ -334,5 +335,5 @@ def edit_stock_transaction(stock_transaction_id):
             )
             db.session.add(stock_transaction)
         db.session.commit()
-        return redirect(url_for('stock_transactions'))
-    return render_template('forms/edit_stock_transaction.html', type=label, form=form)
+        return redirect(url_for('finance.stock_transactions'))
+    return render_template('finance/forms/edit_stock_transaction.html', type=label, form=form)

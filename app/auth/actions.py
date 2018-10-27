@@ -2,9 +2,11 @@ from app import db
 from app.auth import auth
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_user, logout_user, login_required
+from werkzeug.urls import url_parse
+
 from app.auth.forms import LoginForm, RegistrationForm
 from app.models import User
-from werkzeug.urls import url_parse
+
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
@@ -26,8 +28,7 @@ def login():
             next_page = url_for('index')
 
         return redirect(next_page)
-
-    return render_template('forms/login.html', title='Sign In', form=form)
+    return render_template('auth/forms/login.html', title='Sign In', form=form)
 
 @auth.route('/logout')
 @login_required
@@ -50,4 +51,4 @@ def register():
         db.session.commit()
         flash('User Registered')
         return redirect(url_for('login'))
-    return render_template('forms/register.html', title='Register', form=form)
+    return render_template('auth/forms/register.html', title='Register', form=form)
