@@ -28,17 +28,17 @@
 <body>
 	<header>
 		<h1>Annual Report</h1>
-    <a href={{ url_for('index') }}>Home</a>
-    <a href={{ url_for('accounts') }}>Accounts</a>
-    <a href={{ url_for('paychecks') }}>Paychecks</a>
-    <a href={{ url_for('categories') }}>Categories</a>
-    <a href={{ url_for('account_types') }}>Account Types</a>
-    <a href={{ url_for('stocks') }}>Stocks</a>
+    <a href={{ url_for('finance.index') }}>Home</a>
+    <a href={{ url_for('finance.accounts') }}>Accounts</a>
+    <a href={{ url_for('finance.paychecks') }}>Paychecks</a>
+    <a href={{ url_for('finance.categories') }}>Categories</a>
+    <a href={{ url_for('finance.account_types') }}>Account Types</a>
+    <a href={{ url_for('finance.stocks') }}>Stocks</a>
     {% if current_user.is_anonymous %}
-      <a class="btn btn-primary float-right" href={{ url_for('login') }}>Login</a>
+      <a class="btn btn-primary float-right" href={{ url_for('auth.login') }}>Login</a>
     {% else %}
       <h4 class="float-right">{{ current_user.username }}</h4>
-      <a class="btn btn-primary float-right" href={{ url_for('logout') }}>Logout</a>
+      <a class="btn btn-primary float-right" href={{ url_for('auth.logout') }}>Logout</a>
     {% endif %}
 
     {% with messages = get_flashed_messages() %}

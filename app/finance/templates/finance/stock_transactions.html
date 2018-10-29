@@ -24,11 +24,11 @@
         <td>{{ stock_transaction.transaction_fee | money }}</td>
         <td>{{ stock_transaction.total_cost() | money }}</td>
         <td>
-          <a href={{ url_for('edit_stock_transaction', stock_transaction_id=stock_transaction.id) }}><i class="fa fa-pencil-square-o" aria-hidden="true"></i></a>
+          <a href={{ url_for('finance.edit_stock_transaction', stock_transaction_id=stock_transaction.id) }}><i class="fa fa-pencil-square-o" aria-hidden="true"></i></a>
         </td>
       </tr>
     {% endfor %}
   </table>
-  <a class="btn btn-primary" href={{ url_for('edit_stock_transaction', stock_transaction_id=0) }}>Add Stock Transaction</a>
+  <a class="btn btn-primary" href={{ url_for('finance.edit_stock_transaction', stock_transaction_id=0) }}>Add Stock Transaction</a>
 
 {% endblock %}

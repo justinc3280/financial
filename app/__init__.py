@@ -4,13 +4,28 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
 
-app = Flask(__name__)
-app.config.from_object(Config)
+db = SQLAlchemy()
+migrate = Migrate()
+login = LoginManager()
+login.login_view = 'auth.login'
 
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+from app.auth import auth as auth_bp
+from app.finance import finance as finance_bp
+from app.jinja import register_jinja_filters
 
-login = LoginManager(app)
-login.login_view = 'login'
+def create_app(config_object=Config):
+    app = Flask(__name__)
+    app.config.from_object(config_object)
 
-from app import actions, jinja, models, views
+    db.init_app(app)
+    migrate.init_app(app, db)
+    login.init_app(app)
+
+    app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(finance_bp)
+    
+    register_jinja_filters(app.jinja_env)
+
+    return app
+
+from app import jinja, models
