@@ -116,7 +116,7 @@ def transactions(account_id):
 
             for row in data[account.file_format.header_rows:]:
                 date_data = row[account.file_format.date_column-1]
-                if date_data == '** No Record found for the given criteria ** ':
+                if date_data in ['** No Record found for the given criteria ** ', '***END OF FILE***']:
                     continue
                 date = datetime.strptime(date_data, account.file_format.date_format).date()
 
@@ -134,7 +134,7 @@ def transactions(account_id):
                     category = uncategorized_expense_category if float(amount_data) < 0 else uncategorized_income_category
 
                 exists = Transaction.query.filter(Transaction.date == date, Transaction.description == description,
-                                                Transaction.amount == amount_data, Transaction.account_id == account_id).first()
+                                                  Transaction.amount == amount_data, Transaction.account_id == account_id).first()
 
                 if not exists:
                     transaction = Transaction(
