@@ -1,4 +1,5 @@
-from app import app, db
+from app import db
+from app.finance import finance
 from flask import redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from app.models import Account, AccountType, Category, Paycheck, StockTransaction, Transaction
@@ -6,64 +7,63 @@ from datetime import date
 import calendar
 from collections import defaultdict
 
-@app.route('/')
-@app.route('/index')
+@finance.route('/')
+@finance.route('/index')
 @login_required
 def index():
-    return redirect(url_for('income_statement'))
+    return redirect(url_for('finance.income_statement'))
 
-@app.route('/accounts')
+@finance.route('/accounts')
 @login_required
 def accounts():
     accounts = Account.query.filter(Account.user==current_user).all()
-    return render_template('accounts.html', title='Accounts', accounts=accounts)
+    return render_template('finance/accounts.html', title='Accounts', accounts=accounts)
 
-@app.route('/account/<int:account_id>/')
+@finance.route('/account/<int:account_id>/')
 @login_required
 def account_details(account_id):
     account = Account.query.filter_by(id = account_id).first_or_404()
-    return render_template('account_details.html', account=account)
+    return render_template('finance/account_details.html', account=account)
 
-@app.route('/account_types')
+@finance.route('/account_types')
 @login_required
 def account_types():
     account_types = AccountType.query.all()
 
-    return render_template("account_types.html", account_types=account_types)
+    return render_template("finance/account_types.html", account_types=account_types)
 
-@app.route('/stocks')
+@finance.route('/stocks')
 @login_required
 def stocks():
     stock_symbols = []
     for stock_transaction in StockTransaction.query.filter(StockTransaction.user==current_user).distinct(StockTransaction.symbol):
         stock_symbols.append(stock_transaction.symbol)
-    return render_template("stocks.html", symbols=stock_symbols)
+    return render_template("finance/stocks.html", symbols=stock_symbols)
 
-@app.route('/stock_transactions')
+@finance.route('/stock_transactions')
 @login_required
 def stock_transactions():
     stock_transactions = StockTransaction.query.filter(StockTransaction.user==current_user).all()
 
-    return render_template("stock_transactions.html", stock_transactions=stock_transactions)
+    return render_template("finance/stock_transactions.html", stock_transactions=stock_transactions)
 
-@app.route('/account/<int:account_id>/view_transactions')
+@finance.route('/account/<int:account_id>/view_transactions')
 @login_required
 def view_transactions(account_id):
     account = Account.query.filter(Account.id == account_id).first_or_404()
+    return render_template('finance/transactions.html', transactions=account.transactions)
 
-    return render_template('transactions.html', transactions=account.transactions)
-
-@app.route('/categories')
+@finance.route('/categories')
 @login_required
 def categories():
     categories = Category.query.all()
-    return render_template('categories.html', categories=categories)
+    return render_template('finance/categories.html', categories=categories)
 
-@app.route('/paychecks/')
+@finance.route('/paychecks/')
 @login_required
 def paychecks():
     paychecks = Paycheck.query.filter(Paycheck.user==current_user).all()
-    return render_template('paychecks.html', paychecks=paychecks)
+    return render_template('finance/paychecks.html', paychecks=paychecks)
 
 def month_choices():
     choices = []
@@ -73,7 +73,7 @@ def month_choices():
         choices.append((i, month))
     return choices
 
-@app.route('/balance_sheet')
+@finance.route('/balance_sheet')
 @login_required
 def balance_sheet():
     cash_and_equivalents = {'Total': 0}
@@ -102,7 +102,7 @@ def balance_sheet():
     working_capital = cash_and_equivalents['Total'] + accounts_payable['Total']
     net_worth = working_capital
 
-    return render_template("balance_sheet.html",
+    return render_template("finance/balance_sheet.html",
                             cash_and_equivalents=cash_and_equivalents,
                             accounts_payable=accounts_payable,
                             month_choices=month_choices(),
@@ -175,7 +175,7 @@ def category_dict(num_months=12):
     category_dict = order_dict(category_dict)
     return category_dict
 
-@app.route('/income_statement')
+@finance.route('/income_statement')
 @login_required
 def income_statement():
     transactions = []
@@ -254,14 +254,14 @@ def income_statement():
     income_after_taxes = add_lists(total_income, total_tax)
     net_income = add_lists(income_after_taxes, total_expense)
 
-    return render_template("income_statement.html",
+    return render_template("finance/income_statement.html",
                             categories=categories,
                             total_object=total,
                             income_after_taxes=income_after_taxes,
                             month_choices=month_choices(),
                             net_income=net_income)
 
-@app.route('/cash_flow')
+@finance.route('/cash_flow')
 @login_required
 def cash_flow():
     transactions = []
@@ -318,7 +318,7 @@ def cash_flow():
         'Total': []
     }
 
-    return render_template("cash_flow.html",
+    return render_template("finance/cash_flow.html",
                             categories=categories,
                             beg_bal=beg_bal,
                             month_choices=month_choices(),
