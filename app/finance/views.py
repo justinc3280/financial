@@ -1,5 +1,6 @@
 from app import db
-from app.finance import finance
+from app.finance import finance, stock_values
+from app.finance.stock_values import get_current_price
 from flask import redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from app.models import Account, AccountType, Category, Paycheck, StockTransaction, Transaction
@@ -35,10 +36,32 @@ def account_types():
 @finance.route('/stocks')
 @login_required
 def stocks():
-    stock_symbols = []
-    for stock_transaction in StockTransaction.query.filter(StockTransaction.user==current_user).distinct(StockTransaction.symbol):
-        stock_symbols.append(stock_transaction.symbol)
-    return render_template("finance/stocks.html", symbols=stock_symbols)
+    #symbols = StockTransaction.query(StockTransaction.symbol).distinct()
+    stocks_data = {}
+    for stock_transaction in StockTransaction.query.filter(StockTransaction.user==current_user).all():
+        if stock_transaction.symbol not in stocks_data:
+            stock_data = stocks_data[stock_transaction.symbol] = {
+                'quantity': 0,
+                'cost': 0
+            }
+
+        if stock_transaction.transaction_type == 'buy':
+            stock_data['quantity'] += stock_transaction.quantity
+            stock_data['cost'] += stock_transaction.total_cost()
+        else:
+            stock_data['quantity'] -= stock_transaction.quantity
+            stock_data['cost'] -= stock_transaction.total_cost()
+
+    for symbol, stock_data in stocks_data.items():
+        stock_data['cost_per_share'] = stock_data['cost'] / stock_data['quantity']
+
+        current_price = get_current_price(symbol)
+        if current_price:
+            stock_data['current_price'] = current_price
+            stock_data['market_value'] = stock_data['quantity'] * stock_data['current_price']
+
+    return render_template("finance/stocks.html", stock_data=stocks_data)
+
 
 @finance.route('/stock_transactions')
 @login_required

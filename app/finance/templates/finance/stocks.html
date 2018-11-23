@@ -5,4 +5,27 @@
   <h4>Stocks</h4>
   <a class="btn btn-primary" href={{ url_for('finance.stock_transactions') }}>View Stock Transactions</a>
 
+  <table class="table">
+ 	<tr>
+	  <th>Symbol</th>
+	  <th>Quantity</th>
+	  <th>Cost Per Share</th>
+	  <th>Cost</th>
+	  <th>Price Per Share</th>
+	  <th>Market Value</th>
+	  <th>Gain</th>
+ 	</tr>
+	{% for stock_symbol, data in stock_data.items() %}
+	  <tr>
+	    <td>{{ stock_symbol }}</td>
+	    <td>{{ data.quantity }}</td>
+	    <td>{{ data.cost_per_share | money }}</td>
+	    <td>{{ data.cost | money }}</td>
+	    <td>{{ data.current_price }}</td>
+	  </tr>
+	{% endfor %}
+	</table>
+
+  {#{ stock_data }#}
+
 {% endblock %}
