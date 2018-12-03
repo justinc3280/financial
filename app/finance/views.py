@@ -118,6 +118,10 @@ def paycheck_col_to_category_name(col_name):
         'traditional_retirement': 'Traditional 401K Contribution',
         'roth_retirement': 'Roth 401K Contribution',
         'retirement_match': '401K Match',
+        'gtl': 'G.T.L.',
+        'gtl_in': 'G.T.L. In',
+        #'gym_reimbursement': 'Gym Reimbursement',
+        'gym_reimbursement': 'Other Income',
         'net_pay': 'Net Pay'
     }
     return translation[col_name]
@@ -172,6 +176,34 @@ def category_dict(num_months=12):
     category_dict = order_dict(category_dict)
     return category_dict
 
+def convert_paychecks_to_transactions(paychecks):
+    transactions = []
+    for paycheck in paychecks:
+        paycheck_dict = paycheck.__dict__
+        paycheck_date = paycheck_dict.get('date')
+        for key, value in paycheck.get_properties().items():
+            paycheck_dict[key] = value
+            if key == 'gtl':
+                paycheck_dict['gtl_in'] = value
+
+        [paycheck_dict.pop(k) for k in ['_sa_instance_state', 'id', 'user_id', 'company_name', 'date', 'properties']]
+
+        for key, value in paycheck_dict.items():
+            if key not in ['gross_pay', 'net_pay', 'gym_reimbursement', 'gtl_in']:
+                value = -value
+            cat_name = paycheck_col_to_category_name(key)
+            category = Category.query.filter(Category.name==cat_name).first()
+            top_level_category = get_parent_categories(category)[0]
+            if top_level_category.name in ["Income", "Expense", "Tax"]:
+                transaction = Transaction(
+                    amount = value,
+                    date = paycheck_date,
+                    category = category
+                )
+                transactions.append(transaction)
+    return transactions
+
+
 @finance.route('/income_statement')
 @login_required
 def income_statement():
@@ -196,24 +228,8 @@ def income_statement():
     transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between(start_date, end_date)).all()
     paychecks = Paycheck.query.filter(Paycheck.user_id==current_user.id, Paycheck.date.between(start_date, end_date)).all()
 
-    for paycheck in paychecks:
-        paycheck_dict = paycheck.__dict__
-        paycheck_date = paycheck_dict.get('date')
-        [paycheck_dict.pop(k) for k in ['_sa_instance_state', 'id', 'user_id', 'company_name', 'date']]
-
-        for key, value in paycheck_dict.items():
-            if key not in ['gross_pay', 'net_pay']:
-                value = -value
-            cat_name = paycheck_col_to_category_name(key)
-            category = Category.query.filter(Category.name==cat_name).first()
-            top_level_category = get_parent_categories(category)[0]
-            if top_level_category.name in ["Income", "Expense", "Tax"]:
-                transaction = Transaction(
-                    amount = value,
-                    date = paycheck_date,
-                    category = category
-                )
-                transactions.append(transaction)
+    paycheck_transactions = convert_paychecks_to_transactions(paychecks)
+    transactions = transactions + paycheck_transactions
 
     transactions_by_month = defaultdict(list)
     for transaction in transactions:
@@ -275,21 +291,8 @@ def cash_flow():
         transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between(start_date, end_date)).all()
         paychecks = Paycheck.query.filter(Paycheck.user_id==current_user.id, Paycheck.date.between(start_date, end_date)).all()
 
-    for paycheck in paychecks:
-        paycheck_dict = paycheck.__dict__
-        [paycheck_dict.pop(k) for k in ['_sa_instance_state', 'id', 'user_id', 'company_name', 'date']]
-
-        for key, value in paycheck_dict.items():
-            #cat_name = key.replace('_', ' ').title()
-            cat_name = paycheck_col_to_category_name(key)
-            category = Category.query.filter(Category.name==cat_name).first()
-            top_level_category = get_parent_categories(category)[0]
-            if top_level_category.name in ["Investment", "Transfer"]:
-                transaction = Transaction(
-                    amount = value,
-                    category = category
-                )
-                transactions.append(transaction)
+        paycheck_transactions = convert_paychecks_to_transactions(paychecks)
+        transactions = transactions + paycheck_transactions
 
     categories = category_dict()
     total = Total()
