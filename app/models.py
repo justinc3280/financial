@@ -1,3 +1,5 @@
+import json
+
 from app import db
 from flask_login import UserMixin
 from app import login
@@ -110,9 +112,22 @@ class Paycheck(db.Model):
     retirement_match = db.Column(db.Float)
     net_pay = db.Column(db.Float)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
+    properties = db.Column(db.Text, default="{}")
 
     def __repr__(self):
         return '<Paycheck {}>'.format(self.date)
+
+    def get_properties(self):
+        if self.properties:
+            return json.loads(str(self.properties))
+        else:
+            return {}
+
+    def update_properties(self, data):
+        current_properties = self.get_properties()
+        current_properties.update(data)
+        self.properties = json.dumps(current_properties)
+
 
 class StockTransaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
