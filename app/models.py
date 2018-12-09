@@ -83,7 +83,7 @@ class Category(db.Model):
     name = db.Column(db.String(64))
     parent_id = db.Column(db.Integer, db.ForeignKey("category.id"))
     rank = db.Column(db.Integer)
-    transaction_level = db.Column(db.Boolean)
+    transaction_level = db.Column(db.Boolean) # not used
 
     parent = db.relationship('Category', remote_side=[id])
     children = db.relationship('Category')
