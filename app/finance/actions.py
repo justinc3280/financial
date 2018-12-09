@@ -170,7 +170,7 @@ def edit_transaction_category(transaction_id):
 @login_required
 def add_category():
     form = AddCategoryForm()
-    categories = Category.query.filter(Category.transaction_level == False).all()
+    categories = Category.query.all()
     form.parent.choices = [(category.id, category.name) for category in categories if not category.is_transaction_level]
 
     if request.form:
