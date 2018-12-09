@@ -161,14 +161,9 @@ def edit_transaction_category(transaction_id):
         return(transaction.category.name)
 
     form = EditTransactionCategoryForm(data={'category': transaction.category.id})
-    categories = Category.query.filter(Category.transaction_level == True).all()
-    form.category.choices = [(category.id, category.name) for category in categories if category.top_level_parent().name in [('Expense' if transaction.amount < 0 else 'Income'), 'Transfer', 'Investment']]
+    categories = Category.query.all()
+    form.category.choices = [(category.id, category.name) for category in categories if category.is_transaction_level and category.top_level_parent().name in [('Expense' if transaction.amount < 0 else 'Income'), 'Transfer', 'Investment']]
 
-    if form.validate_on_submit():
-        if transaction.category_id != form.category.data:
-            transaction.category_id = form.category.data
-            db.session.commit()
-        return redirect(url_for('finance.view_transactions', account_id=transaction.account_id ))
     return render_template('finance/forms/edit_transaction_category.html', form=form, transaction=transaction)
 
 @finance.route('/add_category', methods=['GET', 'POST'])
@@ -176,15 +171,12 @@ def edit_transaction_category(transaction_id):
 def add_category():
     form = AddCategoryForm()
     categories = Category.query.filter(Category.transaction_level == False).all()
-    form.parent.choices = [(category.id, category.name) for category in categories]
+    form.parent.choices = [(category.id, category.name) for category in categories if not category.is_transaction_level]
 
     if request.form:
-        db.session.add(Category(name = form.name.data, parent_id = form.parent.data))
-        db.session.commit()
-        #reload page
-
-    if form.validate_on_submit():
-        db.session.add(Category(name = form.name.data, parent_id = form.parent.data))
+        parent_category = Category.query.get_or_404(form.parent.data)
+        new_rank = len(parent_category.children)
+        db.session.add(Category(name = form.name.data, parent_id = form.parent.data, rank=new_rank))
         db.session.commit()
 
     return render_template('finance/forms/add_category.html', form=form)

@@ -2,7 +2,7 @@
 
 {% block content %}
   <h4>Categories</h4>
-  <a class="btn btn-primary" data-modal-url={{ url_for('finance.add_category') }}>Add Category</a>
+  <a class="btn btn-primary" href="#" data-modal-url={{ url_for('finance.add_category') }}>Add Category</a>
 
   {% for category in categories|sort(attribute='rank') recursive %}
     <ul>

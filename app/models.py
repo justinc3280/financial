@@ -88,6 +88,10 @@ class Category(db.Model):
     parent = db.relationship('Category', remote_side=[id])
     children = db.relationship('Category')
 
+    @property
+    def is_transaction_level(self):
+        return not bool(self.children)
+
     def top_level_parent(self):
         return self.get_parent_categories()[0]
 
