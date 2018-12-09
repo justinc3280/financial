@@ -26,6 +26,11 @@ class FileUploadForm(FlaskForm):
     file_upload = FileField('File')
     submit = SubmitField('Submit')
 
+class AddCategoryForm(FlaskForm):
+    name = StringField('Name', validators=[DataRequired()])
+    parent = SelectField('Parent Category', coerce=int, validators=[DataRequired()])
+    submit = SubmitField('Submit')
+
 class EditCategoryForm(FlaskForm):
     category = SelectField('Category', coerce=int, validators=[DataRequired()])
     submit = SubmitField('Submit')

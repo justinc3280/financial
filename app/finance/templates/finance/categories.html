@@ -1,24 +1,15 @@
 {% extends "base.html" %}
 
 {% block content %}
+  <h4>Categories</h4>
+  <a class="btn btn-primary" data-modal-url={{ url_for('finance.add_category') }}>Add Category</a>
 
-<h4>Categories</h4>
-<table>
-  <tr>
-    <th>Category</th>
-    <th>Parent</th>
-    <th>Rank</th>
-    <th>Transaction Level</th>
-  </tr>
-  {% for category in categories %}
-    <tr>
-      <td>{{ category.name }}</td>
-      <td>{{ category.parent.name }}</td>
-      <td>{{ category.rank }}</td>
-      <td>{{ category.transaction_level }}</td>
-    </tr>
+  {% for category in categories|sort(attribute='rank') recursive %}
+    <ul>
+      <li>{{ category.name }}</li>
+      {% if category.children %}
+        {{ loop(category.children) }}
+      {% endif %}
+    </ul>
   {% endfor %}
-</table>
-<a class="btn btn-primary" href={{ url_for('finance.add_categories') }}>Add Categories</a>
-
 {% endblock %}

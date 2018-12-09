@@ -89,9 +89,16 @@ class Category(db.Model):
     children = db.relationship('Category')
 
     def top_level_parent(self):
-        if self.parent is None:
-            return self
-        return self.parent.top_level_parent()
+        return self.get_parent_categories()[0]
+
+    def get_parent_categories(self):
+        parent_categories = [self]
+        parent_category = self.parent
+        while parent_category:
+            parent_categories.append(parent_category)
+            parent_category = parent_category.parent
+        parent_categories.reverse()
+        return parent_categories
 
     def __repr__(self):
         return '<Category {}>'.format(self.name)
