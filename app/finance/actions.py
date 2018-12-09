@@ -2,7 +2,7 @@ from app import db
 from flask import redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from app.finance import finance
-from app.finance.forms import AccountForm, AccountTypeForm, AddCategoryForm, EditCategoryForm, FileUploadForm, PaychecksForm, StockTransactionForm
+from app.finance.forms import AccountForm, AccountTypeForm, AddCategoryForm, EditTransactionCategoryForm, FileUploadForm, PaychecksForm, StockTransactionForm
 from app.models import Account, AccountType, Category, FileFormat, Transaction, StockTransaction, Paycheck
 import csv
 from datetime import datetime
@@ -151,7 +151,7 @@ def transactions(account_id):
 
 @finance.route('/transaction/<int:transaction_id>/edit_category', methods=['GET', 'POST'])
 @login_required
-def edit_category(transaction_id):
+def edit_transaction_category(transaction_id):
     transaction = Transaction.query.get_or_404(transaction_id)
 
     if request.form:
@@ -160,7 +160,7 @@ def edit_category(transaction_id):
         db.session.commit()
         return(transaction.category.name)
 
-    form = EditCategoryForm(data={'category': transaction.category.id})
+    form = EditTransactionCategoryForm(data={'category': transaction.category.id})
     categories = Category.query.filter(Category.transaction_level == True).all()
     form.category.choices = [(category.id, category.name) for category in categories if category.top_level_parent().name in [('Expense' if transaction.amount < 0 else 'Income'), 'Transfer', 'Investment']]
 
@@ -169,7 +169,7 @@ def edit_category(transaction_id):
             transaction.category_id = form.category.data
             db.session.commit()
         return redirect(url_for('finance.view_transactions', account_id=transaction.account_id ))
-    return render_template('finance/forms/edit_category.html', form=form, transaction=transaction)
+    return render_template('finance/forms/edit_transaction_category.html', form=form, transaction=transaction)
 
 @finance.route('/add_category', methods=['GET', 'POST'])
 @login_required

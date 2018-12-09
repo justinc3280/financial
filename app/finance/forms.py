@@ -31,9 +31,8 @@ class AddCategoryForm(FlaskForm):
     parent = SelectField('Parent Category', coerce=int, validators=[DataRequired()])
     submit = SubmitField('Submit')
 
-class EditCategoryForm(FlaskForm):
+class EditTransactionCategoryForm(FlaskForm):
     category = SelectField('Category', coerce=int, validators=[DataRequired()])
-    submit = SubmitField('Submit')
 
 class PaychecksForm(FlaskForm):
     date = StringField('Date', validators=[DataRequired()])
