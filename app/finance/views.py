@@ -53,8 +53,8 @@ def view_transactions(account_id):
 @finance.route('/categories')
 @login_required
 def categories():
-    categories = Category.query.all()
-    return render_template('finance/categories.html', categories=categories)
+    root_categories = Category.query.filter(Category.parent == None).all()
+    return render_template('finance/categories.html', categories=root_categories)
 
 @finance.route('/paychecks/')
 @login_required
@@ -126,15 +126,6 @@ def paycheck_col_to_category_name(col_name):
     }
     return translation[col_name]
 
-def get_parent_categories(category):
-    parent_categories = [category]
-    parent_category = category.parent
-    while parent_category:
-        parent_categories.append(parent_category)
-        parent_category = parent_category.parent
-    parent_categories.reverse()
-    return parent_categories
-
 def order_dict(dictionary):
     result = {}
     for k, v in sorted(dictionary.items(), key=lambda element: element[0].rank):
@@ -165,7 +156,7 @@ def category_dict(num_months=12):
     total = Total()
 
     for category in categories:
-        parent_categories = get_parent_categories(category)
+        parent_categories = category.get_parent_categories()
         for index, category in enumerate(parent_categories):
             cat_dict = category_dict
             for x in range(0, index):
@@ -193,7 +184,7 @@ def convert_paychecks_to_transactions(paychecks):
                 value = -value
             cat_name = paycheck_col_to_category_name(key)
             category = Category.query.filter(Category.name==cat_name).first()
-            top_level_category = get_parent_categories(category)[0]
+            top_level_category = category.top_level_parent()
             if top_level_category.name in ["Income", "Expense", "Tax"]:
                 transaction = Transaction(
                     amount = value,
@@ -239,7 +230,7 @@ def income_statement():
     total = Total()
     for month_index, transaction_list in transactions_by_month.items():
         for transaction in transaction_list:
-            parent_categories = get_parent_categories(transaction.category)
+            parent_categories = transaction.category.get_parent_categories()
             if parent_categories[0].name in ['Income', 'Tax','Expense']:
                 for index, category in enumerate(parent_categories):
                     cat_dict = categories
@@ -298,7 +289,7 @@ def cash_flow():
     total = Total()
     month_index = 0
     for transaction in transactions:
-        parent_categories = get_parent_categories(transaction.category)
+        parent_categories = transaction.category.get_parent_categories()
         if parent_categories[0].name in ['Investment', 'Transfer']:
             for index, category in enumerate(parent_categories):
                 cat_dict = categories

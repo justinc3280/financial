@@ -83,15 +83,26 @@ class Category(db.Model):
     name = db.Column(db.String(64))
     parent_id = db.Column(db.Integer, db.ForeignKey("category.id"))
     rank = db.Column(db.Integer)
-    transaction_level = db.Column(db.Boolean)
+    transaction_level = db.Column(db.Boolean) # not used
 
     parent = db.relationship('Category', remote_side=[id])
     children = db.relationship('Category')
 
+    @property
+    def is_transaction_level(self):
+        return not bool(self.children)
+
     def top_level_parent(self):
-        if self.parent is None:
-            return self
-        return self.parent.top_level_parent()
+        return self.get_parent_categories()[0]
+
+    def get_parent_categories(self):
+        parent_categories = [self]
+        parent_category = self.parent
+        while parent_category:
+            parent_categories.append(parent_category)
+            parent_category = parent_category.parent
+        parent_categories.reverse()
+        return parent_categories
 
     def __repr__(self):
         return '<Category {}>'.format(self.name)

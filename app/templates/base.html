@@ -54,6 +54,51 @@
   {% block content %}
   {% endblock %}
 
+
+  <div id="modal_slot" role="dialog"></div>
+
+  <script>
+    $(document).on("click", "[data-modal-url]", function(e){
+      var $button = $((e.target) ? e.target : e.srcElement);
+      var url = $button.data('modalUrl');
+      var display_result_id = $button.data('displayResultId');
+      var $modal_slot = $("#modal_slot");
+
+      $.ajax({type:'POST', url:url, success: function(response) {
+          $modal_slot.html(response);
+          $modal = $modal_slot.find(".modal");
+          $form = $modal.find("form");
+          if(display_result_id){
+            $form.data('displayResultId', display_result_id);
+          } else {
+            $form.data('reload', true);
+          }
+    
+          $form.data('url', url);
+          $form.attr('onsubmit', "return submitForm(event);");
+          $modal.modal('show');
+      }})
+    })
+
+    function submitForm(e) {
+        var $form = $((e.target) ? e.target : e.srcElement);
+        var url = $form.data('url');
+        var display_result_id = $form.data('displayResultId');
+        var reload_page = $form.data('reload');
+
+        $.ajax({type:'POST', url: url, data:$form.serialize(), success: function(response) {
+          if(display_result_id) {
+            $("#" + display_result_id).html(response);
+          }
+          $("#modal_slot").find(".modal").modal('hide');
+          if(reload_page) {
+            location.reload();
+          }
+        }});
+        return false;
+    }
+  </script>
+
   <script>
     $(document).ready(function(){
       var month_num = parseInt(GetURLParameter('month'))
