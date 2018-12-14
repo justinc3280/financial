@@ -1,14 +1,14 @@
 table.freeze-first-column > thead:first-child > tr:first-child > th:first-child {
     position: absolute;
     display: inline-block;
-    background-color: white;
+    opacity: 0;
     width: 200px;
 }
 
 table.freeze-first-column > tbody > tr > td:first-child {
     position: absolute;
     display: inline-block;
-    background-color: white;
+    opacity: 1;
     width: 200px;
 }
 
