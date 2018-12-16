@@ -93,12 +93,12 @@ def balance_sheet():
             update_category_balances = add_lists(accounts_monthly_ending_balance.get(parent.name), ending_balances)
             accounts_monthly_ending_balance[parent.name] = update_category_balances
 
-    total_current_assetts = accounts_monthly_ending_balance.get('Current Assetts') if accounts_monthly_ending_balance.get('Current Assetts') else [0] * len(ending_month_dates)
-    total_current_liabilities = accounts_monthly_ending_balance.get('Current Liabilities') if accounts_monthly_ending_balance.get('Current Liabilities') else [0] * len(ending_month_dates)
+    total_current_assetts = accounts_monthly_ending_balance.get('Current Assetts', [0] * len(ending_month_dates))
+    total_current_liabilities = accounts_monthly_ending_balance.get('Current Liabilities', [0] * len(ending_month_dates))
     accounts_monthly_ending_balance['working_capital'] = add_lists(total_current_assetts, total_current_liabilities)
 
-    total_assetts = accounts_monthly_ending_balance.get('Assetts') if accounts_monthly_ending_balance.get('Assetts') else [0] * len(ending_month_dates)
-    total_liabilities = accounts_monthly_ending_balance.get('Liabilities') if accounts_monthly_ending_balance.get('Liabilities') else [0] * len(ending_month_dates)
+    total_assetts = accounts_monthly_ending_balance.get('Assetts', [0] * len(ending_month_dates))
+    total_liabilities = accounts_monthly_ending_balance.get('Liabilities', [0] * len(ending_month_dates))
     accounts_monthly_ending_balance['net_worth'] = add_lists(total_assetts, total_liabilities)
 
     root_categories = Category.query.filter(Category.parent == None, Category.name.in_(['Assetts', 'Liabilities'])).all()
@@ -107,39 +107,6 @@ def balance_sheet():
                             root_categories=root_categories,
                             category_monthly_totals=accounts_monthly_ending_balance,
                             month_choices=month_choices())
-    #
-    # cash_and_equivalents = {'Total': 0}
-    # accounts_payable = {'Total': 0}
-    #
-    # year = 2018
-    # month_num = request.args.get('month', None)
-    # if month_num:
-    #     month_num = int(month_num)
-    #     days = calendar.monthrange(year, month_num)
-    #     start_date = date(year, month_num, 1)
-    #     end_date = date(year, month_num, days[1])
-    #
-    #     for account in current_user.accounts:
-    #         if account.type:
-    #             #end_date = date(month=1, day=31, year=2018)
-    #             end_balance = account.get_ending_balance(end_date = end_date)
-    #             #end_balance = account.get_ending_balance()
-    #             if account.type.name == "Checking" or account.type.name == "Savings" or account.type.name == "Brokerage" or account.type.name == "Online":
-    #                 cash_and_equivalents[account.name] = round(end_balance, 2)
-    #                 cash_and_equivalents['Total'] = round(cash_and_equivalents['Total'] + end_balance, 2)
-    #             elif account.type.name == "Credit Card":
-    #                 accounts_payable[account.name] = round(end_balance, 2)
-    #                 accounts_payable['Total'] = round(accounts_payable['Total'] + end_balance, 2)
-    #
-    # working_capital = cash_and_equivalents['Total'] + accounts_payable['Total']
-    # net_worth = working_capital
-    #
-    # return render_template("finance/balance_sheet.html",
-    #                         cash_and_equivalents=cash_and_equivalents,
-    #                         accounts_payable=accounts_payable,
-    #                         month_choices=month_choices(),
-    #                         working_capital=working_capital,
-    #                         net_worth=net_worth)
 
 def paycheck_col_to_category_name(col_name):
     translation = {

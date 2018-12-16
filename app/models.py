@@ -112,8 +112,7 @@ class Category(db.Model):
 
     def get_transaction_level_children(self):
         transaction_level_children = []
-        children_categories = self.children
-        for child_category in children_categories:
+        for child_category in self.children:
             if child_category.is_transaction_level:
                 transaction_level_children.append(child_category)
             else:
