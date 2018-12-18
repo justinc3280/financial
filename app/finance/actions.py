@@ -22,8 +22,8 @@ def edit_account(account_id):
     if account:
         data['name'] = account.name
         data['starting_balance'] = account.starting_balance
-        if account.type:
-            data['account_type'] = account.type.name
+        if account.category:
+            data['account_category'] = account.category.id
         if account.file_format:
             data['header_rows'] = account.file_format.header_rows
             data['num_columns'] = account.file_format.num_columns
@@ -34,8 +34,13 @@ def edit_account(account_id):
             data['category_column'] = account.file_format.category_column
 
     form = AccountForm(data=data)
+    root_categories = Category.query.filter(Category.parent == None, Category.name.in_(['Assetts', 'Liabilities'])).all()
+    categories = []
+    for category in root_categories:
+        categories.extend(category.get_transaction_level_children())
+    form.account_category.choices = [(0,'None')] + sorted([(category.id, category.name) for category in categories], key=lambda x: x[1])
 
-    if form.validate_on_submit():
+    if request.form:
         if account:
             account.name = form.name.data
         else:
@@ -44,8 +49,7 @@ def edit_account(account_id):
             db.session.commit()
 
         account.starting_balance = form.starting_balance.data
-        account_type_name = form.account_type.data
-        account.type = AccountType.query.filter(AccountType.name == account_type_name).first()
+        account.category_id = form.account_category.data
         if account.file_format:
             account.file_format.header_rows = form.header_rows.data
             account.file_format.num_columns = form.num_columns.data
@@ -171,12 +175,16 @@ def edit_transaction_category(transaction_id):
 def add_category():
     form = AddCategoryForm()
     categories = Category.query.all()
-    form.parent.choices = [(category.id, category.name) for category in categories if not category.is_transaction_level]
+    form.parent.choices = [(0,'None')] + sorted([(category.id, category.name) for category in categories], key=lambda x: x[1])
 
     if request.form:
-        parent_category = Category.query.get_or_404(form.parent.data)
-        new_rank = len(parent_category.children)
-        db.session.add(Category(name = form.name.data, parent_id = form.parent.data, rank=new_rank))
+        if form.parent.data:
+            parent_category = Category.query.get_or_404(form.parent.data)
+            new_rank = len(parent_category.children)
+            db.session.add(Category(name = form.name.data, parent_id = form.parent.data, rank=new_rank))
+        else:
+            new_rank = Category.num_root_categories() + 1
+            db.session.add(Category(name = form.name.data, rank=new_rank))
         db.session.commit()
 
     return render_template('finance/forms/add_category.html', form=form)

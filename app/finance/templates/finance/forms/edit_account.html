@@ -1,8 +1,8 @@
-{% extends "forms/base.html" %}
+{% extends "forms/base_modal.html" %}
 
-{% block form_title %}{{ type }} Account{% endblock form_title %}
+{% block modal_title %}{{ type }} Account{% endblock modal_title %}
 
-{% block form_content %}
+{% block modal_content %}
   {{ render_field(form.name) }}
   {{ render_field(form.starting_balance) }}
   {{ render_field(form.header_rows) }}
@@ -12,5 +12,5 @@
   {{ render_field(form.description_column) }}
   {{ render_field(form.amount_column) }}
   {{ render_field(form.category_column) }}
-  {{ render_field(form.account_type) }}
-{% endblock form_content %}
+  {{ render_field(form.account_category) }}
+{% endblock modal_content %}

@@ -13,8 +13,7 @@ class AccountForm(FlaskForm):
     description_column = StringField('Description Column')
     amount_column = StringField('Amount Column')
     category_column = StringField('Category Column')
-    account_type = StringField('Account Type')
-    submit = SubmitField('Submit')
+    account_category = SelectField('Account Category', coerce=int)
 
 class AccountTypeForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired()])

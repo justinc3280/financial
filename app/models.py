@@ -58,8 +58,10 @@ class Account(db.Model):
     file_format = db.relationship('FileFormat', uselist=False)
     transactions = db.relationship('Transaction', backref='account', lazy='dynamic')
     starting_balance = db.Column(db.Float)
-    type_id = db.Column(db.Integer, db.ForeignKey("account_type.id"))
-    type = db.relationship('AccountType')
+    type_id = db.Column(db.Integer, db.ForeignKey("account_type.id")) # not used
+    type = db.relationship('AccountType') # not used
+    category_id = db.Column(db.Integer, db.ForeignKey("category.id"))
+    category = db.relationship('Category')
 
     def __repr__(self):
         return '<Account {}>'.format(self.name)
@@ -72,7 +74,7 @@ class Account(db.Model):
             ending_balance += transaction.amount
         return ending_balance
 
-class AccountType(db.Model):
+class AccountType(db.Model): # not used
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64))
     middle_level = db.Column(db.String(64))
@@ -88,9 +90,13 @@ class Category(db.Model):
     parent = db.relationship('Category', remote_side=[id])
     children = db.relationship('Category')
 
+    @classmethod
+    def num_root_categories(cls):
+        return cls.query.filter(Category.parent == None).count()
+
     @property
     def is_transaction_level(self):
-        return not bool(self.children)
+        return self.parent and not bool(self.children)
 
     def top_level_parent(self):
         return self.get_parent_categories()[0]
@@ -103,6 +109,15 @@ class Category(db.Model):
             parent_category = parent_category.parent
         parent_categories.reverse()
         return parent_categories
+
+    def get_transaction_level_children(self):
+        transaction_level_children = []
+        for child_category in self.children:
+            if child_category.is_transaction_level:
+                transaction_level_children.append(child_category)
+            else:
+                transaction_level_children.extend(child_category.get_transaction_level_children())
+        return transaction_level_children
 
     def __repr__(self):
         return '<Category {}>'.format(self.name)
