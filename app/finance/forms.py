@@ -13,8 +13,7 @@ class AccountForm(FlaskForm):
     description_column = StringField('Description Column')
     amount_column = StringField('Amount Column')
     category_column = StringField('Category Column')
-    account_type = StringField('Account Type')
-    submit = SubmitField('Submit')
+    account_category = SelectField('Account Category', coerce=int)
 
 class AccountTypeForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired()])
@@ -26,9 +25,12 @@ class FileUploadForm(FlaskForm):
     file_upload = FileField('File')
     submit = SubmitField('Submit')
 
-class EditCategoryForm(FlaskForm):
+class AddCategoryForm(FlaskForm):
+    name = StringField('Name', validators=[DataRequired()])
+    parent = SelectField('Parent Category', coerce=int, validators=[DataRequired()])
+
+class EditTransactionCategoryForm(FlaskForm):
     category = SelectField('Category', coerce=int, validators=[DataRequired()])
-    submit = SubmitField('Submit')
 
 class PaychecksForm(FlaskForm):
     date = StringField('Date', validators=[DataRequired()])

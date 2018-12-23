@@ -79,8 +79,8 @@ def view_transactions(account_id):
 @finance.route('/categories')
 @login_required
 def categories():
-    categories = Category.query.all()
-    return render_template('finance/categories.html', categories=categories)
+    root_categories = Category.query.filter(Category.parent == None).all()
+    return render_template('finance/categories.html', categories=root_categories)
 
 @finance.route('/paychecks/')
 @login_required
@@ -99,38 +99,40 @@ def month_choices():
 @finance.route('/balance_sheet')
 @login_required
 def balance_sheet():
-    cash_and_equivalents = {'Total': 0}
-    accounts_payable = {'Total': 0}
-
     year = 2018
-    month_num = request.args.get('month', None)
-    if month_num:
-        month_num = int(month_num)
-        days = calendar.monthrange(year, month_num)
-        start_date = date(year, month_num, 1)
-        end_date = date(year, month_num, days[1])
 
-        for account in current_user.accounts:
-            if account.type:
-                #end_date = date(month=1, day=31, year=2018)
-                end_balance = account.get_ending_balance(end_date = end_date)
-                #end_balance = account.get_ending_balance()
-                if account.type.name == "Checking" or account.type.name == "Savings" or account.type.name == "Brokerage" or account.type.name == "Online":
-                    cash_and_equivalents[account.name] = round(end_balance, 2)
-                    cash_and_equivalents['Total'] = round(cash_and_equivalents['Total'] + end_balance, 2)
-                elif account.type.name == "Credit Card":
-                    accounts_payable[account.name] = round(end_balance, 2)
-                    accounts_payable['Total'] = round(accounts_payable['Total'] + end_balance, 2)
+    months = list(calendar.month_name)[1:]
+    ending_month_dates = []
+    for month_num in range(1, 12):
+        last_day = calendar.monthrange(year, month_num)[1]
+        ending_month_dates.append(date(year, month_num, last_day))
 
-    working_capital = cash_and_equivalents['Total'] + accounts_payable['Total']
-    net_worth = working_capital
+    accounts_monthly_ending_balance = {}
+    for account in current_user.accounts:
+        ending_balances = [account.get_ending_balance(date) for date in ending_month_dates]
+        accounts_monthly_ending_balance[account.name] = ending_balances
+
+        parent_categories = account.category.get_parent_categories() if account.category else []
+        for parent in parent_categories:
+            if parent.name not in accounts_monthly_ending_balance:
+                accounts_monthly_ending_balance[parent.name] = [0] * len(ending_month_dates)
+            update_category_balances = add_lists(accounts_monthly_ending_balance.get(parent.name), ending_balances)
+            accounts_monthly_ending_balance[parent.name] = update_category_balances
+
+    total_current_assetts = accounts_monthly_ending_balance.get('Current Assetts', [0] * len(ending_month_dates))
+    total_current_liabilities = accounts_monthly_ending_balance.get('Current Liabilities', [0] * len(ending_month_dates))
+    accounts_monthly_ending_balance['working_capital'] = add_lists(total_current_assetts, total_current_liabilities)
+
+    total_assetts = accounts_monthly_ending_balance.get('Assetts', [0] * len(ending_month_dates))
+    total_liabilities = accounts_monthly_ending_balance.get('Liabilities', [0] * len(ending_month_dates))
+    accounts_monthly_ending_balance['net_worth'] = add_lists(total_assetts, total_liabilities)
+
+    root_categories = Category.query.filter(Category.parent == None, Category.name.in_(['Assetts', 'Liabilities'])).all()
 
     return render_template("finance/balance_sheet.html",
-                            cash_and_equivalents=cash_and_equivalents,
-                            accounts_payable=accounts_payable,
-                            month_choices=month_choices(),
-                            working_capital=working_capital,
-                            net_worth=net_worth)
+                            root_categories=root_categories,
+                            category_monthly_totals=accounts_monthly_ending_balance,
+                            month_choices=month_choices())
 
 def paycheck_col_to_category_name(col_name):
     translation = {
@@ -144,69 +146,91 @@ def paycheck_col_to_category_name(col_name):
         'traditional_retirement': 'Traditional 401K Contribution',
         'roth_retirement': 'Roth 401K Contribution',
         'retirement_match': '401K Match',
+        'gtl': 'G.T.L.',
+        'gtl_in': 'G.T.L. In',
+        #'gym_reimbursement': 'Gym Reimbursement',
+        'gym_reimbursement': 'Other Income',
         'net_pay': 'Net Pay'
     }
     return translation[col_name]
 
-def get_parent_categories(category):
-    parent_categories = [category]
-    parent_category = category.parent
-    while parent_category:
-        parent_categories.append(parent_category)
-        parent_category = parent_category.parent
-    parent_categories.reverse()
-    return parent_categories
+def convert_paychecks_to_transactions(paychecks):
+    transactions = []
+    for paycheck in paychecks:
+        paycheck_dict = paycheck.__dict__
+        paycheck_date = paycheck_dict.get('date')
+        for key, value in paycheck.get_properties().items():
+            paycheck_dict[key] = value
+            if key == 'gtl':
+                paycheck_dict['gtl_in'] = value
 
-def order_dict(dictionary):
-    result = {}
-    for k, v in sorted(dictionary.items(), key=lambda element: element[0].rank):
-        if isinstance(v, dict):
-            result[k] = order_dict(v)
-        else:
-            result[k] = v
-    return result
+        [paycheck_dict.pop(k) for k in ['_sa_instance_state', 'id', 'user_id', 'company_name', 'date', 'properties']]
 
-class Total():
-    def __init__(self):
-        self.rank = 0
-        self.name = 'Total'
+        for key, value in paycheck_dict.items():
+            if key not in ['gross_pay', 'net_pay', 'gym_reimbursement', 'gtl_in']:
+                value = -value
+            cat_name = paycheck_col_to_category_name(key)
+            category = Category.query.filter(Category.name==cat_name).first()
+            top_level_category = category.top_level_parent()
+            if top_level_category.name in ["Income", "Expense", "Tax"]:
+                transaction = Transaction(
+                    amount = value,
+                    date = paycheck_date,
+                    category = category
+                )
+                transactions.append(transaction)
+    return transactions
 
-    # need to define eq and hash to use as dictionary keys
-    def __eq__(self, another):
-        return hasattr(another, 'name') and self.name == another.name
+def get_category_monthly_totals(start_date, end_date):
+    num_months = end_date.month - start_date.month + 1
 
-    def __hash__(self):
-        return hash(self.name)
+    transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between(start_date, end_date)).all()
+    paychecks = Paycheck.query.filter(Paycheck.user_id==current_user.id, Paycheck.date.between(start_date, end_date)).all()
 
-    def __repr__(self):
-        return self.name
+    paycheck_transactions = convert_paychecks_to_transactions(paychecks)
+    transactions.extend(paycheck_transactions)
 
-def category_dict(num_months=12):
-    categories = Category.query.all()
-    category_dict = {}
-    total = Total()
+    category_monthly_totals = {}
+    for transaction in transactions:
+        parent_categories = transaction.category.get_parent_categories()
+        for parent_category in parent_categories:
+            if parent_category.name not in category_monthly_totals:
+                category_monthly_totals[parent_category.name] = {index: total for index, total in enumerate([0] * num_months)}
+            category_monthly_totals[parent_category.name][transaction.date.month - 1] += transaction.amount
 
-    for category in categories:
-        parent_categories = get_parent_categories(category)
-        for index, category in enumerate(parent_categories):
-            cat_dict = category_dict
-            for x in range(0, index):
-                cat_dict = cat_dict[parent_categories[x]]
-            if category not in cat_dict:
-                cat_dict[category] = {total: [0] * num_months}
+    total_income = category_monthly_totals.get('Income').values() if category_monthly_totals.get('Income') else [0] * num_months
+    total_tax = category_monthly_totals.get('Tax').values() if category_monthly_totals.get('Tax') else [0] * num_months
+    total_expense = category_monthly_totals.get('Expense').values() if category_monthly_totals.get('Expense') else [0] * num_months
+    total_investment = category_monthly_totals.get('Investment').values() if category_monthly_totals.get('Investment') else [0] * num_months
 
-    category_dict = order_dict(category_dict)
-    return category_dict
+    income_after_taxes = add_lists(total_income, total_tax)
+    category_monthly_totals['income_after_taxes'] = income_after_taxes
+    net_income = add_lists(income_after_taxes, total_expense)
+    category_monthly_totals['net_income'] = net_income
+    category_monthly_totals['net_cash_difference'] = add_lists(net_income, total_investment)
+
+    return category_monthly_totals
+
+def add_lists(list1, list2):
+    if not isinstance(list1, list):
+        list1 = list(list1)
+    if not isinstance(list2, list):
+        list2 = list(list2)
+    if len(list1) != len(list2):
+        return None
+    length = len(list1)
+    sum = []
+    for ind in range(length):
+        sum.append(list1[ind] + list2[ind])
+    return sum
 
 @finance.route('/income_statement')
 @login_required
 def income_statement():
-    transactions = []
-    paychecks = []
-
-    num_months = 12
     year = 2018
     '''
+    transactions = []
+    paychecks = []
     month_num = request.args.get('month', None)
     if month_num:
         month_num = int(month_num)
@@ -219,131 +243,50 @@ def income_statement():
     '''
     start_date = date(year, 1, 1)
     end_date = date(year, 12, 31)
-    transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between(start_date, end_date)).all()
-    paychecks = Paycheck.query.filter(Paycheck.user_id==current_user.id, Paycheck.date.between(start_date, end_date)).all()
 
-    for paycheck in paychecks:
-        paycheck_dict = paycheck.__dict__
-        paycheck_date = paycheck_dict.get('date')
-        [paycheck_dict.pop(k) for k in ['_sa_instance_state', 'id', 'user_id', 'company_name', 'date']]
+    category_monthly_totals = get_category_monthly_totals(start_date, end_date)
 
-        for key, value in paycheck_dict.items():
-            if key not in ['gross_pay', 'net_pay']:
-                value = -value
-            cat_name = paycheck_col_to_category_name(key)
-            category = Category.query.filter(Category.name==cat_name).first()
-            top_level_category = get_parent_categories(category)[0]
-            if top_level_category.name in ["Income", "Expense", "Tax"]:
-                transaction = Transaction(
-                    amount = value,
-                    date = paycheck_date,
-                    category = category
-                )
-                transactions.append(transaction)
-
-    transactions_by_month = defaultdict(list)
-    for transaction in transactions:
-        transactions_by_month[transaction.date.month - 1].append(transaction)
-
-    categories = category_dict(num_months)
-    total = Total()
-    for month_index, transaction_list in transactions_by_month.items():
-        for transaction in transaction_list:
-            parent_categories = get_parent_categories(transaction.category)
-            if parent_categories[0].name in ['Income', 'Tax','Expense']:
-                for index, category in enumerate(parent_categories):
-                    cat_dict = categories
-                    for x in range(0, index):
-                        cat_dict = cat_dict[parent_categories[x]]
-                    cat_dict[category][total][month_index] += transaction.amount
-
-    income_category = Category.query.filter(Category.name == 'Income').first()
-    expense_category = Category.query.filter(Category.name == 'Expense').first()
-    tax_category = Category.query.filter(Category.name == 'Tax').first()
-
-    def add_lists(list1, list2):
-        if len(list1) != len(list2):
-            return None
-        length = len(list1)
-        sum = []
-        for ind in range(length):
-            sum.append(list1[ind] + list2[ind])
-        return sum
-
-    total_income = categories[income_category][total] if income_category in categories else [0] * num_months
-    total_expense = categories[expense_category][total] if expense_category in categories else [0] * num_months
-    total_tax = categories[tax_category][total] if tax_category in categories else [0] * num_months
-
-    income_after_taxes = add_lists(total_income, total_tax)
-    net_income = add_lists(income_after_taxes, total_expense)
+    root_categories = Category.query.filter(Category.parent == None, Category.name.in_(['Income', 'Expense', 'Tax'])).all()
 
     return render_template("finance/income_statement.html",
-                            categories=categories,
-                            total_object=total,
-                            income_after_taxes=income_after_taxes,
-                            month_choices=month_choices(),
-                            net_income=net_income)
+                    root_categories=root_categories,
+                    category_monthly_totals=category_monthly_totals,
+                    month_choices=month_choices()
+                )
 
 @finance.route('/cash_flow')
 @login_required
 def cash_flow():
-    transactions = []
-    paychecks = []
-
     year = 2018
-    month_num = request.args.get('month', None)
-    if month_num:
-        month_num = int(month_num)
-        days = calendar.monthrange(year, month_num)
-        start_date = date(year, month_num, 1)
-        end_date = date(year, month_num, days[1])
 
-        transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between(start_date, end_date)).all()
-        paychecks = Paycheck.query.filter(Paycheck.user_id==current_user.id, Paycheck.date.between(start_date, end_date)).all()
+    # transactions = []
+    # paychecks = []
+    # month_num = request.args.get('month', None)
+    # if month_num:
+    #     month_num = int(month_num)
+    #     days = calendar.monthrange(year, month_num)
+    #     start_date = date(year, month_num, 1)
+    #     end_date = date(year, month_num, days[1])
 
-    for paycheck in paychecks:
-        paycheck_dict = paycheck.__dict__
-        [paycheck_dict.pop(k) for k in ['_sa_instance_state', 'id', 'user_id', 'company_name', 'date']]
+    #     transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between(start_date, end_date)).all()
+    #     paychecks = Paycheck.query.filter(Paycheck.user_id==current_user.id, Paycheck.date.between(start_date, end_date)).all()
 
-        for key, value in paycheck_dict.items():
-            #cat_name = key.replace('_', ' ').title()
-            cat_name = paycheck_col_to_category_name(key)
-            category = Category.query.filter(Category.name==cat_name).first()
-            top_level_category = get_parent_categories(category)[0]
-            if top_level_category.name in ["Investment", "Transfer"]:
-                transaction = Transaction(
-                    amount = value,
-                    category = category
-                )
-                transactions.append(transaction)
+    #     paycheck_transactions = convert_paychecks_to_transactions(paychecks)
+    #     transactions = transactions + paycheck_transactions
 
-    categories = category_dict()
-    total = Total()
-    month_index = 0
-    for transaction in transactions:
-        parent_categories = get_parent_categories(transaction.category)
-        if parent_categories[0].name in ['Investment', 'Transfer']:
-            for index, category in enumerate(parent_categories):
-                cat_dict = categories
-                for x in range(0, index):
-                    cat_dict = cat_dict[parent_categories[x]]
-                cat_dict[category][total][month_index] += transaction.amount
+    start_date = date(year, 1, 1)
+    end_date = date(year, 12, 31)
 
+    category_monthly_totals = get_category_monthly_totals(start_date, end_date)
 
-    starting_balances = [account.starting_balance for account in current_user.accounts]
-    beg_bal = round(sum(starting_balances), 2)
+    #starting_balances = [account.starting_balance for account in current_user.accounts]
+    #beg_bal = round(sum(starting_balances), 2)
 
-    #categories = ['Operating Activities', 'Investing Activites', 'Financing Activities', 'Total']
-    sub_categories = {
-        'Operating Activites': ['Net Income'],
-        'Investing Activities': [],
-        'Financing Activites': [],
-        'Total': []
-    }
+    root_categories = Category.query.filter(Category.parent == None, Category.name == 'Investment').all()
 
     return render_template("finance/cash_flow.html",
-                            categories=categories,
-                            beg_bal=beg_bal,
+                            root_categories=root_categories,
+                            category_monthly_totals=category_monthly_totals,
+                            #beg_bal=beg_bal,
                             month_choices=month_choices(),
-                            total_object=total
                             )

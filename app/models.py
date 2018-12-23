@@ -1,3 +1,5 @@
+import json
+
 from app import db
 from flask_login import UserMixin
 from app import login
@@ -56,8 +58,10 @@ class Account(db.Model):
     file_format = db.relationship('FileFormat', uselist=False)
     transactions = db.relationship('Transaction', backref='account', lazy='dynamic')
     starting_balance = db.Column(db.Float)
-    type_id = db.Column(db.Integer, db.ForeignKey("account_type.id"))
-    type = db.relationship('AccountType')
+    type_id = db.Column(db.Integer, db.ForeignKey("account_type.id")) # not used
+    type = db.relationship('AccountType') # not used
+    category_id = db.Column(db.Integer, db.ForeignKey("category.id"))
+    category = db.relationship('Category')
 
     def __repr__(self):
         return '<Account {}>'.format(self.name)
@@ -70,7 +74,7 @@ class Account(db.Model):
             ending_balance += transaction.amount
         return ending_balance
 
-class AccountType(db.Model):
+class AccountType(db.Model): # not used
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64))
     middle_level = db.Column(db.String(64))
@@ -81,15 +85,39 @@ class Category(db.Model):
     name = db.Column(db.String(64))
     parent_id = db.Column(db.Integer, db.ForeignKey("category.id"))
     rank = db.Column(db.Integer)
-    transaction_level = db.Column(db.Boolean)
+    transaction_level = db.Column(db.Boolean) # not used
 
     parent = db.relationship('Category', remote_side=[id])
     children = db.relationship('Category')
 
+    @classmethod
+    def num_root_categories(cls):
+        return cls.query.filter(Category.parent == None).count()
+
+    @property
+    def is_transaction_level(self):
+        return self.parent and not bool(self.children)
+
     def top_level_parent(self):
-        if self.parent is None:
-            return self
-        return self.parent.top_level_parent()
+        return self.get_parent_categories()[0]
+
+    def get_parent_categories(self):
+        parent_categories = [self]
+        parent_category = self.parent
+        while parent_category:
+            parent_categories.append(parent_category)
+            parent_category = parent_category.parent
+        parent_categories.reverse()
+        return parent_categories
+
+    def get_transaction_level_children(self):
+        transaction_level_children = []
+        for child_category in self.children:
+            if child_category.is_transaction_level:
+                transaction_level_children.append(child_category)
+            else:
+                transaction_level_children.extend(child_category.get_transaction_level_children())
+        return transaction_level_children
 
     def __repr__(self):
         return '<Category {}>'.format(self.name)
@@ -110,9 +138,22 @@ class Paycheck(db.Model):
     retirement_match = db.Column(db.Float)
     net_pay = db.Column(db.Float)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
+    properties = db.Column(db.Text, default="{}")
 
     def __repr__(self):
         return '<Paycheck {}>'.format(self.date)
+
+    def get_properties(self):
+        if self.properties:
+            return json.loads(str(self.properties))
+        else:
+            return {}
+
+    def update_properties(self, data):
+        current_properties = self.get_properties()
+        current_properties.update(data)
+        self.properties = json.dumps(current_properties)
+
 
 class StockTransaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)

@@ -1,0 +1,8 @@
+{% extends "forms/base_modal.html" %}
+
+{% block modal_title %}Add Category{% endblock modal_title %}
+
+{% block modal_content %}
+  {{ render_field(form.name) }}
+  {{ render_field(form.parent) }}
+{% endblock modal_content %}
