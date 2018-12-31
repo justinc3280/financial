@@ -14,21 +14,22 @@
       <th>Total</th>
       <th><th>
     </tr>
-    {% for stock_transaction in stock_transactions %}
+    {% for stock_transaction in stock_transactions | sort(attribute='date') %}
+      {% set properties = stock_transaction.get_properties() %}
       <tr>
-        <td>{{ stock_transaction.transaction_type | capitalize }}</td>
+        <td>{{ stock_transaction.category.name | capitalize }}</td>
         <td>{{ stock_transaction.date | date }}</td>
-        <td>{{ stock_transaction.symbol }}</td>
-        <td>{{ stock_transaction.quantity }}</td>
-        <td>{{ stock_transaction.price_per_share | money }}</td>
-        <td>{{ stock_transaction.transaction_fee | money }}</td>
-        <td>{{ stock_transaction.total_cost() | money }}</td>
+        <td>{{ properties.get('symbol') }}</td>
+        <td>{{ properties.get('quantity') }}</td>
+        <td>{{ properties.get('price_per_share') | money }}</td>
+        <td>{{ properties.get('transaction_fee') | money }}</td>
+        <td>{{ stock_transaction.amount | money(show_as_positive=True) }}</td>
         <td>
-          <a href={{ url_for('finance.edit_stock_transaction', stock_transaction_id=stock_transaction.id) }}><i class="fa fa-pencil-square-o" aria-hidden="true"></i></a>
+          <a href={{ url_for('finance.edit_stock_transaction', transaction_id=stock_transaction.id) }}><i class="fa fa-pencil-square-o" aria-hidden="true"></i></a>
         </td>
       </tr>
     {% endfor %}
   </table>
-  <a class="btn btn-primary" href={{ url_for('finance.edit_stock_transaction', stock_transaction_id=0) }}>Add Stock Transaction</a>
+  <a class="btn btn-primary" href={{ url_for('finance.edit_stock_transaction', transaction_id=0) }}>Add Stock Transaction</a>
 
 {% endblock %}

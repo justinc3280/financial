@@ -3,14 +3,16 @@ def percentage(fraction):
     return '{:.2%}'.format(fraction)
 
 def money(amount, show_as_positive=False):
+    if amount is None:
+        return None
+        
     if show_as_positive:
-        amount = -amount if amount < 0 else amount # maybe not right
+        amount = abs(amount)
 
     if amount >= 0:
         return '${:,.2f}'.format(amount)
     else:
-        amount = -amount
-        return '(${:,.2f})'.format(amount)
+        return '(${:,.2f})'.format(abs(amount))
 
 def date(date):
     return '{:%m/%d/%Y}'.format(date)

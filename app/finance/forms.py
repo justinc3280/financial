@@ -62,5 +62,5 @@ class StockTransactionForm(FlaskForm):
     quantity = FloatField('Quantity', validators=[DataRequired()])
     price_per_share = FloatField('Price Per Share')
     transaction_fee = FloatField('Fee')
-    transaction_type = SelectField('Type', choices=[('buy', 'Buy'), ('sell', 'Sell')], validators=[DataRequired()])
+    transaction_type = SelectField('Type', coerce=int, validators=[DataRequired()])
     submit = SubmitField('Submit')

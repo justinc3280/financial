@@ -33,32 +33,43 @@ def account_types():
 
     return render_template("finance/account_types.html", account_types=account_types)
 
+
+def get_stock_values(end_date=date.today()):
+    stocks_data = {'Total': {'cost': 0}}
+    stock_transactions = Transaction.query.join(Transaction.category).join(Transaction.account).filter(
+        Transaction.date <= end_date, Category.name.in_(['Buy', 'Sell']), Account.user==current_user).all()
+    for stock_transaction in stock_transactions:
+        properties = stock_transaction.get_properties()
+        symbol = properties.get('symbol')
+        if symbol:
+            if symbol not in stocks_data:
+                stocks_data[symbol] = {
+                    'quantity': 0,
+                    'cost': 0
+                }
+
+            if stock_transaction.category.name == 'Buy':
+                stocks_data[symbol]['quantity'] += properties.get('quantity')
+                stocks_data[symbol]['cost'] += abs(stock_transaction.amount)
+                stocks_data['Total']['cost'] += abs(stock_transaction.amount)
+            elif stock_transaction.category.name == 'Sell':
+                stocks_data[symbol]['quantity'] -= properties.get('quantity')
+                stocks_data[symbol]['cost'] -= abs(stock_transaction.amount)
+                stocks_data['Total']['cost'] -= abs(stock_transaction.amount)
+            stocks_data[symbol]['cost_per_share'] = stocks_data[symbol]['cost'] / stocks_data[symbol]['quantity']
+
+    # for symbol, stock_data in stocks_data.items():
+        # current_price = get_current_price(symbol)
+        # if current_price:
+        #     stock_data['current_price'] = current_price
+        #     stock_data['market_value'] = stock_data['quantity'] * stock_data['current_price']
+    return stocks_data
+
+
 @finance.route('/stocks')
 @login_required
 def stocks():
-    #symbols = StockTransaction.query(StockTransaction.symbol).distinct()
-    stocks_data = {}
-    for stock_transaction in StockTransaction.query.filter(StockTransaction.user==current_user).all():
-        if stock_transaction.symbol not in stocks_data:
-            stock_data = stocks_data[stock_transaction.symbol] = {
-                'quantity': 0,
-                'cost': 0
-            }
-
-        if stock_transaction.transaction_type == 'buy':
-            stock_data['quantity'] += stock_transaction.quantity
-            stock_data['cost'] += stock_transaction.total_cost()
-        else:
-            stock_data['quantity'] -= stock_transaction.quantity
-            stock_data['cost'] -= stock_transaction.total_cost()
-
-    for symbol, stock_data in stocks_data.items():
-        stock_data['cost_per_share'] = stock_data['cost'] / stock_data['quantity']
-
-        current_price = get_current_price(symbol)
-        if current_price:
-            stock_data['current_price'] = current_price
-            stock_data['market_value'] = stock_data['quantity'] * stock_data['current_price']
+    stocks_data = get_stock_values()
 
     return render_template("finance/stocks.html", stock_data=stocks_data)
 
@@ -66,9 +77,10 @@ def stocks():
 @finance.route('/stock_transactions')
 @login_required
 def stock_transactions():
-    stock_transactions = StockTransaction.query.filter(StockTransaction.user==current_user).all()
+    stock_transactions = Transaction.query.join(Transaction.category).join(Transaction.account).filter(Category.name.in_(['Buy', 'Sell']), Account.user==current_user).all()
 
     return render_template("finance/stock_transactions.html", stock_transactions=stock_transactions)
+
 
 @finance.route('/account/<int:account_id>/view_transactions')
 @login_required
