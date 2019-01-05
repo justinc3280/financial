@@ -2,6 +2,7 @@ import json
 
 from app import db
 from flask_login import UserMixin
+from datetime import date
 from app import login
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -67,6 +68,9 @@ class Account(db.Model):
         return '<Account {}>'.format(self.name)
 
     def get_ending_balance(self, end_date=None):
+        today = date.today()
+        if end_date and end_date > today:
+            return 0 # return something else
         ending_balance = self.starting_balance
         for transaction in self.transactions:
             if end_date and transaction.date > end_date:
