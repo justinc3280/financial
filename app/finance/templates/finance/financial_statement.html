@@ -9,6 +9,8 @@
     </nav>
   </div>
 
+  <h2 class="mt-2">{{ page_title }}</h2>
+
   <table class="table table-responsive freeze-first-column">
     <thead class="thead-dark">
       <tr>
@@ -16,10 +18,23 @@
         {% for _, month_name in month_choices[1:] %}
             <th>{{ month_name }}</th>
         {% endfor %}
-        <th>Total</th>
+        {% if show_total_column %}
+            <th>Total</th>
+        {% endif %}
       </tr>
     </thead>
     <tbody>
+      {% for title, key in header_row_items %}
+        <tr class="table-primary">
+            <td>{{ title }}</td>
+            {% for income in category_monthly_totals.get(key) %}
+                <td>{{ income | money }}</td>
+            {% endfor %}
+            {% if show_total_column %}
+                <td>{{ category_monthly_totals.get(key) | sum | money }}</td>
+            {% endif %}
+        </tr>
+      {% endfor %}  
       {% for category in root_categories|sort(attribute='rank') recursive %}
         {% set category_data = category_monthly_totals.get(category.name, {}) %}
         {% set row_class = "table-secondary" if loop.depth0 == 0 else ("table-dark" if not category.is_transaction_level == 1 else "") %}
@@ -29,7 +44,9 @@
               {% for total in category_data.values() %}
                   <td>{{ total | money(show_as_positive=True) }}</td>
               {% endfor %}
-              <td>{{ category_data.values() | sum | money }}</td>
+              {% if show_total_column %}
+                <td>{{ category_data.values() | sum | money }}</td>
+              {% endif %}
           </tr>
   
           {% if category.children %}
@@ -37,20 +54,17 @@
           {% endif %}
         {% endif %}
       {% endfor %}
-      <tr class="table-primary">
-        <td>Income After Taxes</td>
-        {% for income in category_monthly_totals.get('income_after_taxes') %}
-          <td>{{ income | money }}</td>
-        {% endfor %}
-        <td>{{ category_monthly_totals.get('income_after_taxes') | sum | money }}</td>
-      </tr>
-      <tr class="table-primary">
-        <td>Net Income</td>
-        {% for net in category_monthly_totals.get('net_income') %}
-          <td>{{ net | money }}</td>
-        {% endfor %}
-        <td>{{ category_monthly_totals.get('net_income') | sum | money }}</td>
-      </tr>
+      {% for title, key in summary_row_items %}
+        <tr class="table-primary">
+            <td>{{ title }}</td>
+            {% for income in category_monthly_totals.get(key) %}
+                <td>{{ income | money }}</td>
+            {% endfor %}
+            {% if show_total_column %}
+                <td>{{ category_monthly_totals.get(key) | sum | money }}</td>
+            {% endif %}
+        </tr>
+      {% endfor %}
     </tbody>
   </table>
 {% endblock %}
