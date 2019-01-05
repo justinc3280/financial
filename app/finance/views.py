@@ -77,7 +77,7 @@ def balance_sheet():
 
     months = list(calendar.month_name)[1:]
     ending_month_dates = []
-    for month_num in range(1, 12):
+    for month_num in range(1, 13):
         last_day = calendar.monthrange(year, month_num)[1]
         ending_month_dates.append(date(year, month_num, last_day))
 
