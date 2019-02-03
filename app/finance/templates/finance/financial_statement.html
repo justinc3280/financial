@@ -92,9 +92,16 @@
     }
 
     $(document).ready(function(){
-
+      var year = GetURLParameter('year') || new Date().getFullYear();
+      $('#select-year').val(parseInt(year));
+      
+      $('#select-year').on('change', function() {
+        var selectedYear = $('#select-year').val();
+        var url = window.location.href.split('?')[0] + '?year=' + selectedYear;    
+        window.location.replace(url);
+      });
+      
       var currentUrlParams = window.location.search;
-      console.log(currentUrlParams)
       var $balanceSheetLink = $('#balance_sheet_link');
       var $incomeStatementLink = $('#income_statement_link');
       var $cashFlowLink = $('#cash_flow_link');
@@ -104,16 +111,6 @@
         $incomeStatementLink.attr('href', $incomeStatementLink.attr('href') + currentUrlParams);
         $cashFlowLink.attr('href', $cashFlowLink.attr('href') + currentUrlParams);
       }
-    
-
-      var year = GetURLParameter('year') || new Date().getFullYear();
-      $('#select-year').val(parseInt(year));
-
-      $('#select-year').on('change', function() {
-        var selectedYear = $('#select-year').val();
-        var url = window.location.href.split('?')[0] + '?year=' + selectedYear;    
-        window.location.replace(url);
-      });
     });
   </script>
 {% endblock scripts %}
