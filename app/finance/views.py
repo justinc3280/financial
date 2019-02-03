@@ -191,7 +191,7 @@ def add_lists(list1, list2):
 @finance.route('/balance_sheet')
 @login_required
 def balance_sheet():
-    year = 2018
+    year = int(request.args.get('year', date.today().year))
     start_date = date(year, 1, 1)
     end_date = date(year, 12, 31)
 
@@ -209,15 +209,7 @@ def balance_sheet():
 @finance.route('/income_statement')
 @login_required
 def income_statement():
-    year = 2018
-    '''
-    month_num = request.args.get('month', None)
-    if month_num:
-        month_num = int(month_num)
-        days = calendar.monthrange(year, month_num)
-        start_date = date(year, month_num, 1)
-        end_date = date(year, month_num, days[1])
-    '''
+    year = int(request.args.get('year', date.today().year))
     start_date = date(year, 1, 1)
     end_date = date(year, 12, 31)
 
@@ -237,7 +229,7 @@ def income_statement():
 @finance.route('/cash_flow')
 @login_required
 def cash_flow():
-    year = 2018
+    year = int(request.args.get('year', date.today().year))
 
     # transactions = []
     # paychecks = []
