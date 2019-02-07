@@ -128,6 +128,7 @@ def transactions(account_id):
                 amount_data = amount_data.replace('$', '')
                 amount_data = amount_data.replace('+', '')
                 amount_data = amount_data.replace(' ', '')
+                amount_data = amount_data.replace(',', '')
 
                 description = row[account.file_format.description_column-1]
                 if len(data[account.file_format.header_rows]) >= account.file_format.category_column:

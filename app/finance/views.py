@@ -107,44 +107,6 @@ def month_choices():
         choices.append((i, month))
     return choices
 
-@finance.route('/balance_sheet')
-@login_required
-def balance_sheet():
-    year = 2018
-
-    months = list(calendar.month_name)[1:]
-    ending_month_dates = []
-    for month_num in range(1, 12):
-        last_day = calendar.monthrange(year, month_num)[1]
-        ending_month_dates.append(date(year, month_num, last_day))
-
-    accounts_monthly_ending_balance = {}
-    for account in current_user.accounts:
-        ending_balances = [account.get_ending_balance(date) for date in ending_month_dates]
-        accounts_monthly_ending_balance[account.name] = ending_balances
-
-        parent_categories = account.category.get_parent_categories() if account.category else []
-        for parent in parent_categories:
-            if parent.name not in accounts_monthly_ending_balance:
-                accounts_monthly_ending_balance[parent.name] = [0] * len(ending_month_dates)
-            update_category_balances = add_lists(accounts_monthly_ending_balance.get(parent.name), ending_balances)
-            accounts_monthly_ending_balance[parent.name] = update_category_balances
-
-    total_current_assetts = accounts_monthly_ending_balance.get('Current Assetts', [0] * len(ending_month_dates))
-    total_current_liabilities = accounts_monthly_ending_balance.get('Current Liabilities', [0] * len(ending_month_dates))
-    accounts_monthly_ending_balance['working_capital'] = add_lists(total_current_assetts, total_current_liabilities)
-
-    total_assetts = accounts_monthly_ending_balance.get('Assetts', [0] * len(ending_month_dates))
-    total_liabilities = accounts_monthly_ending_balance.get('Liabilities', [0] * len(ending_month_dates))
-    accounts_monthly_ending_balance['net_worth'] = add_lists(total_assetts, total_liabilities)
-
-    root_categories = Category.query.filter(Category.parent == None, Category.name.in_(['Assetts', 'Liabilities'])).all()
-
-    return render_template("finance/balance_sheet.html",
-                            root_categories=root_categories,
-                            category_monthly_totals=accounts_monthly_ending_balance,
-                            month_choices=month_choices())
-
 def paycheck_col_to_category_name(col_name):
     translation = {
         'gross_pay': 'Gross Pay',
@@ -193,7 +155,34 @@ def convert_paychecks_to_transactions(paychecks):
     return transactions
 
 def get_category_monthly_totals(start_date, end_date):
+    # currently only works if start and end date are in the same year. TODO: Fix
     num_months = end_date.month - start_date.month + 1
+
+    ending_month_dates = []
+    for month_num in range(start_date.month, end_date.month + 1):
+        last_day = calendar.monthrange(start_date.year, month_num)[1]
+        ending_month_dates.append(date(start_date.year, month_num, last_day))
+
+    accounts_monthly_ending_balance = {}
+    for account in current_user.accounts: #maybe pass in user or accounts to make this function predictable
+        ending_balances = {index: account.get_ending_balance(date) for index, date in enumerate(ending_month_dates)}
+        accounts_monthly_ending_balance[account.name] = ending_balances
+
+        parent_categories = account.category.get_parent_categories() if account.category else []
+        for parent in parent_categories:
+            if parent.name not in accounts_monthly_ending_balance:
+                accounts_monthly_ending_balance[parent.name] = {index: total for index, total in enumerate([0] * num_months)}
+            update_category_balances = add_lists(accounts_monthly_ending_balance.get(parent.name).values(), ending_balances.values())
+            accounts_monthly_ending_balance[parent.name] = {index: total for index, total in enumerate(update_category_balances)}
+
+    total_current_assetts = accounts_monthly_ending_balance.get('Current Assetts', {index: total for index, total in enumerate([0] * num_months)})
+    total_current_liabilities = accounts_monthly_ending_balance.get('Current Liabilities', {index: total for index, total in enumerate([0] * num_months)})
+    accounts_monthly_ending_balance['working_capital'] = add_lists(total_current_assetts.values(), total_current_liabilities.values())
+
+    total_assetts = accounts_monthly_ending_balance.get('Assetts', {index: total for index, total in enumerate([0] * num_months)})
+    total_liabilities = accounts_monthly_ending_balance.get('Liabilities', {index: total for index, total in enumerate([0] * num_months)})
+    accounts_monthly_ending_balance['net_worth'] = add_lists(total_assetts.values(), total_liabilities.values())
+
 
     transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between(start_date, end_date)).all()
     paychecks = Paycheck.query.filter(Paycheck.user_id==current_user.id, Paycheck.date.between(start_date, end_date)).all()
@@ -202,6 +191,7 @@ def get_category_monthly_totals(start_date, end_date):
     transactions.extend(paycheck_transactions)
 
     category_monthly_totals = {}
+    category_monthly_totals.update(accounts_monthly_ending_balance)
     for transaction in transactions:
         parent_categories = transaction.category.get_parent_categories()
         for parent_category in parent_categories:
@@ -235,40 +225,48 @@ def add_lists(list1, list2):
         sum.append(list1[ind] + list2[ind])
     return sum
 
+@finance.route('/balance_sheet')
+@login_required
+def balance_sheet():
+    year = int(request.args.get('year', date.today().year))
+    start_date = date(year, 1, 1)
+    end_date = date(year, 12, 31)
+
+    current_monthly_totals = get_category_monthly_totals(start_date, end_date)
+    summary_row_items = [('Working Capital', 'working_capital'), ('Net Worth', 'net_worth')]
+
+    root_categories = Category.query.filter(Category.parent == None, Category.name.in_(['Assetts', 'Liabilities'])).all()
+    
+    return render_template("finance/financial_statement.html",
+                            root_categories=root_categories,
+                            category_monthly_totals=current_monthly_totals,
+                            summary_row_items=summary_row_items,
+                            month_choices=month_choices())
+
 @finance.route('/income_statement')
 @login_required
 def income_statement():
-    year = 2018
-    '''
-    transactions = []
-    paychecks = []
-    month_num = request.args.get('month', None)
-    if month_num:
-        month_num = int(month_num)
-        days = calendar.monthrange(year, month_num)
-        start_date = date(year, month_num, 1)
-        end_date = date(year, month_num, days[1])
-
-        transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between(start_date, end_date)).all()
-        paychecks = Paycheck.query.filter(Paycheck.user_id==current_user.id, Paycheck.date.between(start_date, end_date)).all()
-    '''
+    year = int(request.args.get('year', date.today().year))
     start_date = date(year, 1, 1)
     end_date = date(year, 12, 31)
 
     category_monthly_totals = get_category_monthly_totals(start_date, end_date)
+    summary_row_items = [('Income After Taxes', 'income_after_taxes'), ('Net Income', 'net_income')]
 
     root_categories = Category.query.filter(Category.parent == None, Category.name.in_(['Income', 'Expense', 'Tax'])).all()
 
-    return render_template("finance/income_statement.html",
+    return render_template("finance/financial_statement.html",
+                    page_title='Income Statement',
                     root_categories=root_categories,
                     category_monthly_totals=category_monthly_totals,
+                    summary_row_items=summary_row_items,
                     month_choices=month_choices()
                 )
 
 @finance.route('/cash_flow')
 @login_required
 def cash_flow():
-    year = 2018
+    year = int(request.args.get('year', date.today().year))
 
     # transactions = []
     # paychecks = []
@@ -279,25 +277,20 @@ def cash_flow():
     #     start_date = date(year, month_num, 1)
     #     end_date = date(year, month_num, days[1])
 
-    #     transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between(start_date, end_date)).all()
-    #     paychecks = Paycheck.query.filter(Paycheck.user_id==current_user.id, Paycheck.date.between(start_date, end_date)).all()
-
-    #     paycheck_transactions = convert_paychecks_to_transactions(paychecks)
-    #     transactions = transactions + paycheck_transactions
-
     start_date = date(year, 1, 1)
     end_date = date(year, 12, 31)
 
     category_monthly_totals = get_category_monthly_totals(start_date, end_date)
-
-    #starting_balances = [account.starting_balance for account in current_user.accounts]
-    #beg_bal = round(sum(starting_balances), 2)
+    header_row_items = [('Net Income', 'net_income')]
+    summary_row_items = [('Net Cash Difference', 'net_cash_difference')]
 
     root_categories = Category.query.filter(Category.parent == None, Category.name == 'Investment').all()
 
-    return render_template("finance/cash_flow.html",
+    return render_template("finance/financial_statement.html",
+                            page_title='Cash Flow Statement',
                             root_categories=root_categories,
                             category_monthly_totals=category_monthly_totals,
-                            #beg_bal=beg_bal,
+                            header_row_items=header_row_items,
+                            summary_row_items=summary_row_items,
                             month_choices=month_choices(),
                             )
