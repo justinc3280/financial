@@ -288,11 +288,11 @@ def add_paycheck():
     return render_template('finance/forms/add_paycheck.html', form=form)
     '''
 
-@finance.route('/stock_transaction/<int:stock_transaction_id>/edit', methods=['GET', 'POST'])
+@finance.route('/stock_transaction/<int:transaction_id>/edit', methods=['GET', 'POST'])
 @login_required
-def edit_stock_transaction(stock_transaction_id):
-    if stock_transaction_id > 0:
-        stock_transaction = StockTransaction.query.get(stock_transaction_id)
+def edit_stock_transaction(transaction_id):
+    if transaction_id > 0:
+        stock_transaction = Transaction.query.get(transaction_id)
         label = "Edit"
     else:
         stock_transaction = None
@@ -300,33 +300,38 @@ def edit_stock_transaction(stock_transaction_id):
 
     data = {}
     if stock_transaction:
+        properties = stock_transaction.get_properties()
+        data['transaction_type'] = stock_transaction.category_id
         data['date'] = stock_transaction.date
-        data['symbol'] = stock_transaction.symbol
-        data['quantity'] = stock_transaction.quantity
-        data['price_per_share'] = stock_transaction.price_per_share
-        data['transaction_fee'] = stock_transaction.transaction_fee
-        data['transaction_type'] = stock_transaction.transaction_type
+        data['symbol'] = properties.get('symbol')
+        data['quantity'] = properties.get('quantity')
+        data['price_per_share'] = properties.get('price_per_share')
+        data['transaction_fee'] = properties.get('transaction_fee')
 
     form = StockTransactionForm(data=data)
+    category_choices = db.session.query(Category.id, Category.name).filter(Category.name.in_(['Buy', 'Sell'])).all()
+    form.transaction_type.choices = category_choices
+    
     if form.validate_on_submit():
         if stock_transaction:
             stock_transaction.date = form.date.data
-            stock_transaction.symbol = form.symbol.data
-            stock_transaction.quantity = form.quantity.data
-            stock_transaction.price_per_share = form.price_per_share.data
-            stock_transaction.transaction_fee = form.transaction_fee.data
-            stock_transaction.transaction_type = form.transaction_type.data
+            stock_transaction.category_id = form.transaction_type.data
         else:
-            stock_transaction = StockTransaction(
+            stock_transaction = Transaction(
                 date=form.date.data,
-                symbol=form.symbol.data,
-                quantity=form.quantity.data,
-                price_per_share=form.price_per_share.data,
-                transaction_fee=form.transaction_fee.data,
-                transaction_type=form.transaction_type.data,
+                category_id = form.transaction_type.data,
                 user=current_user
             )
             db.session.add(stock_transaction)
+
+        properties = {
+            'symbol': form.symbol.data,
+            'quantity': form.quantity.data,
+            'price_per_share': form.price_per_share.data,
+            'transaction_fee': form.transaction_fee.data
+        }
+        stock_transaction.update_properties(properties)
+            
         db.session.commit()
         return redirect(url_for('finance.stock_transactions'))
     return render_template('finance/forms/edit_stock_transaction.html', type=label, form=form)

@@ -36,10 +36,22 @@ class Transaction(db.Model):
     category_id = db.Column(db.Integer, db.ForeignKey("category.id"))
     category = db.relationship('Category')
     account_id = db.Column(db.Integer, db.ForeignKey("account.id"))
+    properties = db.Column(db.Text, default="{}")
 
     def __repr__(self):
         return '<Transaction- date: {}, amount: {}, description: {}>'.format(self.date, self.amount, self.description)
+    
+    def get_properties(self):
+        if self.properties:
+            return json.loads(str(self.properties))
+        else:
+            return {}
 
+    def update_properties(self, data):
+        current_properties = self.get_properties()
+        current_properties.update(data)
+        self.properties = json.dumps(current_properties)
+        
 class FileFormat(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     header_rows = db.Column(db.Integer)
@@ -170,7 +182,7 @@ class StockTransaction(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
 
     def total_cost(self):
-        return (self.quantity * self.price_per_share) + self.transaction_fee
+        return round((self.quantity * self.price_per_share) + self.transaction_fee, 2)
 
     def adjusted_price_per_share(self):
         return self.total_cost() / self.quantity
