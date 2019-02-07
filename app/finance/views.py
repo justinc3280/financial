@@ -1,6 +1,5 @@
 from app import db
-from app.finance import finance, stock_values
-from app.finance.stock_values import get_current_price
+from app.finance import finance
 from flask import redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from app.models import Account, AccountType, Category, Paycheck, StockTransaction, Transaction
