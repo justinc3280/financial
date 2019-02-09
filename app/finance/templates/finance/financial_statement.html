@@ -3,17 +3,16 @@
 {% block content %}
   <div>
     <nav>
-      <a id="balance_sheet_link" href={{ url_for('finance.balance_sheet') }}>Balance Sheet</a> |
-      <a id="income_statement_link" href={{ url_for('finance.income_statement') }}>Income Statement</a> |
-      <a id="cash_flow_link" href={{ url_for('finance.cash_flow') }}>Statement of Cash Flow</a>
+      <a id="balance_sheet_link" href="{{ url_for('finance.balance_sheet') }}">Balance Sheet</a> |
+      <a id="income_statement_link" href="{{ url_for('finance.income_statement') }}">Income Statement</a> |
+      <a id="cash_flow_link" href="{{ url_for('finance.cash_flow') }}">Statement of Cash Flow</a>
     </nav>
+    <select id="select-year">
+      {% for year in [2019, 2018] %}
+        <option value="{{year}}">{{ year }}</option>
+      {% endfor %}
+    </select>
   </div>
-
-  <select id="select-year">
-    {% for year in [2019, 2018] %}
-      <option value="{{year}}">{{ year }}</option>
-    {% endfor %}
-  </select>
 
   <h2 class="mt-2">{{ page_title }}</h2>
 

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Financial Document</title>
+  <title>Financial</title>
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
   <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.1.0/css/all.css" integrity="sha384-lKuwvrZot6UHsBSfcMvOkWwlCMgc0TaWr+30HWe3a4ltaBwTZhyTEggF5tJv8tbt" crossorigin="anonymous">
@@ -12,19 +12,27 @@
 </head>
 <body>
 	<header>
-		<h1>Annual Report</h1>
-    <a href={{ url_for('finance.index') }}>Home</a>
-    <a href={{ url_for('finance.accounts') }}>Accounts</a>
-    <a href={{ url_for('finance.paychecks') }}>Paychecks</a>
-    <a href={{ url_for('finance.categories') }}>Categories</a>
-    <a href={{ url_for('finance.account_types') }}>Account Types</a>
-    <a href={{ url_for('finance.stocks') }}>Stocks</a>
-    {% if current_user.is_anonymous %}
-      <a class="btn btn-primary float-right" href={{ url_for('auth.login') }}>Login</a>
-    {% else %}
-      <h4 class="float-right">{{ current_user.username }}</h4>
-      <a class="btn btn-primary float-right" href={{ url_for('auth.logout') }}>Logout</a>
-    {% endif %}
+    <nav class="navbar bg-dark">
+      <a class="navbar-brand text-white" href="{{ url_for('finance.index') }}">Financial</a>
+      <div class="nav-item dropdown mr-auto">
+        <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdownToggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Statements
+        </a>
+        <div class="dropdown-menu" aria-labelledby="navbarDropdownToggle">
+          <a class="dropdown-item" href="{{ url_for('finance.accounts') }}">Accounts</a>
+          <a class="dropdown-item" href="{{ url_for('finance.paychecks') }}">Paychecks</a>
+          <a class="dropdown-item" href="{{ url_for('finance.categories') }}">Categories</a>
+          <a class="dropdown-item" href="{{ url_for('finance.account_types') }}">Account Types</a>
+          <a class="dropdown-item" href="{{ url_for('finance.stocks') }}">Stocks</a>
+        </div>
+      </div>
+      {% if current_user.is_anonymous %}
+        <a class="btn btn-primary" href="{{ url_for('auth.login') }}">Login</a>
+      {% else %}
+        <span class="text-white navbar-text mr-2">{{ current_user.username }}</span>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('auth.logout') }}">Logout</a>
+      {% endif %}
+    </nav>
 
     {% with messages = get_flashed_messages() %}
     {% if messages %}
@@ -42,6 +50,21 @@
   <div id="modal_slot" role="dialog"></div>
 
   <script>
+    $(document).ready(function(){
+      var $nav_dropdown_toggle = $("#navbarDropdownToggle");
+      var dropdown_items = $nav_dropdown_toggle.siblings(".dropdown-menu").find(".dropdown-item");
+      var dropdown_urls = {};
+      for (i = 0; i < dropdown_items.length; i++) {
+        var $dropdown_item = $(dropdown_items[i]);
+        dropdown_urls[$dropdown_item.attr("href")] = $dropdown_item.text();
+      }
+
+      var url_path_name = window.location.pathname;
+      if (url_path_name in dropdown_urls) {
+        $nav_dropdown_toggle.text(dropdown_urls[url_path_name])
+      }
+    });
+
     $(document).on("click", "[data-modal-url]", function(e){
       var $button = $((e.target) ? e.target : e.srcElement);
       var url = $button.data('modalUrl');

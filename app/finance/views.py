@@ -11,7 +11,7 @@ from collections import defaultdict
 @finance.route('/index')
 @login_required
 def index():
-    return redirect(url_for('finance.income_statement'))
+    return redirect(url_for('finance.balance_sheet'))
 
 @finance.route('/accounts')
 @login_required
@@ -93,7 +93,7 @@ def categories():
     root_categories = Category.query.filter(Category.parent == None).all()
     return render_template('finance/categories.html', categories=root_categories)
 
-@finance.route('/paychecks/')
+@finance.route('/paychecks')
 @login_required
 def paychecks():
     paychecks = Paycheck.query.filter(Paycheck.user==current_user).all()
@@ -238,6 +238,7 @@ def balance_sheet():
     root_categories = Category.query.filter(Category.parent == None, Category.name.in_(['Assetts', 'Liabilities'])).all()
     
     return render_template("finance/financial_statement.html",
+                            page_title='{} Balance Sheet'.format(year),
                             root_categories=root_categories,
                             category_monthly_totals=current_monthly_totals,
                             summary_row_items=summary_row_items,
@@ -256,7 +257,7 @@ def income_statement():
     root_categories = Category.query.filter(Category.parent == None, Category.name.in_(['Income', 'Expense', 'Tax'])).all()
 
     return render_template("finance/financial_statement.html",
-                    page_title='Income Statement',
+                    page_title='{} Income Statement'.format(year),
                     root_categories=root_categories,
                     category_monthly_totals=category_monthly_totals,
                     summary_row_items=summary_row_items,
@@ -267,16 +268,6 @@ def income_statement():
 @login_required
 def cash_flow():
     year = int(request.args.get('year', date.today().year))
-
-    # transactions = []
-    # paychecks = []
-    # month_num = request.args.get('month', None)
-    # if month_num:
-    #     month_num = int(month_num)
-    #     days = calendar.monthrange(year, month_num)
-    #     start_date = date(year, month_num, 1)
-    #     end_date = date(year, month_num, days[1])
-
     start_date = date(year, 1, 1)
     end_date = date(year, 12, 31)
 
@@ -287,7 +278,7 @@ def cash_flow():
     root_categories = Category.query.filter(Category.parent == None, Category.name == 'Investment').all()
 
     return render_template("finance/financial_statement.html",
-                            page_title='Cash Flow Statement',
+                            page_title='{} Cash Flow Statement'.format(year),
                             root_categories=root_categories,
                             category_monthly_totals=category_monthly_totals,
                             header_row_items=header_row_items,
