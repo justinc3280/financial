@@ -8,6 +8,8 @@
   <script src="https://use.fontawesome.com/936ae461f0.js"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/css/select2.min.css" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/js/select2.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
   <link rel="stylesheet" type="text/css" href="/static/style.css">
 </head>
 <body>
@@ -53,38 +55,51 @@
     $(document).ready(function(){
       var $nav_dropdown_toggle = $("#navbarDropdownToggle");
       var dropdown_items = $nav_dropdown_toggle.siblings(".dropdown-menu").find(".dropdown-item");
+      var url_path_name = window.location.pathname;
+
       var dropdown_urls = {};
       for (i = 0; i < dropdown_items.length; i++) {
         var $dropdown_item = $(dropdown_items[i]);
         dropdown_urls[$dropdown_item.attr("href")] = $dropdown_item.text();
+        if (url_path_name == $dropdown_item.attr("href")) {
+          $dropdown_item.addClass("active");
+        }
       }
 
-      var url_path_name = window.location.pathname;
       if (url_path_name in dropdown_urls) {
         $nav_dropdown_toggle.text(dropdown_urls[url_path_name])
       }
     });
 
     $(document).on("click", "[data-modal-url]", function(e){
+      e.preventDefault();
       var $button = $((e.target) ? e.target : e.srcElement);
       var url = $button.data('modalUrl');
       var display_result_id = $button.data('displayResultId');
       var $modal_slot = $("#modal_slot");
+      var get = $button.data('get');
 
-      $.ajax({type:'POST', url:url, success: function(response) {
+      if (get)  {
+        $.get(url, function(response) {
           $modal_slot.html(response);
-          $modal = $modal_slot.find(".modal");
-          $form = $modal.find("form");
-          if(display_result_id){
-            $form.data('displayResultId', display_result_id);
-          } else {
-            $form.data('reload', true);
-          }
-    
-          $form.data('url', url);
-          $form.attr('onsubmit', "return submitForm(event);");
-          $modal.modal('show');
-      }})
+          $modal = $modal_slot.find(".modal").modal('show');
+        });
+      } else {
+        $.ajax({type:'POST', url:url, success: function(response) {
+            $modal_slot.html(response);
+            $modal = $modal_slot.find(".modal");
+            $form = $modal.find("form");
+            if(display_result_id){
+              $form.data('displayResultId', display_result_id);
+            } else {
+              $form.data('reload', true);
+            }
+      
+            $form.data('url', url);
+            $form.attr('onsubmit', "return submitForm(event);");
+            $modal.modal('show');
+        }})
+      }
     })
 
     function submitForm(e) {
@@ -107,9 +122,6 @@
   </script>
 
   {% block scripts %}{% endblock scripts %}
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
-  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
 
 </body>
 </html>

@@ -6,16 +6,16 @@
       <a id="balance_sheet_link" href="{{ url_for('finance.balance_sheet') }}">Balance Sheet</a> |
       <a id="income_statement_link" href="{{ url_for('finance.income_statement') }}">Income Statement</a> |
       <a id="cash_flow_link" href="{{ url_for('finance.cash_flow') }}">Statement of Cash Flow</a>
+      <select id="select-year" class="ml-5">
+        {% for year_choice in [2019, 2018] %}
+          <option value="{{year_choice}}" {% if year_choice==year %}selected{% endif %}>{{ year_choice }}</option>
+        {% endfor %}
+      </select>
     </nav>
-    <select id="select-year">
-      {% for year in [2019, 2018] %}
-        <option value="{{year}}">{{ year }}</option>
-      {% endfor %}
-    </select>
   </div>
 
   <h2 class="mt-2">{{ page_title }}</h2>
-
+  
   <table class="table table-responsive freeze-first-column">
     <thead class="thead-dark">
       <tr>
@@ -47,7 +47,15 @@
           <tr class="{{row_class}}">
               <td>{{ category.name }}</td>
               {% for total in category_data.values() %}
-                  <td>{{ total | money(show_as_positive=True) }}</td>
+                  <td>
+                    <a 
+                      href="#" 
+                      class="text-dark" 
+                      data-modal-url="{{ url_for('finance.get_transactions_for_category', category_id=category.id, month=0, year=year) }}" 
+                      data-get="true">
+                      {{ total | money(show_as_positive=True) }}
+                    </a>
+                  </td>
               {% endfor %}
               {% if show_total_column %}
                 <td>{{ category_data.values() | sum | money }}</td>
@@ -91,9 +99,6 @@
     }
 
     $(document).ready(function(){
-      var year = GetURLParameter('year') || new Date().getFullYear();
-      $('#select-year').val(parseInt(year));
-      
       $('#select-year').on('change', function() {
         var selectedYear = $('#select-year').val();
         var url = window.location.href.split('?')[0] + '?year=' + selectedYear;    

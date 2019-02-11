@@ -25,7 +25,7 @@
 							type="button"
 							class="fa fa-pencil-square-o"
 							data-display-result-id="category_name_{{ transaction.id }}"
-							data-modal-url={{ url_for('finance.edit_transaction_category', transaction_id=transaction.id) }}>
+							data-modal-url="{{ url_for('finance.edit_transaction_category', transaction_id=transaction.id) }}">
 						</button>
 					</td>
 				</tr>

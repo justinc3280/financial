@@ -238,6 +238,7 @@ def balance_sheet():
     root_categories = Category.query.filter(Category.parent == None, Category.name.in_(['Assetts', 'Liabilities'])).all()
     
     return render_template("finance/financial_statement.html",
+                            year=year,
                             page_title='{} Balance Sheet'.format(year),
                             root_categories=root_categories,
                             category_monthly_totals=current_monthly_totals,
@@ -257,6 +258,7 @@ def income_statement():
     root_categories = Category.query.filter(Category.parent == None, Category.name.in_(['Income', 'Expense', 'Tax'])).all()
 
     return render_template("finance/financial_statement.html",
+                    year=year,
                     page_title='{} Income Statement'.format(year),
                     root_categories=root_categories,
                     category_monthly_totals=category_monthly_totals,
@@ -279,9 +281,24 @@ def cash_flow():
 
     return render_template("finance/financial_statement.html",
                             page_title='{} Cash Flow Statement'.format(year),
+                            year=year,
                             root_categories=root_categories,
                             category_monthly_totals=category_monthly_totals,
                             header_row_items=header_row_items,
                             summary_row_items=summary_row_items,
                             month_choices=month_choices(),
                             )
+
+@finance.route('/category/<int:category_id>/month/<int:month>/year/<int:year>')
+@login_required
+def get_transactions_for_category(category_id, month, year):
+    category = Category.query.get(category_id)
+    if category.is_transaction_level:
+        transactions = Transaction.query.filter(Transaction.category_id == category_id).all()
+    else:
+        children_category_ids = [category.id for category in category.get_transaction_level_children()]
+        transactions = Transaction.query.filter(Transaction.category_id.in_(children_category_ids)).all()
+
+    return render_template('finance/transactions_for_category.html', 
+                            category=category,
+                            transactions=transactions)
