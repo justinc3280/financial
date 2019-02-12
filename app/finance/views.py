@@ -165,24 +165,23 @@ def get_category_monthly_totals(start_date, end_date):
 
     accounts_monthly_ending_balance = {}
     for account in current_user.accounts: #maybe pass in user or accounts to make this function predictable
-        ending_balances = {index: account.get_ending_balance(date) for index, date in enumerate(ending_month_dates)}
+        ending_balances = {index: account.get_ending_balance(date) for index, date in enumerate(ending_month_dates, start=1)}
         accounts_monthly_ending_balance[account.name] = ending_balances
 
         parent_categories = account.category.get_parent_categories() if account.category else []
         for parent in parent_categories:
             if parent.name not in accounts_monthly_ending_balance:
-                accounts_monthly_ending_balance[parent.name] = {index: total for index, total in enumerate([0] * num_months)}
+                accounts_monthly_ending_balance[parent.name] = {index: total for index, total in enumerate([0] * num_months, start=1)}
             update_category_balances = add_lists(accounts_monthly_ending_balance.get(parent.name).values(), ending_balances.values())
-            accounts_monthly_ending_balance[parent.name] = {index: total for index, total in enumerate(update_category_balances)}
+            accounts_monthly_ending_balance[parent.name] = {index: total for index, total in enumerate(update_category_balances, start=1)}
 
-    total_current_assetts = accounts_monthly_ending_balance.get('Current Assetts', {index: total for index, total in enumerate([0] * num_months)})
-    total_current_liabilities = accounts_monthly_ending_balance.get('Current Liabilities', {index: total for index, total in enumerate([0] * num_months)})
+    total_current_assetts = accounts_monthly_ending_balance.get('Current Assetts', {index: total for index, total in enumerate([0] * num_months, start=1)})
+    total_current_liabilities = accounts_monthly_ending_balance.get('Current Liabilities', {index: total for index, total in enumerate([0] * num_months, start=1)})
     accounts_monthly_ending_balance['working_capital'] = add_lists(total_current_assetts.values(), total_current_liabilities.values())
 
-    total_assetts = accounts_monthly_ending_balance.get('Assetts', {index: total for index, total in enumerate([0] * num_months)})
-    total_liabilities = accounts_monthly_ending_balance.get('Liabilities', {index: total for index, total in enumerate([0] * num_months)})
+    total_assetts = accounts_monthly_ending_balance.get('Assetts', {index: total for index, total in enumerate([0] * num_months, start=1)})
+    total_liabilities = accounts_monthly_ending_balance.get('Liabilities', {index: total for index, total in enumerate([0] * num_months, start=1)})
     accounts_monthly_ending_balance['net_worth'] = add_lists(total_assetts.values(), total_liabilities.values())
-
 
     transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between(start_date, end_date)).all()
     paychecks = Paycheck.query.filter(Paycheck.user_id==current_user.id, Paycheck.date.between(start_date, end_date)).all()
@@ -196,8 +195,8 @@ def get_category_monthly_totals(start_date, end_date):
         parent_categories = transaction.category.get_parent_categories()
         for parent_category in parent_categories:
             if parent_category.name not in category_monthly_totals:
-                category_monthly_totals[parent_category.name] = {index: total for index, total in enumerate([0] * num_months)}
-            category_monthly_totals[parent_category.name][transaction.date.month - 1] += transaction.amount
+                category_monthly_totals[parent_category.name] = {index: total for index, total in enumerate([0] * num_months, start=1)}
+            category_monthly_totals[parent_category.name][transaction.date.month] += transaction.amount
 
     total_income = category_monthly_totals.get('Income').values() if category_monthly_totals.get('Income') else [0] * num_months
     total_tax = category_monthly_totals.get('Tax').values() if category_monthly_totals.get('Tax') else [0] * num_months
@@ -236,7 +235,7 @@ def balance_sheet():
     summary_row_items = [('Working Capital', 'working_capital'), ('Net Worth', 'net_worth')]
 
     root_categories = Category.query.filter(Category.parent == None, Category.name.in_(['Assetts', 'Liabilities'])).all()
-    
+
     return render_template("finance/financial_statement.html",
                             year=year,
                             page_title='{} Balance Sheet'.format(year),
@@ -292,13 +291,18 @@ def cash_flow():
 @finance.route('/category/<int:category_id>/month/<int:month>/year/<int:year>')
 @login_required
 def get_transactions_for_category(category_id, month, year):
+    start_date = date(year, month, 1)
+    last_day = calendar.monthrange(start_date.year, month)[1]
+    end_date = date(year, month, last_day)
     category = Category.query.get(category_id)
     if category.is_transaction_level:
-        transactions = Transaction.query.filter(Transaction.category_id == category_id).all()
+        transactions_q = Transaction.query.filter(Transaction.category_id == category_id)
     else:
         children_category_ids = [category.id for category in category.get_transaction_level_children()]
-        transactions = Transaction.query.filter(Transaction.category_id.in_(children_category_ids)).all()
+        transactions_q = Transaction.query.filter(Transaction.category_id.in_(children_category_ids))
 
-    return render_template('finance/transactions_for_category.html', 
+    transactions = transactions_q.filter(Transaction.date.between(start_date, end_date)).all()
+
+    return render_template('finance/transactions_for_category.html',
                             category=category,
                             transactions=transactions)
