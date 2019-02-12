@@ -6,12 +6,12 @@
       <a id="balance_sheet_link" href="{{ url_for('finance.balance_sheet') }}">Balance Sheet</a> |
       <a id="income_statement_link" href="{{ url_for('finance.income_statement') }}">Income Statement</a> |
       <a id="cash_flow_link" href="{{ url_for('finance.cash_flow') }}">Statement of Cash Flow</a>
+      <select id="select-year" class="ml-5">
+        {% for year_choice in [2019, 2018] %}
+          <option value="{{year_choice}}" {% if year_choice==year %}selected{% endif %}>{{ year_choice }}</option>
+        {% endfor %}
+      </select>
     </nav>
-    <select id="select-year">
-      {% for year in [2019, 2018] %}
-        <option value="{{year}}">{{ year }}</option>
-      {% endfor %}
-    </select>
   </div>
 
   <h2 class="mt-2">{{ page_title }}</h2>
@@ -39,21 +39,29 @@
                 <td>{{ category_monthly_totals.get(key) | sum | money }}</td>
             {% endif %}
         </tr>
-      {% endfor %}  
+      {% endfor %}
       {% for category in root_categories|sort(attribute='rank') recursive %}
         {% set category_data = category_monthly_totals.get(category.name, {}) %}
         {% set row_class = "table-secondary" if loop.depth0 == 0 else ("table-dark" if not category.is_transaction_level == 1 else "") %}
         {% if category_data %}
           <tr class="{{row_class}}">
               <td>{{ category.name }}</td>
-              {% for total in category_data.values() %}
-                  <td>{{ total | money(show_as_positive=True) }}</td>
+              {% for month, total in category_data.items() %}
+                  <td>
+                    <a
+                      href="#"
+                      class="text-dark"
+                      data-modal-url="{{ url_for('finance.get_transactions_for_category', category_id=category.id, month=month, year=year) }}"
+                      data-get="true">
+                      {{ total | money(show_as_positive=True) }}
+                    </a>
+                  </td>
               {% endfor %}
               {% if show_total_column %}
                 <td>{{ category_data.values() | sum | money }}</td>
               {% endif %}
           </tr>
-  
+
           {% if category.children %}
               {{ loop(category.children|sort(attribute='rank')) }}
           {% endif %}
@@ -91,20 +99,17 @@
     }
 
     $(document).ready(function(){
-      var year = GetURLParameter('year') || new Date().getFullYear();
-      $('#select-year').val(parseInt(year));
-      
       $('#select-year').on('change', function() {
         var selectedYear = $('#select-year').val();
-        var url = window.location.href.split('?')[0] + '?year=' + selectedYear;    
+        var url = window.location.href.split('?')[0] + '?year=' + selectedYear;
         window.location.replace(url);
       });
-      
+
       var currentUrlParams = window.location.search;
       var $balanceSheetLink = $('#balance_sheet_link');
       var $incomeStatementLink = $('#income_statement_link');
       var $cashFlowLink = $('#cash_flow_link');
-      
+
       if(currentUrlParams) {
         $balanceSheetLink.attr('href', $balanceSheetLink.attr('href') + currentUrlParams);
         $incomeStatementLink.attr('href', $incomeStatementLink.attr('href') + currentUrlParams);
