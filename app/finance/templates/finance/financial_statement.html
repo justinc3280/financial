@@ -11,6 +11,7 @@
           <option value="{{year_choice}}" {% if year_choice==year %}selected{% endif %}>{{ year_choice }}</option>
         {% endfor %}
       </select>
+      <a href="{{ url_for('finance.charts') }}">Charts</a>
     </nav>
   </div>
 
