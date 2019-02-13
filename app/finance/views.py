@@ -6,6 +6,7 @@ from app.models import Account, AccountType, Category, Paycheck, StockTransactio
 from datetime import date
 import calendar
 from collections import defaultdict
+from app.finance.charts import generate_chart
 
 @finance.route('/')
 @finance.route('/index')
@@ -306,3 +307,31 @@ def get_transactions_for_category(category_id, month, year):
     return render_template('finance/transactions_for_category.html',
                             category=category,
                             transactions=transactions)
+
+def get_plotting_data_for_category(data):
+    months=[]
+    amounts=[]
+    for month_num, amount in data.items():
+        months.append(calendar.month_abbr[month_num])
+        amounts.append(abs(amount))
+    return months, amounts
+
+@finance.route('/charts')
+@login_required
+def charts():
+    year = 2018
+    start_date = date(year, 1, 1)
+    end_date = date(year, 12, 31)
+
+    charts = []
+    category_monthly_totals = get_category_monthly_totals(start_date, end_date)
+
+    income_data = category_monthly_totals.get('Income')
+    income_months, income_amounts = get_plotting_data_for_category(income_data)
+    charts.append(generate_chart(income_months, income_amounts, title='2018 Income'))
+
+    expense_data = category_monthly_totals.get('Expense')
+    months, amounts = get_plotting_data_for_category(expense_data)
+    charts.append(generate_chart(months, amounts, title='2018 Expenses'))
+
+    return render_template('finance/charts.html', charts=charts)
