@@ -155,6 +155,9 @@ def convert_paychecks_to_transactions(paychecks):
                 transactions.append(transaction)
     return transactions
 
+def initialized_category_data(num_months):
+    return {index: total for index, total in enumerate([0] * num_months, start=1)}
+
 def get_category_monthly_totals(start_date, end_date):
     # currently only works if start and end date are in the same year. TODO: Fix
     num_months = end_date.month - start_date.month + 1
@@ -172,17 +175,16 @@ def get_category_monthly_totals(start_date, end_date):
         parent_categories = account.category.get_parent_categories() if account.category else []
         for parent in parent_categories:
             if parent.name not in accounts_monthly_ending_balance:
-                accounts_monthly_ending_balance[parent.name] = {index: total for index, total in enumerate([0] * num_months, start=1)}
-            update_category_balances = add_lists(accounts_monthly_ending_balance.get(parent.name).values(), ending_balances.values())
-            accounts_monthly_ending_balance[parent.name] = {index: total for index, total in enumerate(update_category_balances, start=1)}
+                accounts_monthly_ending_balance[parent.name] = initialized_category_data(num_months)
+            accounts_monthly_ending_balance[parent.name] = add_dict_totals(accounts_monthly_ending_balance.get(parent.name), ending_balances)
 
-    total_current_assetts = accounts_monthly_ending_balance.get('Current Assetts', {index: total for index, total in enumerate([0] * num_months, start=1)})
-    total_current_liabilities = accounts_monthly_ending_balance.get('Current Liabilities', {index: total for index, total in enumerate([0] * num_months, start=1)})
-    accounts_monthly_ending_balance['working_capital'] = add_lists(total_current_assetts.values(), total_current_liabilities.values())
+    total_current_assetts = accounts_monthly_ending_balance.get('Current Assetts', initialized_category_data(num_months))
+    total_current_liabilities = accounts_monthly_ending_balance.get('Current Liabilities', initialized_category_data(num_months))
+    accounts_monthly_ending_balance['Working Capital'] = add_dict_totals(total_current_assetts, total_current_liabilities)
 
-    total_assetts = accounts_monthly_ending_balance.get('Assetts', {index: total for index, total in enumerate([0] * num_months, start=1)})
-    total_liabilities = accounts_monthly_ending_balance.get('Liabilities', {index: total for index, total in enumerate([0] * num_months, start=1)})
-    accounts_monthly_ending_balance['net_worth'] = add_lists(total_assetts.values(), total_liabilities.values())
+    total_assetts = accounts_monthly_ending_balance.get('Assetts', initialized_category_data(num_months))
+    total_liabilities = accounts_monthly_ending_balance.get('Liabilities', initialized_category_data(num_months))
+    accounts_monthly_ending_balance['Net Worth'] = add_dict_totals(total_assetts, total_liabilities)
 
     transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between(start_date, end_date)).all()
     paychecks = Paycheck.query.filter(Paycheck.user_id==current_user.id, Paycheck.date.between(start_date, end_date)).all()
@@ -196,34 +198,26 @@ def get_category_monthly_totals(start_date, end_date):
         parent_categories = transaction.category.get_parent_categories()
         for parent_category in parent_categories:
             if parent_category.name not in category_monthly_totals:
-                category_monthly_totals[parent_category.name] = {index: total for index, total in enumerate([0] * num_months, start=1)}
+                category_monthly_totals[parent_category.name] = initialized_category_data(num_months)
             category_monthly_totals[parent_category.name][transaction.date.month] += transaction.amount
 
-    total_income = category_monthly_totals.get('Income').values() if category_monthly_totals.get('Income') else [0] * num_months
-    total_tax = category_monthly_totals.get('Tax').values() if category_monthly_totals.get('Tax') else [0] * num_months
-    total_expense = category_monthly_totals.get('Expense').values() if category_monthly_totals.get('Expense') else [0] * num_months
-    total_investment = category_monthly_totals.get('Investment').values() if category_monthly_totals.get('Investment') else [0] * num_months
+    total_income = category_monthly_totals.get('Income', initialized_category_data(num_months))
+    total_tax = category_monthly_totals.get('Tax', initialized_category_data(num_months))
+    total_expense = category_monthly_totals.get('Expense', initialized_category_data(num_months))
+    total_investment = category_monthly_totals.get('Investment', initialized_category_data(num_months))
 
-    income_after_taxes = add_lists(total_income, total_tax)
-    category_monthly_totals['income_after_taxes'] = income_after_taxes
-    net_income = add_lists(income_after_taxes, total_expense)
-    category_monthly_totals['net_income'] = net_income
-    category_monthly_totals['net_cash_difference'] = add_lists(net_income, total_investment)
+    category_monthly_totals['Income After Taxes'] = income_after_taxes = add_dict_totals(total_income, total_tax)
+    category_monthly_totals['Net Income'] = net_income = add_dict_totals(income_after_taxes, total_expense)
+    category_monthly_totals['Net Cash Difference'] = add_dict_totals(net_income, total_investment)
 
     return category_monthly_totals
 
-def add_lists(list1, list2):
-    if not isinstance(list1, list):
-        list1 = list(list1)
-    if not isinstance(list2, list):
-        list2 = list(list2)
-    if len(list1) != len(list2):
-        return None
-    length = len(list1)
-    sum = []
-    for ind in range(length):
-        sum.append(list1[ind] + list2[ind])
-    return sum
+def add_dict_totals(dict1, dict2):
+    total = {}
+    for key, value1 in dict1.items():
+        value2 = dict2.get(key, 0)
+        total[key] = value1 + value2
+    return total
 
 @finance.route('/balance_sheet')
 @login_required
@@ -233,7 +227,6 @@ def balance_sheet():
     end_date = date(year, 12, 31)
 
     current_monthly_totals = get_category_monthly_totals(start_date, end_date)
-    summary_row_items = [('Working Capital', 'working_capital'), ('Net Worth', 'net_worth')]
 
     root_categories = Category.query.filter(Category.parent == None, Category.name.in_(['Assetts', 'Liabilities'])).all()
 
@@ -242,7 +235,7 @@ def balance_sheet():
                             page_title='{} Balance Sheet'.format(year),
                             root_categories=root_categories,
                             category_monthly_totals=current_monthly_totals,
-                            summary_row_items=summary_row_items,
+                            summary_row_items=['Working Capital', 'Net Worth'],
                             month_choices=month_choices())
 
 @finance.route('/income_statement')
@@ -253,7 +246,6 @@ def income_statement():
     end_date = date(year, 12, 31)
 
     category_monthly_totals = get_category_monthly_totals(start_date, end_date)
-    summary_row_items = [('Income After Taxes', 'income_after_taxes'), ('Net Income', 'net_income')]
 
     root_categories = Category.query.filter(Category.parent == None, Category.name.in_(['Income', 'Expense', 'Tax'])).all()
 
@@ -262,7 +254,7 @@ def income_statement():
                     page_title='{} Income Statement'.format(year),
                     root_categories=root_categories,
                     category_monthly_totals=category_monthly_totals,
-                    summary_row_items=summary_row_items,
+                    summary_row_items=['Income After Taxes', 'Net Income'],
                     month_choices=month_choices()
                 )
 
@@ -274,8 +266,6 @@ def cash_flow():
     end_date = date(year, 12, 31)
 
     category_monthly_totals = get_category_monthly_totals(start_date, end_date)
-    header_row_items = [('Net Income', 'net_income')]
-    summary_row_items = [('Net Cash Difference', 'net_cash_difference')]
 
     root_categories = Category.query.filter(Category.parent == None, Category.name == 'Investment').all()
 
@@ -284,8 +274,8 @@ def cash_flow():
                             year=year,
                             root_categories=root_categories,
                             category_monthly_totals=category_monthly_totals,
-                            header_row_items=header_row_items,
-                            summary_row_items=summary_row_items,
+                            header_row_items=['Net Income'],
+                            summary_row_items=['Net Cash Difference'],
                             month_choices=month_choices(),
                             )
 
@@ -316,22 +306,27 @@ def get_plotting_data_for_category(data):
         amounts.append(abs(amount))
     return months, amounts
 
-@finance.route('/charts')
+@finance.route('/charts/')
+@finance.route('/charts/<string:category_name>/') # don't like because includes accounts and other non-category things
 @login_required
-def charts():
+def charts(category_name=None):
     year = 2018
     start_date = date(year, 1, 1)
     end_date = date(year, 12, 31)
 
     charts = []
     category_monthly_totals = get_category_monthly_totals(start_date, end_date)
+    if category_name:
+        category_data = category_monthly_totals.get(category_name)
+        months, amounts = get_plotting_data_for_category(category_data)
+        charts.append(generate_chart(months, amounts, title='2018 {}'.format(category_name)))
+    else:
+        income_data = category_monthly_totals.get('Income')
+        income_months, income_amounts = get_plotting_data_for_category(income_data)
+        charts.append(generate_chart(income_months, income_amounts, title='2018 Income'))
 
-    income_data = category_monthly_totals.get('Income')
-    income_months, income_amounts = get_plotting_data_for_category(income_data)
-    charts.append(generate_chart(income_months, income_amounts, title='2018 Income'))
-
-    expense_data = category_monthly_totals.get('Expense')
-    months, amounts = get_plotting_data_for_category(expense_data)
-    charts.append(generate_chart(months, amounts, title='2018 Expenses'))
+        expense_data = category_monthly_totals.get('Expense')
+        months, amounts = get_plotting_data_for_category(expense_data)
+        charts.append(generate_chart(months, amounts, title='2018 Expenses'))
 
     return render_template('finance/charts.html', charts=charts)

@@ -30,23 +30,26 @@
       </tr>
     </thead>
     <tbody>
-      {% for title, key in header_row_items %}
-        <tr class="table-primary">
-            <td>{{ title }}</td>
-            {% for income in category_monthly_totals.get(key) %}
-                <td>{{ income | money }}</td>
-            {% endfor %}
-            {% if show_total_column %}
-                <td>{{ category_monthly_totals.get(key) | sum | money }}</td>
-            {% endif %}
-        </tr>
+      {% for title in header_row_items %}
+        {% set data = category_monthly_totals.get(title, {}) %}
+        {% if data %}
+          <tr class="table-primary">
+              <td><a class="text-dark" href="{{ url_for('finance.charts', category_name=title) }}">{{ title }}</a></td>
+              {% for amount in data.values() %}
+                  <td>{{ amount | money }}</td>
+              {% endfor %}
+              {% if show_total_column %}
+                  <td>{{ data.values() | sum | money }}</td>
+              {% endif %}
+          </tr>
+        {% endif %}
       {% endfor %}
       {% for category in root_categories|sort(attribute='rank') recursive %}
         {% set category_data = category_monthly_totals.get(category.name, {}) %}
         {% set row_class = "table-secondary" if loop.depth0 == 0 else ("table-dark" if not category.is_transaction_level == 1 else "") %}
         {% if category_data %}
           <tr class="{{row_class}}">
-              <td>{{ category.name }}</td>
+              <td><a class="text-dark" href="{{ url_for('finance.charts', category_name=category.name) }}">{{ category.name }}</a></td>
               {% for month, total in category_data.items() %}
                   <td>
                     <a
@@ -68,16 +71,19 @@
           {% endif %}
         {% endif %}
       {% endfor %}
-      {% for title, key in summary_row_items %}
-        <tr class="table-primary">
-            <td>{{ title }}</td>
-            {% for income in category_monthly_totals.get(key) %}
-                <td>{{ income | money }}</td>
-            {% endfor %}
-            {% if show_total_column %}
-                <td>{{ category_monthly_totals.get(key) | sum | money }}</td>
-            {% endif %}
-        </tr>
+      {% for title in summary_row_items %}
+        {% set data = category_monthly_totals.get(title, {}) %}
+        {% if data %}
+          <tr class="table-primary">
+              <td><a class="text-dark" href="{{ url_for('finance.charts', category_name=title) }}">{{ title }}</a></td>
+              {% for amount in data.values() %}
+                  <td>{{ amount | money }}</td>
+              {% endfor %}
+              {% if show_total_column %}
+                  <td>{{ data.values() | sum | money }}</td>
+              {% endif %}
+          </tr>
+        {% endif %}
       {% endfor %}
     </tbody>
   </table>
