@@ -158,7 +158,7 @@ def convert_paychecks_to_transactions(paychecks):
 def initialized_category_data(num_months):
     return {index: total for index, total in enumerate([0] * num_months, start=1)}
 
-def get_category_monthly_totals(start_date, end_date):
+def get_accounts_category_monthly_balances(start_date, end_date):
     # currently only works if start and end date are in the same year. TODO: Fix
     num_months = end_date.month - start_date.month + 1
 
@@ -186,6 +186,12 @@ def get_category_monthly_totals(start_date, end_date):
     total_liabilities = accounts_monthly_ending_balance.get('Liabilities', initialized_category_data(num_months))
     accounts_monthly_ending_balance['Net Worth'] = add_dict_totals(total_assetts, total_liabilities)
 
+    return accounts_monthly_ending_balance
+
+def get_category_monthly_totals(start_date, end_date):
+    # currently only works if start and end date are in the same year. TODO: Fix
+    num_months = end_date.month - start_date.month + 1
+
     transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between(start_date, end_date)).all()
     paychecks = Paycheck.query.filter(Paycheck.user_id==current_user.id, Paycheck.date.between(start_date, end_date)).all()
 
@@ -193,7 +199,6 @@ def get_category_monthly_totals(start_date, end_date):
     transactions.extend(paycheck_transactions)
 
     category_monthly_totals = {}
-    category_monthly_totals.update(accounts_monthly_ending_balance)
     for transaction in transactions:
         parent_categories = transaction.category.get_parent_categories()
         for parent_category in parent_categories:
@@ -226,7 +231,7 @@ def balance_sheet():
     start_date = date(year, 1, 1)
     end_date = date(year, 12, 31)
 
-    current_monthly_totals = get_category_monthly_totals(start_date, end_date)
+    current_monthly_totals = get_accounts_category_monthly_balances(start_date, end_date)
 
     root_categories = Category.query.filter(Category.parent == None, Category.name.in_(['Assetts', 'Liabilities'])).all()
 
@@ -286,17 +291,28 @@ def get_transactions_for_category(category_id, month, year):
     last_day = calendar.monthrange(start_date.year, month)[1]
     end_date = date(year, month, last_day)
     category = Category.query.get(category_id)
-    if category.is_transaction_level:
-        transactions_q = Transaction.query.filter(Transaction.category_id == category_id)
-    else:
-        children_category_ids = [category.id for category in category.get_transaction_level_children()]
-        transactions_q = Transaction.query.filter(Transaction.category_id.in_(children_category_ids))
 
-    transactions = transactions_q.filter(Transaction.date.between(start_date, end_date)).all()
+    data = None
+    if category.category_type == 'transaction':
+        if category.is_transaction_level:
+            transactions_q = Transaction.query.filter(Transaction.category_id == category_id)
+        else:
+            children_category_ids = [category.id for category in category.get_transaction_level_children()]
+            transactions_q = Transaction.query.filter(Transaction.category_id.in_(children_category_ids))
+
+        data = transactions_q.filter(Transaction.date.between(start_date, end_date)).all()
+
+    elif category.category_type == 'account':
+        accounts = Account.query.filter(Account.category_id == category_id).all()
+        data = {account.name : account.get_ending_balance(end_date) for account in accounts}
 
     return render_template('finance/transactions_for_category.html',
-                            category=category,
-                            transactions=transactions)
+                month=calendar.month_name[month],
+                year=year,
+                category=category,
+                data=data)
+
+
 
 def get_plotting_data_for_category(data):
     months=[]
@@ -318,8 +334,9 @@ def charts(category_name=None):
     category_monthly_totals = get_category_monthly_totals(start_date, end_date)
     if category_name:
         category_data = category_monthly_totals.get(category_name)
-        months, amounts = get_plotting_data_for_category(category_data)
-        charts.append(generate_chart(months, amounts, title='2018 {}'.format(category_name)))
+        if category_data:
+            months, amounts = get_plotting_data_for_category(category_data)
+            charts.append(generate_chart(months, amounts, title='2018 {}'.format(category_name)))
     else:
         income_data = category_monthly_totals.get('Income')
         income_months, income_amounts = get_plotting_data_for_category(income_data)
