@@ -192,11 +192,6 @@ def get_category_monthly_totals(start_date, end_date):
     # currently only works if start and end date are in the same year. TODO: Fix
     num_months = end_date.month - start_date.month + 1
 
-    ending_month_dates = []
-    for month_num in range(start_date.month, end_date.month + 1):
-        last_day = calendar.monthrange(start_date.year, month_num)[1]
-        ending_month_dates.append(date(start_date.year, month_num, last_day))
-
     transactions = Transaction.query.join(Account, Account.id==Transaction.account_id).filter(Account.user_id==current_user.id, Transaction.date.between(start_date, end_date)).all()
     paychecks = Paycheck.query.filter(Paycheck.user_id==current_user.id, Paycheck.date.between(start_date, end_date)).all()
 
@@ -297,6 +292,7 @@ def get_transactions_for_category(category_id, month, year):
     end_date = date(year, month, last_day)
     category = Category.query.get(category_id)
 
+    data = None
     if category.category_type == 'transaction':
         if category.is_transaction_level:
             transactions_q = Transaction.query.filter(Transaction.category_id == category_id)
@@ -304,16 +300,17 @@ def get_transactions_for_category(category_id, month, year):
             children_category_ids = [category.id for category in category.get_transaction_level_children()]
             transactions_q = Transaction.query.filter(Transaction.category_id.in_(children_category_ids))
 
-        transactions = transactions_q.filter(Transaction.date.between(start_date, end_date)).all()
-        return render_template('finance/transactions_for_category.html',
-                        category=category,
-                        transactions=transactions)
+        data = transactions_q.filter(Transaction.date.between(start_date, end_date)).all()
+
     elif category.category_type == 'account':
         accounts = Account.query.filter(Account.category_id == category_id).all()
-        ending_balances = {account.name : account.get_ending_balance(end_date) for account in accounts}
-        return render_template('finance/account_balances_for_category.html',
+        data = {account.name : account.get_ending_balance(end_date) for account in accounts}
+
+    return render_template('finance/transactions_for_category.html',
+                month=calendar.month_name[month],
+                year=year,
                 category=category,
-                ending_balances=ending_balances)
+                data=data)
 
 
 
