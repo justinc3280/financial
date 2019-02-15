@@ -40,7 +40,7 @@ class Transaction(db.Model):
 
     def __repr__(self):
         return '<Transaction- date: {}, amount: {}, description: {}>'.format(self.date, self.amount, self.description)
-    
+
     def get_properties(self):
         if self.properties:
             return json.loads(str(self.properties))
@@ -51,7 +51,7 @@ class Transaction(db.Model):
         current_properties = self.get_properties()
         current_properties.update(data)
         self.properties = json.dumps(current_properties)
-        
+
 class FileFormat(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     header_rows = db.Column(db.Integer)
@@ -102,6 +102,7 @@ class Category(db.Model):
     parent_id = db.Column(db.Integer, db.ForeignKey("category.id"))
     rank = db.Column(db.Integer)
     transaction_level = db.Column(db.Boolean) # not used
+    category_type = db.Column(db.String(64))
 
     parent = db.relationship('Category', remote_side=[id])
     children = db.relationship('Category')
