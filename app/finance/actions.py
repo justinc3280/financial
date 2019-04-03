@@ -138,10 +138,10 @@ def transactions(account_id):
                 else:
                     category = uncategorized_expense_category if float(amount_data) < 0 else uncategorized_income_category
 
-                exists = Transaction.query.filter(Transaction.date == date, Transaction.description == description,
+                transaction = Transaction.query.filter(Transaction.date == date, Transaction.description == description,
                                                   Transaction.amount == amount_data, Transaction.account_id == account_id).first()
 
-                if not exists:
+                if not transaction:
                     transaction = Transaction(
                         date = date,
                         description = description,
@@ -311,7 +311,7 @@ def edit_stock_transaction(transaction_id):
     form = StockTransactionForm(data=data)
     category_choices = db.session.query(Category.id, Category.name).filter(Category.name.in_(['Buy', 'Sell'])).all()
     form.transaction_type.choices = category_choices
-    
+
     if form.validate_on_submit():
         if stock_transaction:
             stock_transaction.date = form.date.data
@@ -331,7 +331,7 @@ def edit_stock_transaction(transaction_id):
             'transaction_fee': form.transaction_fee.data
         }
         stock_transaction.update_properties(properties)
-            
+
         db.session.commit()
         return redirect(url_for('finance.stock_transactions'))
     return render_template('finance/forms/edit_stock_transaction.html', type=label, form=form)

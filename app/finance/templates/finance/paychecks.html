@@ -19,6 +19,7 @@
     <th>Retirement Match</th>
     <th>GTL</th>
     <th>Gym Reimbursement</th>
+    <th>FSA Contribution</th>
     <th>Net Pay</th>
   </tr>
   {% for paycheck in paychecks | sort(attribute='date') %}
@@ -38,6 +39,7 @@
       <td>{{ paycheck.retirement_match | money }}</td>
       <td>{{ paycheck_properties.get('gtl', 0) | money }}</td>
       <td>{{ paycheck_properties.get('gym_reimbursement', 0) | money }}</td>
+      <td>{{ paycheck_properties.get('fsa', 0) | money }}</td>
       <td>{{ paycheck.net_pay | money }}</td>
     </tr>
   {% endfor %}
