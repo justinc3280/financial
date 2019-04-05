@@ -48,15 +48,16 @@ def get_stock_values(end_date=date.today()):
                     'cost': 0
                 }
 
+            quantity = properties.get('quantity') * properties.get('split_adjustment', 1)
             if stock_transaction.category.name == 'Buy':
-                stocks_data[symbol]['quantity'] += properties.get('quantity')
+                stocks_data[symbol]['quantity'] += quantity
                 stocks_data[symbol]['cost'] += abs(stock_transaction.amount)
                 stocks_data['Total']['cost'] += abs(stock_transaction.amount)
             elif stock_transaction.category.name == 'Sell':
-                stocks_data[symbol]['quantity'] -= properties.get('quantity')
-                stocks_data[symbol]['cost'] -= abs(stock_transaction.amount)
-                stocks_data['Total']['cost'] -= abs(stock_transaction.amount)
-            stocks_data[symbol]['cost_per_share'] = stocks_data[symbol]['cost'] / stocks_data[symbol]['quantity']
+                stocks_data[symbol]['quantity'] -= quantity
+                stocks_data[symbol]['cost'] -= abs(properties.get('cost_basis', 0))
+                stocks_data['Total']['cost'] -= abs(properties.get('cost_basis', 0))
+            stocks_data[symbol]['cost_per_share'] = stocks_data[symbol]['cost'] / stocks_data[symbol]['quantity'] if stocks_data[symbol]['quantity'] else 0
 
     # for symbol, stock_data in stocks_data.items():
         # current_price = get_current_price(symbol)
