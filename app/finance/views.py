@@ -126,7 +126,8 @@ def paycheck_col_to_category_name(col_name):
         #'gym_reimbursement': 'Gym Reimbursement',
         'gym_reimbursement': 'Other Income',
         'fsa': 'FSA Contribution',
-        'net_pay': 'Net Pay'
+        'net_pay': 'Net Pay',
+        'espp': 'ESPP Refunded'
     }
     return translation[col_name]
 

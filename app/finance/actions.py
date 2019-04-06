@@ -210,6 +210,7 @@ def add_paycheck():
     gtl_col = 13
     gym_reimbursement_col = 14
     company_col = 15
+    espp_col = 16
 
     if form.validate_on_submit():
         file_contents = form.file_upload.data.read().decode('utf-8').splitlines()
@@ -231,6 +232,7 @@ def add_paycheck():
             gtl = float(row[gtl_col - 1])
             gym_reimbursement = float(row[gym_reimbursement_col - 1])
             company_name = row[company_col - 1]
+            espp = float(row[espp_col - 1])
 
             exists = Paycheck.query.filter(Paycheck.date == date, Paycheck.company_name == company_name, Paycheck.gross_pay == gross_pay, Paycheck.net_pay == net_pay).first()
             if not exists:
@@ -255,6 +257,8 @@ def add_paycheck():
                     other_fields['gtl'] = gtl
                 if gym_reimbursement:
                     other_fields['gym_reimbursement'] = gym_reimbursement
+                if espp:
+                    other_fields['espp'] = espp
                 paycheck.update_properties(other_fields)
                 db.session.add(paycheck)
 

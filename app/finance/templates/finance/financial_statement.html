@@ -7,7 +7,7 @@
       <a id="income_statement_link" href="{{ url_for('finance.income_statement') }}">Income Statement</a> |
       <a id="cash_flow_link" href="{{ url_for('finance.cash_flow') }}">Statement of Cash Flow</a>
       <select id="select-year" class="ml-5">
-        {% for year_choice in [2019, 2018, 2017, 2016] %}
+        {% for year_choice in [2019, 2018, 2017, 2016, 2015] %}
           <option value="{{year_choice}}" {% if year_choice==year %}selected{% endif %}>{{ year_choice }}</option>
         {% endfor %}
       </select>
