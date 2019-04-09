@@ -60,7 +60,6 @@ class StockTransactionForm(FlaskForm):
     date = DateField('Date', validators=[DataRequired()], format='%m/%d/%Y')
     symbol = StringField('Symbol', validators=[DataRequired()])
     quantity = FloatField('Quantity', validators=[DataRequired()])
-    price_per_share = FloatField('Price Per Share')
     cost_basis = FloatField('Cost Basis', validators=[Optional()])
     transaction_fee = FloatField('Fee')
     transaction_type = SelectField('Type', choices=[('Buy', 'Buy'), ('Sell', 'Sell')], validators=[DataRequired()])

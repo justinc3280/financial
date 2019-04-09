@@ -305,7 +305,6 @@ def edit_stock_transaction(transaction_id):
         data['date'] = stock_transaction.date
         data['symbol'] = properties.get('symbol')
         data['quantity'] = properties.get('quantity')
-        data['price_per_share'] = properties.get('price_per_share')
         data['transaction_fee'] = properties.get('transaction_fee')
         data['cost_basis'] = properties.get('cost_basis')
         data['split_adjustment'] = properties.get('split_adjustment')
@@ -332,7 +331,6 @@ def edit_stock_transaction(transaction_id):
         properties = {
             'symbol': form.symbol.data,
             'quantity': form.quantity.data,
-            'price_per_share': form.price_per_share.data,
             'transaction_fee': form.transaction_fee.data
         }
         if form.cost_basis.data:
