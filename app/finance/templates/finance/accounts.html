@@ -3,9 +3,9 @@
 {% block content %}
 
   <h2>{{ title }}</h2>
-  <a class="btn btn-primary" href={{ url_for('finance.edit_account', account_id=0) }}>Add Account</a>
+  <a class="btn btn-primary" href="#" data-modal-url="{{ url_for('finance.edit_account', account_id=0) }}">Add Account</a>
   {% for account in accounts | sort(attribute='name') %}
-    <a href={{ url_for('finance.account_details', account_id=account.id) }}><h4>{{ account.name }}</h4></a>
+    <a href="{{ url_for('finance.account_details', account_id=account.id) }}"><h4>{{ account.name }}</h4></a>
   {% endfor %}
 
 {% endblock %}

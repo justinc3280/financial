@@ -37,7 +37,7 @@ def account_types():
 def get_stock_values(end_date=date.today()):
     stocks_data = {'Total': {'cost': 0}}
     stock_transactions = Transaction.query.join(Transaction.category).join(Transaction.account).filter(
-        Transaction.date <= end_date, Category.name.in_(['Buy', 'Sell']), Account.user==current_user).all()
+        Transaction.date <= end_date, Category.name.in_(['Buy', 'Sell', 'Dividend Reinvest']), Account.user==current_user).all()
     for stock_transaction in stock_transactions:
         properties = stock_transaction.get_properties()
         symbol = properties.get('symbol')
@@ -48,15 +48,15 @@ def get_stock_values(end_date=date.today()):
                     'cost': 0
                 }
 
-            if stock_transaction.category.name == 'Buy':
-                stocks_data[symbol]['quantity'] += properties.get('quantity')
+            quantity = properties.get('quantity') * properties.get('split_adjustment', 1)
+            if stock_transaction.category.name in ['Buy', 'Dividend Reinvest']:
+                stocks_data[symbol]['quantity'] += quantity
                 stocks_data[symbol]['cost'] += abs(stock_transaction.amount)
                 stocks_data['Total']['cost'] += abs(stock_transaction.amount)
             elif stock_transaction.category.name == 'Sell':
-                stocks_data[symbol]['quantity'] -= properties.get('quantity')
-                stocks_data[symbol]['cost'] -= abs(stock_transaction.amount)
-                stocks_data['Total']['cost'] -= abs(stock_transaction.amount)
-            stocks_data[symbol]['cost_per_share'] = stocks_data[symbol]['cost'] / stocks_data[symbol]['quantity']
+               stocks_data[symbol]['quantity'] -= quantity
+               stocks_data[symbol]['cost'] -= abs(properties.get('cost_basis', 0))
+               stocks_data['Total']['cost'] -= abs(properties.get('cost_basis', 0))
 
     # for symbol, stock_data in stocks_data.items():
         # current_price = get_current_price(symbol)
@@ -77,7 +77,7 @@ def stocks():
 @finance.route('/stock_transactions')
 @login_required
 def stock_transactions():
-    stock_transactions = Transaction.query.join(Transaction.category).join(Transaction.account).filter(Category.name.in_(['Buy', 'Sell']), Account.user==current_user).all()
+    stock_transactions = Transaction.query.join(Transaction.category).join(Transaction.account).filter(Category.name.in_(['Buy', 'Sell', 'Dividend Reinvest']), Account.user==current_user).all()
 
     return render_template("finance/stock_transactions.html", stock_transactions=stock_transactions)
 

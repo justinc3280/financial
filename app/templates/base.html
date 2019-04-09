@@ -73,7 +73,7 @@
 
     $(document).on("click", "[data-modal-url]", function(e){
       e.preventDefault();
-      var $button = $((e.target) ? e.target : e.srcElement);
+      var $button = $((e.target) ? e.target : e.srcElement).closest("[data-modal-url]");
       var url = $button.data('modalUrl');
       var display_result_id = $button.data('displayResultId');
       var $modal_slot = $("#modal_slot");
@@ -94,7 +94,7 @@
             } else {
               $form.data('reload', true);
             }
-      
+
             $form.data('url', url);
             $form.attr('onsubmit', "return submitForm(event);");
             $modal.modal('show');

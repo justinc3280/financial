@@ -13,10 +13,11 @@
 	  <th>Cost</th>
  	</tr>
 	{% for stock_symbol, data in stock_data.items() if stock_symbol != 'Total' %}
+		{% set pps = data.cost / data.quantity if data.quantity else 0 %}
 	  <tr>
 	    <td>{{ stock_symbol }}</td>
 	    <td>{{ data.quantity }}</td>
-	    <td>{{ data.cost_per_share | money }}</td>
+	    <td>{{ pps | money }}</td>
 	    <td>{{ data.cost | money }}</td>
 	  </tr>
 	{% endfor %}

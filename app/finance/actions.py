@@ -301,25 +301,29 @@ def edit_stock_transaction(transaction_id):
     data = {}
     if stock_transaction:
         properties = stock_transaction.get_properties()
-        data['transaction_type'] = stock_transaction.category_id
+        data['transaction_type'] = stock_transaction.category.name
         data['date'] = stock_transaction.date
         data['symbol'] = properties.get('symbol')
         data['quantity'] = properties.get('quantity')
-        data['price_per_share'] = properties.get('price_per_share')
         data['transaction_fee'] = properties.get('transaction_fee')
+        data['cost_basis'] = properties.get('cost_basis')
+        data['split_adjustment'] = properties.get('split_adjustment')
 
     form = StockTransactionForm(data=data)
     category_choices = db.session.query(Category.id, Category.name).filter(Category.name.in_(['Buy', 'Sell'])).all()
-    form.transaction_type.choices = category_choices
-    
+    buy_category_id = next((category.id for category in category_choices if category.name == 'Buy'))
+    sell_category_id = next((category.id for category in category_choices if category.name == 'Sell'))
+
     if form.validate_on_submit():
+        selected_category_id = sell_category_id if form.transaction_type.data == "Sell" else buy_category_id
+
         if stock_transaction:
             stock_transaction.date = form.date.data
-            stock_transaction.category_id = form.transaction_type.data
+            stock_transaction.category_id = selected_category_id
         else:
             stock_transaction = Transaction(
                 date=form.date.data,
-                category_id = form.transaction_type.data,
+                category_id=selected_category_id,
                 user=current_user
             )
             db.session.add(stock_transaction)
@@ -327,11 +331,14 @@ def edit_stock_transaction(transaction_id):
         properties = {
             'symbol': form.symbol.data,
             'quantity': form.quantity.data,
-            'price_per_share': form.price_per_share.data,
             'transaction_fee': form.transaction_fee.data
         }
+        if form.cost_basis.data:
+            properties['cost_basis'] = form.cost_basis.data
+        if form.split_adjustment.data:
+            properties['split_adjustment'] = form.split_adjustment.data
         stock_transaction.update_properties(properties)
-            
+
         db.session.commit()
         return redirect(url_for('finance.stock_transactions'))
     return render_template('finance/forms/edit_stock_transaction.html', type=label, form=form)
