@@ -347,3 +347,16 @@ def charts(category_name=None):
         charts.append(generate_chart(months, amounts, title='2018 Expenses'))
 
     return render_template('finance/charts.html', charts=charts)
+
+@finance.route('/stocks/return/cash_flows/')
+def investments_return():
+    year = int(request.args.get('year', date.today().year))
+    start_date = date(2011, 1, 1)
+    end_date = date(year, 12, 31)
+
+    cash_flow_transactions = Transaction.query.join(Transaction.account).join(Account.category).filter(Account.user == current_user,
+        Category.name == 'Brokerage Account', Transaction.date.between(start_date, end_date)).all()
+
+    cash_flow_transactions = [t for t in cash_flow_transactions if t.category.name in ['Transfer In', 'Transfer Out']] # filter in query, alias
+
+    return render_template('finance/return.html', transactions=cash_flow_transactions)
