@@ -482,6 +482,7 @@ def charts(category_name=None):
 
     return render_template('finance/charts.html', charts=charts)
 
+
 @finance.route('/stocks/return/cash_flows/')
 def investments_return():
     year = int(request.args.get('year', date.today().year))
@@ -490,7 +491,19 @@ def investments_return():
 
     account_category = aliased(Category)
     transaction_category = aliased(Category)
-    cash_flow_transactions = Transaction.query.join(transaction_category, Transaction.category_id == transaction_category.id).join(Transaction.account).join(account_category, Account.category_id == account_category.id).filter(Account.user == current_user,
-        account_category.name == 'Brokerage Account', transaction_category.name.in_(['Transfer In', 'Transfer Out']), Transaction.date.between(start_date, end_date)).all()
+    cash_flow_transactions = (
+        Transaction.query.join(
+            transaction_category, Transaction.category_id == transaction_category.id
+        )
+        .join(Transaction.account)
+        .join(account_category, Account.category_id == account_category.id)
+        .filter(
+            Account.user == current_user,
+            account_category.name == 'Brokerage Account',
+            transaction_category.name.in_(['Transfer In', 'Transfer Out']),
+            Transaction.date.between(start_date, end_date),
+        )
+        .all()
+    )
 
     return render_template('finance/return.html', transactions=cash_flow_transactions)
