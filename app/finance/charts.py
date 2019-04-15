@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 from io import BytesIO
 import base64
 
+
 def generate_chart(x_data, y_data, title=None):
     plt.figure()
     plt.bar(x_data, y_data)
