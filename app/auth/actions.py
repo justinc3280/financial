@@ -8,6 +8,7 @@ from app.auth import auth
 from app.auth.forms import LoginForm, RegistrationForm
 from app.models import User
 
+
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -30,12 +31,14 @@ def login():
         return redirect(next_page)
     return render_template('auth/forms/login.html', form=form)
 
+
 @auth.route('/logout')
 @login_required
 def logout():
     logout_user()
     flash('User has been logged out')
     return redirect(url_for('finance.index'))
+
 
 @auth.route('/register', methods=['GET', 'POST'])
 def register():

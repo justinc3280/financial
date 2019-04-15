@@ -2,8 +2,24 @@ from app import db
 from flask import redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from app.finance import finance
-from app.finance.forms import AccountForm, AccountTypeForm, AddCategoryForm, EditTransactionCategoryForm, FileUploadForm, PaychecksForm, StockTransactionForm
-from app.models import Account, AccountType, Category, FileFormat, Transaction, StockTransaction, Paycheck
+from app.finance.forms import (
+    AccountForm,
+    AccountTypeForm,
+    AddCategoryForm,
+    EditTransactionCategoryForm,
+    FileUploadForm,
+    PaychecksForm,
+    StockTransactionForm,
+)
+from app.models import (
+    Account,
+    AccountType,
+    Category,
+    FileFormat,
+    Transaction,
+    StockTransaction,
+    Paycheck,
+)
 import csv
 from datetime import datetime
 
@@ -34,11 +50,15 @@ def edit_account(account_id):
             data['category_column'] = account.file_format.category_column
 
     form = AccountForm(data=data)
-    root_categories = Category.query.filter(Category.parent == None, Category.name.in_(['Assetts', 'Liabilities'])).all()
+    root_categories = Category.query.filter(
+        Category.parent == None, Category.name.in_(['Assetts', 'Liabilities'])
+    ).all()
     categories = []
     for category in root_categories:
         categories.extend(category.get_transaction_level_children())
-    form.account_category.choices = [(0,'None')] + sorted([(category.id, category.name) for category in categories], key=lambda x: x[1])
+    form.account_category.choices = [(0, 'None')] + sorted(
+        [(category.id, category.name) for category in categories], key=lambda x: x[1]
+    )
 
     if request.form:
         if account:
@@ -60,14 +80,14 @@ def edit_account(account_id):
             account.file_format.category_column = form.category_column.data
         else:
             new_format = FileFormat(
-                header_rows = form.header_rows.data,
-                num_columns = form.num_columns.data,
-                date_column = form.date_column.data,
-                date_format = form.date_format.data,
-                description_column = form.description_column.data,
-                amount_column = form.amount_column.data,
-                category_column = form.category_column.data,
-                account_id = account.id
+                header_rows=form.header_rows.data,
+                num_columns=form.num_columns.data,
+                date_column=form.date_column.data,
+                date_format=form.date_format.data,
+                description_column=form.description_column.data,
+                amount_column=form.amount_column.data,
+                category_column=form.category_column.data,
+                account_id=account.id,
             )
             db.session.add(new_format)
         db.session.commit()
@@ -87,18 +107,24 @@ def delete_account(account_id):
     db.session.commit()
     return redirect(url_for('finance.accounts'))
 
+
 @finance.route('/add_account_type', methods=['GET', 'POST'])
 @login_required
 def add_account_type():
     form = AccountTypeForm()
 
     if form.validate_on_submit():
-        account_type = AccountType(name = form.name.data, middle_level = form.middle_level.data, top_level = form.top_level.data)
+        account_type = AccountType(
+            name=form.name.data,
+            middle_level=form.middle_level.data,
+            top_level=form.top_level.data,
+        )
         db.session.add(account_type)
         db.session.commit()
         return redirect(url_for('finance.account_types'))
 
     return render_template('finance/forms/add_account_type.html', form=form)
+
 
 @finance.route('/account/<int:account_id>/transactions', methods=['GET', 'POST'])
 @login_required
@@ -111,50 +137,85 @@ def transactions(account_id):
             file_contents = form.file_upload.data.read().decode('utf-8').splitlines()
             data = list(csv.reader(file_contents, delimiter=','))
             # combine these queries
-            uncategorized_expense_category = Category.query.filter(Category.name == "Uncategorized Expense").first()
-            uncategorized_income_category = Category.query.filter(Category.name == "Other Income").first()
+            uncategorized_expense_category = Category.query.filter(
+                Category.name == "Uncategorized Expense"
+            ).first()
+            uncategorized_income_category = Category.query.filter(
+                Category.name == "Other Income"
+            ).first()
 
-            if len(data[account.file_format.header_rows]) < account.file_format.category_column:
+            if (
+                len(data[account.file_format.header_rows])
+                < account.file_format.category_column
+            ):
                 category_defined = False
 
-
-            for row in data[account.file_format.header_rows:]:
-                date_data = row[account.file_format.date_column-1]
-                if date_data in ['** No Record found for the given criteria ** ', '***END OF FILE***']:
+            for row in data[account.file_format.header_rows :]:
+                date_data = row[account.file_format.date_column - 1]
+                if date_data in [
+                    '** No Record found for the given criteria ** ',
+                    '***END OF FILE***',
+                ]:
                     continue
-                date = datetime.strptime(date_data, account.file_format.date_format).date()
+                date = datetime.strptime(
+                    date_data, account.file_format.date_format
+                ).date()
 
-                amount_data = row[account.file_format.amount_column-1]
+                amount_data = row[account.file_format.amount_column - 1]
                 amount_data = amount_data.replace('$', '')
                 amount_data = amount_data.replace('+', '')
                 amount_data = amount_data.replace(' ', '')
                 amount_data = amount_data.replace(',', '')
 
-                description = row[account.file_format.description_column-1]
-                if len(data[account.file_format.header_rows]) >= account.file_format.category_column:
-                    category_name = row[account.file_format.category_column-1]
-                    category_obj = Category.query.filter(Category.name == category_name).first()
-                    category = category_obj if category_obj else (uncategorized_expense_category if float(amount_data) < 0 else uncategorized_income_category)
+                description = row[account.file_format.description_column - 1]
+                if (
+                    len(data[account.file_format.header_rows])
+                    >= account.file_format.category_column
+                ):
+                    category_name = row[account.file_format.category_column - 1]
+                    category_obj = Category.query.filter(
+                        Category.name == category_name
+                    ).first()
+                    category = (
+                        category_obj
+                        if category_obj
+                        else (
+                            uncategorized_expense_category
+                            if float(amount_data) < 0
+                            else uncategorized_income_category
+                        )
+                    )
                 else:
-                    category = uncategorized_expense_category if float(amount_data) < 0 else uncategorized_income_category
+                    category = (
+                        uncategorized_expense_category
+                        if float(amount_data) < 0
+                        else uncategorized_income_category
+                    )
 
-                exists = Transaction.query.filter(Transaction.date == date, Transaction.description == description,
-                                                  Transaction.amount == amount_data, Transaction.account_id == account_id).first()
+                exists = Transaction.query.filter(
+                    Transaction.date == date,
+                    Transaction.description == description,
+                    Transaction.amount == amount_data,
+                    Transaction.account_id == account_id,
+                ).first()
 
                 if not exists:
                     transaction = Transaction(
-                        date = date,
-                        description = description,
-                        amount = amount_data,
-                        category = category,
-                        account_id = account_id,
+                        date=date,
+                        description=description,
+                        amount=amount_data,
+                        category=category,
+                        account_id=account_id,
                     )
                     db.session.add(transaction)
             db.session.commit()
-        return redirect(url_for('finance.account_details', account_id=account_id ))
+        return redirect(url_for('finance.account_details', account_id=account_id))
     return render_template('finance/forms/file_upload.html', form=form)
 
-@finance.route('/transaction/<int:transaction_id>/edit_category', methods=['GET', 'POST'])
+
+@finance.route(
+    '/transaction/<int:transaction_id>/edit_category', methods=['GET', 'POST']
+)
 @login_required
 def edit_transaction_category(transaction_id):
     transaction = Transaction.query.get_or_404(transaction_id)
@@ -163,32 +224,52 @@ def edit_transaction_category(transaction_id):
         new_category_id = int(request.form.get('category'))
         transaction.category_id = new_category_id
         db.session.commit()
-        return(transaction.category.name)
+        return transaction.category.name
 
     form = EditTransactionCategoryForm(data={'category': transaction.category.id})
     categories = Category.query.all()
-    form.category.choices = [(category.id, category.name) for category in categories if category.is_transaction_level and category.top_level_parent().name in [('Expense' if transaction.amount < 0 else 'Income'), 'Transfer', 'Investment']]
+    form.category.choices = [
+        (category.id, category.name)
+        for category in categories
+        if category.is_transaction_level
+        and category.top_level_parent().name
+        in [
+            ('Expense' if transaction.amount < 0 else 'Income'),
+            'Transfer',
+            'Investment',
+        ]
+    ]
 
-    return render_template('finance/forms/edit_transaction_category.html', form=form, transaction=transaction)
+    return render_template(
+        'finance/forms/edit_transaction_category.html',
+        form=form,
+        transaction=transaction,
+    )
+
 
 @finance.route('/add_category', methods=['GET', 'POST'])
 @login_required
 def add_category():
     form = AddCategoryForm()
     categories = Category.query.all()
-    form.parent.choices = [(0,'None')] + sorted([(category.id, category.name) for category in categories], key=lambda x: x[1])
+    form.parent.choices = [(0, 'None')] + sorted(
+        [(category.id, category.name) for category in categories], key=lambda x: x[1]
+    )
 
     if request.form:
         if form.parent.data:
             parent_category = Category.query.get_or_404(form.parent.data)
             new_rank = len(parent_category.children)
-            db.session.add(Category(name = form.name.data, parent_id = form.parent.data, rank=new_rank))
+            db.session.add(
+                Category(name=form.name.data, parent_id=form.parent.data, rank=new_rank)
+            )
         else:
             new_rank = Category.num_root_categories() + 1
-            db.session.add(Category(name = form.name.data, rank=new_rank))
+            db.session.add(Category(name=form.name.data, rank=new_rank))
         db.session.commit()
 
     return render_template('finance/forms/add_category.html', form=form)
+
 
 @finance.route('/add_paycheck', methods=['GET', 'POST'])
 @login_required
@@ -232,23 +313,28 @@ def add_paycheck():
             gym_reimbursement = float(row[gym_reimbursement_col - 1])
             company_name = row[company_col - 1]
 
-            exists = Paycheck.query.filter(Paycheck.date == date, Paycheck.company_name == company_name, Paycheck.gross_pay == gross_pay, Paycheck.net_pay == net_pay).first()
+            exists = Paycheck.query.filter(
+                Paycheck.date == date,
+                Paycheck.company_name == company_name,
+                Paycheck.gross_pay == gross_pay,
+                Paycheck.net_pay == net_pay,
+            ).first()
             if not exists:
                 paycheck = Paycheck(
-                    date = date,
-                    company_name = company_name,
-                    gross_pay = gross_pay,
-                    federal_income_tax = federal_income_tax,
-                    social_security_tax = social_security_tax,
-                    medicare_tax = medicare_tax,
-                    state_income_tax = state_income_tax,
-                    health_insurance = health_insurance,
-                    dental_insurance = dental_insurance,
-                    traditional_retirement = traditional_retirement,
-                    roth_retirement = roth_retirement,
-                    retirement_match = retirement_match,
-                    net_pay = net_pay,
-                    user = current_user
+                    date=date,
+                    company_name=company_name,
+                    gross_pay=gross_pay,
+                    federal_income_tax=federal_income_tax,
+                    social_security_tax=social_security_tax,
+                    medicare_tax=medicare_tax,
+                    state_income_tax=state_income_tax,
+                    health_insurance=health_insurance,
+                    dental_insurance=dental_insurance,
+                    traditional_retirement=traditional_retirement,
+                    roth_retirement=roth_retirement,
+                    retirement_match=retirement_match,
+                    net_pay=net_pay,
+                    user=current_user,
                 )
                 other_fields = {}
                 if gtl:
@@ -288,6 +374,7 @@ def add_paycheck():
     return render_template('finance/forms/add_paycheck.html', form=form)
     '''
 
+
 @finance.route('/stock_transaction/<int:transaction_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_stock_transaction(transaction_id):
@@ -310,28 +397,38 @@ def edit_stock_transaction(transaction_id):
         data['split_adjustment'] = properties.get('split_adjustment')
 
     form = StockTransactionForm(data=data)
-    category_choices = db.session.query(Category.id, Category.name).filter(Category.name.in_(['Buy', 'Sell'])).all()
-    buy_category_id = next((category.id for category in category_choices if category.name == 'Buy'))
-    sell_category_id = next((category.id for category in category_choices if category.name == 'Sell'))
+    category_choices = (
+        db.session.query(Category.id, Category.name)
+        .filter(Category.name.in_(['Buy', 'Sell']))
+        .all()
+    )
+    buy_category_id = next(
+        (category.id for category in category_choices if category.name == 'Buy')
+    )
+    sell_category_id = next(
+        (category.id for category in category_choices if category.name == 'Sell')
+    )
 
     if form.validate_on_submit():
-        selected_category_id = sell_category_id if form.transaction_type.data == "Sell" else buy_category_id
+        selected_category_id = (
+            sell_category_id
+            if form.transaction_type.data == "Sell"
+            else buy_category_id
+        )
 
         if stock_transaction:
             stock_transaction.date = form.date.data
             stock_transaction.category_id = selected_category_id
         else:
             stock_transaction = Transaction(
-                date=form.date.data,
-                category_id=selected_category_id,
-                user=current_user
+                date=form.date.data, category_id=selected_category_id, user=current_user
             )
             db.session.add(stock_transaction)
 
         properties = {
             'symbol': form.symbol.data,
             'quantity': form.quantity.data,
-            'transaction_fee': form.transaction_fee.data
+            'transaction_fee': form.transaction_fee.data,
         }
         if form.cost_basis.data:
             properties['cost_basis'] = form.cost_basis.data
@@ -341,4 +438,6 @@ def edit_stock_transaction(transaction_id):
 
         db.session.commit()
         return redirect(url_for('finance.stock_transactions'))
-    return render_template('finance/forms/edit_stock_transaction.html', type=label, form=form)
+    return render_template(
+        'finance/forms/edit_stock_transaction.html', type=label, form=form
+    )

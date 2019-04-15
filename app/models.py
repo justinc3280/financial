@@ -6,9 +6,11 @@ from datetime import date
 from app import login
 from werkzeug.security import generate_password_hash, check_password_hash
 
+
 @login.user_loader
 def load_user(id):
     return User.query.get(int(id))
+
 
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -17,7 +19,9 @@ class User(db.Model, UserMixin):
     password_hash = db.Column(db.String(128))
     accounts = db.relationship('Account', backref='user', lazy='dynamic')
     paychecks = db.relationship('Paycheck', backref='user', lazy='dynamic')
-    stock_transactions = db.relationship('StockTransaction', backref='user', lazy='dynamic')
+    stock_transactions = db.relationship(
+        'StockTransaction', backref='user', lazy='dynamic'
+    )
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -27,6 +31,7 @@ class User(db.Model, UserMixin):
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
+
 
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -39,7 +44,9 @@ class Transaction(db.Model):
     properties = db.Column(db.Text, default="{}")
 
     def __repr__(self):
-        return '<Transaction- date: {}, amount: {}, description: {}>'.format(self.date, self.amount, self.description)
+        return '<Transaction- date: {}, amount: {}, description: {}>'.format(
+            self.date, self.amount, self.description
+        )
 
     def get_properties(self):
         if self.properties:
@@ -51,6 +58,7 @@ class Transaction(db.Model):
         current_properties = self.get_properties()
         current_properties.update(data)
         self.properties = json.dumps(current_properties)
+
 
 class FileFormat(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -64,6 +72,7 @@ class FileFormat(db.Model):
     account_id = db.Column(db.Integer, db.ForeignKey("account.id"))
     account = db.relationship('Account')
 
+
 class Account(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64))
@@ -71,8 +80,8 @@ class Account(db.Model):
     file_format = db.relationship('FileFormat', uselist=False)
     transactions = db.relationship('Transaction', backref='account', lazy='dynamic')
     starting_balance = db.Column(db.Float)
-    type_id = db.Column(db.Integer, db.ForeignKey("account_type.id")) # not used
-    type = db.relationship('AccountType') # not used
+    type_id = db.Column(db.Integer, db.ForeignKey("account_type.id"))  # not used
+    type = db.relationship('AccountType')  # not used
     category_id = db.Column(db.Integer, db.ForeignKey("category.id"))
     category = db.relationship('Category')
 
@@ -82,7 +91,7 @@ class Account(db.Model):
     def get_ending_balance(self, end_date=None):
         today = date.today()
         if end_date and end_date > today:
-            return 0 # return something else
+            return 0  # return something else
         ending_balance = self.starting_balance
         for transaction in self.transactions:
             if end_date and transaction.date > end_date:
@@ -90,18 +99,20 @@ class Account(db.Model):
             ending_balance += transaction.amount
         return ending_balance
 
-class AccountType(db.Model): # not used
+
+class AccountType(db.Model):  # not used
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64))
     middle_level = db.Column(db.String(64))
     top_level = db.Column(db.String(64))
+
 
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64))
     parent_id = db.Column(db.Integer, db.ForeignKey("category.id"))
     rank = db.Column(db.Integer)
-    transaction_level = db.Column(db.Boolean) # not used
+    transaction_level = db.Column(db.Boolean)  # not used
     category_type = db.Column(db.String(64))
 
     parent = db.relationship('Category', remote_side=[id])
@@ -133,11 +144,14 @@ class Category(db.Model):
             if child_category.is_transaction_level:
                 transaction_level_children.append(child_category)
             else:
-                transaction_level_children.extend(child_category.get_transaction_level_children())
+                transaction_level_children.extend(
+                    child_category.get_transaction_level_children()
+                )
         return transaction_level_children
 
     def __repr__(self):
         return '<Category {}>'.format(self.name)
+
 
 class Paycheck(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -189,4 +203,6 @@ class StockTransaction(db.Model):
         return self.total_cost() / self.quantity
 
     def __repr__(self):
-        return '<StockTransaction- date: {}, type: {}, symbol: {}, quantity: {}>'.format(self.date, self.transaction_type, self.symbol, self.quantity)
+        return '<StockTransaction- date: {}, type: {}, symbol: {}, quantity: {}>'.format(
+            self.date, self.transaction_type, self.symbol, self.quantity
+        )
