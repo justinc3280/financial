@@ -6,6 +6,7 @@ from app.models import Account, AccountType, Category, Paycheck, StockTransactio
 from datetime import date
 import calendar
 from collections import defaultdict
+from sqlalchemy.orm import aliased
 from app.finance.charts import generate_chart
 
 @finance.route('/')
@@ -354,9 +355,9 @@ def investments_return():
     start_date = date(2011, 1, 1)
     end_date = date(year, 12, 31)
 
-    cash_flow_transactions = Transaction.query.join(Transaction.account).join(Account.category).filter(Account.user == current_user,
-        Category.name == 'Brokerage Account', Transaction.date.between(start_date, end_date)).all()
-
-    cash_flow_transactions = [t for t in cash_flow_transactions if t.category.name in ['Transfer In', 'Transfer Out']] # filter in query, alias
+    account_category = aliased(Category)
+    transaction_category = aliased(Category)
+    cash_flow_transactions = Transaction.query.join(transaction_category, Transaction.category_id == transaction_category.id).join(Transaction.account).join(account_category, Account.category_id == account_category.id).filter(Account.user == current_user,
+        account_category.name == 'Brokerage Account', transaction_category.name.in_(['Transfer In', 'Transfer Out']), Transaction.date.between(start_date, end_date)).all()
 
     return render_template('finance/return.html', transactions=cash_flow_transactions)
