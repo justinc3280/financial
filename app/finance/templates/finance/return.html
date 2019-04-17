@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+    <h4>Cash Flows</h4>
+
+    <table class="table">
+        <tr>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>Description</th>
+            <th>Account</th>
+        </tr>
+        {% for transaction in transactions | sort(attribute='date') %}
+            <tr>
+                <td>{{ transaction.date }}</td>
+                <td>{{ transaction.amount | money }}</td>
+                <td>{{ transaction.description }}</td>
+                <td>{{ transaction.account.name }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+
+{% endblock content %}

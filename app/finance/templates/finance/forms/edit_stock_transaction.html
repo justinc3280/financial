@@ -7,6 +7,29 @@
   {{ render_field(form.date) }}
   {{ render_field(form.symbol) }}
   {{ render_field(form.quantity) }}
-  {{ render_field(form.price_per_share) }}
+  {{ render_field(form.cost_basis, class="hide_with_buy") }}
   {{ render_field(form.transaction_fee) }}
+  {{ render_field(form.split_adjustment) }}
 {% endblock form_content %}
+
+{% block form_script %}
+  <script>
+    var $typeField = $("#transaction_type");
+    var $costBasisField = $(".hide_with_buy");
+
+    function hideWithBuy(value) {
+      if(value == 'Buy') {
+        $costBasisField.addClass('d-none');
+      } else {
+        $costBasisField.removeClass('d-none');
+      }
+    }
+
+    $(document).ready(function() {
+      hideWithBuy($typeField.val());
+      $typeField.on('change', function() {
+        hideWithBuy($typeField.val());
+      })
+    });
+  </script>
+{% endblock form_script %}
