@@ -116,7 +116,7 @@ def stock_transactions():
 def view_transactions(account_id):
     account = Account.query.filter(Account.id == account_id).first_or_404()
     return render_template(
-        'finance/transactions.html', transactions=account.transactions
+        'finance/transactions.html', transactions=list(account.transactions)
     )
 
 
@@ -155,11 +155,14 @@ def paycheck_col_to_category_name(col_name):
         'traditional_retirement': 'Traditional 401K Contribution',
         'roth_retirement': 'Roth 401K Contribution',
         'retirement_match': '401K Match',
+        'retirement_match_in': '401K Match In',
         'gtl': 'G.T.L.',
         'gtl_in': 'G.T.L. In',
         #'gym_reimbursement': 'Gym Reimbursement',
         'gym_reimbursement': 'Other Income',
+        'fsa': 'FSA Contribution',
         'net_pay': 'Net Pay',
+        'espp': 'ESPP Refunded',
     }
     return translation[col_name]
 
@@ -171,8 +174,8 @@ def convert_paychecks_to_transactions(paychecks):
         paycheck_date = paycheck_dict.get('date')
         for key, value in paycheck.get_properties().items():
             paycheck_dict[key] = value
-            if key == 'gtl':
-                paycheck_dict['gtl_in'] = value
+            if key in ['gtl', 'retirement_match']:
+                paycheck_dict['{}_in'.format(key)] = value
 
         [
             paycheck_dict.pop(k)
@@ -187,12 +190,18 @@ def convert_paychecks_to_transactions(paychecks):
         ]
 
         for key, value in paycheck_dict.items():
-            if key not in ['gross_pay', 'net_pay', 'gym_reimbursement', 'gtl_in']:
+            if key not in [
+                'gross_pay',
+                'net_pay',
+                'gym_reimbursement',
+                'gtl_in',
+                'retirement_match_in',
+            ]:
                 value = -value
             cat_name = paycheck_col_to_category_name(key)
             category = Category.query.filter(Category.name == cat_name).first()
             top_level_category = category.top_level_parent()
-            if top_level_category.name in ["Income", "Expense", "Tax"]:
+            if top_level_category.name in ['Income', 'Expense', 'Tax', 'Investment']:
                 transaction = Transaction(
                     amount=value, date=paycheck_date, category=category
                 )

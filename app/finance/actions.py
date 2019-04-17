@@ -192,14 +192,14 @@ def transactions(account_id):
                         else uncategorized_income_category
                     )
 
-                exists = Transaction.query.filter(
+                transaction = Transaction.query.filter(
                     Transaction.date == date,
                     Transaction.description == description,
                     Transaction.amount == amount_data,
                     Transaction.account_id == account_id,
                 ).first()
 
-                if not exists:
+                if not transaction:
                     transaction = Transaction(
                         date=date,
                         description=description,
@@ -291,6 +291,7 @@ def add_paycheck():
     gtl_col = 13
     gym_reimbursement_col = 14
     company_col = 15
+    espp_col = 16
 
     if form.validate_on_submit():
         file_contents = form.file_upload.data.read().decode('utf-8').splitlines()
@@ -312,6 +313,7 @@ def add_paycheck():
             gtl = float(row[gtl_col - 1])
             gym_reimbursement = float(row[gym_reimbursement_col - 1])
             company_name = row[company_col - 1]
+            espp = float(row[espp_col - 1])
 
             exists = Paycheck.query.filter(
                 Paycheck.date == date,
@@ -341,6 +343,8 @@ def add_paycheck():
                     other_fields['gtl'] = gtl
                 if gym_reimbursement:
                     other_fields['gym_reimbursement'] = gym_reimbursement
+                if espp:
+                    other_fields['espp'] = espp
                 paycheck.update_properties(other_fields)
                 db.session.add(paycheck)
 
@@ -397,11 +401,13 @@ def edit_stock_transaction(transaction_id):
         data['split_adjustment'] = properties.get('split_adjustment')
 
     form = StockTransactionForm(data=data)
+
     category_choices = (
         db.session.query(Category.id, Category.name)
         .filter(Category.name.in_(['Buy', 'Sell']))
         .all()
     )
+
     buy_category_id = next(
         (category.id for category in category_choices if category.name == 'Buy')
     )
