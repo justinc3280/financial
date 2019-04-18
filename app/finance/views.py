@@ -15,6 +15,7 @@ import calendar
 from collections import defaultdict
 from sqlalchemy.orm import aliased
 from app.finance.charts import generate_chart
+from app.finance.stocks_data import get_latest_stock_price
 
 
 @finance.route('/')
@@ -47,7 +48,8 @@ def account_types():
 
 
 def get_stock_values(end_date=date.today()):
-    stocks_data = {'Total': {'cost': 0}}
+    stocks_data = defaultdict(lambda: defaultdict(int))
+
     stock_transactions = (
         Transaction.query.join(Transaction.category)
         .join(Transaction.account)
@@ -62,9 +64,6 @@ def get_stock_values(end_date=date.today()):
         properties = stock_transaction.get_properties()
         symbol = properties.get('symbol')
         if symbol:
-            if symbol not in stocks_data:
-                stocks_data[symbol] = {'quantity': 0, 'cost': 0}
-
             quantity = properties.get('quantity') * properties.get(
                 'split_adjustment', 1
             )
@@ -77,11 +76,18 @@ def get_stock_values(end_date=date.today()):
                 stocks_data[symbol]['cost'] -= abs(properties.get('cost_basis', 0))
                 stocks_data['Total']['cost'] -= abs(properties.get('cost_basis', 0))
 
-    # for symbol, stock_data in stocks_data.items():
-    # current_price = get_current_price(symbol)
-    # if current_price:
-    #     stock_data['current_price'] = current_price
-    #     stock_data['market_value'] = stock_data['quantity'] * stock_data['current_price']
+    total_market_value = 0
+    for symbol, stock_data in stocks_data.items():
+        if stock_data.get('quantity', 0) > 0:
+            latest_price = get_latest_stock_price(symbol)
+            if latest_price:
+                stock_data['latest_price'] = latest_price
+                stock_data['market_value'] = market_value = (
+                    stock_data.get('quantity') * latest_price
+                )
+                total_market_value += market_value
+    stocks_data['Total']['market_value'] = total_market_value
+
     return stocks_data
 
 

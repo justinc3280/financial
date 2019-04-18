@@ -2,31 +2,37 @@
 
 {% block content %}
 
-  <h4>Stocks</h4>
-  <a class="btn btn-primary" href={{ url_for('finance.stock_transactions') }}>View Stock Transactions</a>
+<h4>Stocks</h4>
+<a class="btn btn-primary" href={{ url_for('finance.stock_transactions') }}>View Stock Transactions</a>
 
-  <table class="table">
- 	<tr>
-	  <th>Symbol</th>
-	  <th>Quantity</th>
-	  <th>Cost Per Share</th>
-	  <th>Cost</th>
- 	</tr>
+<table class="table">
+	<tr>
+		<th>Symbol</th>
+		<th>Quantity</th>
+		<th>Cost Per Share</th>
+		<th>Cost</th>
+		<th>Price Per Share</th>
+		<th>Market Value</th>
+	</tr>
 	{% for stock_symbol, data in stock_data.items() if stock_symbol != 'Total' %}
-		{% set pps = data.cost / data.quantity if data.quantity else 0 %}
-	  <tr>
-	    <td>{{ stock_symbol }}</td>
-	    <td>{{ data.quantity }}</td>
-	    <td>{{ pps | money }}</td>
-	    <td>{{ data.cost | money }}</td>
-	  </tr>
+	{% set pps = data.cost / data.quantity if data.quantity else 0 %}
+	<tr>
+		<td>{{ stock_symbol }}</td>
+		<td>{{ data.quantity }}</td>
+		<td>{{ pps | money }}</td>
+		<td>{{ data.cost | money }}</td>
+		<td>{{ data.latest_price | money }}</td>
+		<td>{{ data.market_value | money }}</td>
+	</tr>
 	{% endfor %}
-	  <tr>
-	    <td>Total</td>
-	    <td></td>
-	    <td></td>
-	    <td>{{ stock_data.get('Total').get('cost') | money }}</td>
-	  </tr>
-	</table>
+	<tr>
+		<td>Total</td>
+		<td></td>
+		<td></td>
+		<td>{{ stock_data.get('Total').get('cost') | money }}</td>
+		<td></td>
+		<td>{{ stock_data.get('Total').get('market_value') | money }}</td>
+	</tr>
+</table>
 
 {% endblock %}
