@@ -1,16 +1,15 @@
 import requests
+from cachetools import cached, TTLCache
 
+cache = TTLCache(maxsize=100, ttl=3600)
 
-base_test_url = 'https://sandbox.iexapis.com/'
-version = 'beta'
-test_token = 'Tpk_9b009416799c4054ad38760012f34bcb'
-
-base_url = 'https://cloud.iexapis.com/'
+base_url = 'https://cloud.iexapis.com/beta/'
 token = 'pk_6f63e0a751884d75b526ca178528e749'
 
 
+@cached(cache)
 def get_latest_stock_price(symbol):
-    url = base_url + version + '/stock/' + symbol + '/quote/?token=' + token
+    url = base_url + '/stock/{}/quote/?token={}'.format(symbol, token)
     quote = requests.get(url).json()
     return quote.get('latestPrice')
 
