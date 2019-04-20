@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h4>Monthly Prices</h4>
+
+<table class="table">
+    <tr>
+        <th></th>
+        {% for month_name in months %}
+        <th>{{ month_name }}</th>
+        {% endfor %}
+    </tr>
+
+</table>
+
+{% endblock content %}

@@ -15,7 +15,8 @@ import calendar
 from collections import defaultdict
 from sqlalchemy.orm import aliased
 from app.finance.charts import generate_chart
-from app.finance.stocks_data import get_latest_stock_price
+from app.finance import stocks_data as Stocks
+from app.finance.utils import get_ending_month_dates_for_year
 
 
 @finance.route('/')
@@ -79,7 +80,7 @@ def get_stock_values(end_date=date.today()):
     total_market_value = 0
     for symbol, stock_data in stocks_data.items():
         if stock_data.get('quantity', 0) > 0:
-            latest_price = get_latest_stock_price(symbol)
+            latest_price = Stocks.get_latest_stock_price(symbol)
             if latest_price:
                 stock_data['latest_price'] = latest_price
                 stock_data['market_value'] = market_value = (
@@ -522,3 +523,21 @@ def investments_return():
     )
 
     return render_template('finance/return.html', transactions=cash_flow_transactions)
+
+
+@finance.route('/stocks/monthly_prices/')
+def stocks_monthly_prices():
+
+    year = 2018
+    stock_symbols = ['AAPL', 'BAC', 'JPM', 'SBUX']
+
+    data = {}
+    for symbol in stock_symbols:
+        data[symbol] = Stocks.get_monthly_stock_ending_prices(symbol, year)
+    x = get_ending_month_dates_for_year(year)
+    0 / 0
+
+    return render_template(
+        'finance/monthly_prices.html', data=data, months=calendar.month_name[1:]
+    )
+
