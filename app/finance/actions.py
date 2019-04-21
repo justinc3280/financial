@@ -4,7 +4,6 @@ from flask_login import current_user, login_required
 from app.finance import finance
 from app.finance.forms import (
     AccountForm,
-    AccountTypeForm,
     AddCategoryForm,
     EditTransactionCategoryForm,
     FileUploadForm,
@@ -13,7 +12,6 @@ from app.finance.forms import (
 )
 from app.models import (
     Account,
-    AccountType,
     Category,
     FileFormat,
     Transaction,
@@ -106,24 +104,6 @@ def delete_account(account_id):
     db.session.delete(account)
     db.session.commit()
     return redirect(url_for('finance.accounts'))
-
-
-@finance.route('/add_account_type', methods=['GET', 'POST'])
-@login_required
-def add_account_type():
-    form = AccountTypeForm()
-
-    if form.validate_on_submit():
-        account_type = AccountType(
-            name=form.name.data,
-            middle_level=form.middle_level.data,
-            top_level=form.top_level.data,
-        )
-        db.session.add(account_type)
-        db.session.commit()
-        return redirect(url_for('finance.account_types'))
-
-    return render_template('finance/forms/add_account_type.html', form=form)
 
 
 @finance.route('/account/<int:account_id>/transactions', methods=['GET', 'POST'])
