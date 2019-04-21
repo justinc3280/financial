@@ -23,10 +23,6 @@ def get_latest_stock_price(symbol):
     return quote.get('latestPrice')
 
 
-def get_stock_closing_price_on_date(symbol, date):
-    return 0
-
-
 @cached(ttl_cache)
 def _get_monthly_time_series(symbol):
     url = alpha_url + '/query?function=TIME_SERIES_MONTHLY&symbol={}&apikey={}'.format(
@@ -35,12 +31,13 @@ def _get_monthly_time_series(symbol):
     return requests.get(url).json()
 
 
-@cached(ttl_cache)
-def get_monthly_stock_ending_prices(symbol, year):
+def get_monthly_stock_ending_prices(symbol):
     data = _get_monthly_time_series(symbol)
     monthly_time_series = data.get('Monthly Time Series')
     monthly_closing_prices = defaultdict(dict)
     for date_str, data in monthly_time_series.items():
         date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
-        monthly_closing_prices[date_obj.year][date_obj.month] = data.get('4. close')
+        monthly_closing_prices[date_obj.year][date_obj.month] = float(
+            data.get('4. close')
+        )
     return monthly_closing_prices

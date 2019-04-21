@@ -9,7 +9,6 @@ from collections import defaultdict
 from sqlalchemy.orm import aliased
 from app.finance.charts import generate_chart
 from app.finance import stocks_data as Stocks
-from app.finance.utils import get_ending_month_dates_for_year
 
 
 @finance.route('/')
@@ -518,11 +517,10 @@ def stocks_monthly_prices():
 
     data = {}
     for symbol in stock_symbols:
-        data[symbol] = Stocks.get_monthly_stock_ending_prices(symbol, year)
-    x = get_ending_month_dates_for_year(year)
-    0 / 0
+        prices = Stocks.get_monthly_stock_ending_prices(symbol).get(year)
+        data[symbol] = [prices.get(i) for i in range(1, 13)]
 
     return render_template(
-        'finance/monthly_prices.html', data=data, months=calendar.month_name[1:]
+        'finance/monthly_prices.html', stock_data=data, months=calendar.month_name[1:]
     )
 

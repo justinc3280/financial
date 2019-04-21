@@ -11,7 +11,14 @@
         <th>{{ month_name }}</th>
         {% endfor %}
     </tr>
-
+    {% for symbol, closing_prices in stock_data.items() %}
+    <tr>
+        <td>{{ symbol }}</td>
+        {% for price in closing_prices %}
+        <td>{{ price | money }}</td>
+        {% endfor %}
+    </tr>
+    {% endfor %}
 </table>
 
 {% endblock content %}
