@@ -80,8 +80,7 @@ class Account(db.Model):
     file_format = db.relationship('FileFormat', uselist=False)
     transactions = db.relationship('Transaction', backref='account', lazy='dynamic')
     starting_balance = db.Column(db.Float)
-    type_id = db.Column(db.Integer, db.ForeignKey("account_type.id"))  # not used
-    type = db.relationship('AccountType')  # not used
+    type_id = db.Column(db.Integer)  # not used
     category_id = db.Column(db.Integer, db.ForeignKey("category.id"))
     category = db.relationship('Category')
 
@@ -98,13 +97,6 @@ class Account(db.Model):
                 continue
             ending_balance += transaction.amount
         return ending_balance
-
-
-class AccountType(db.Model):  # not used
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64))
-    middle_level = db.Column(db.String(64))
-    top_level = db.Column(db.String(64))
 
 
 class Category(db.Model):
