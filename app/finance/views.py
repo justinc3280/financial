@@ -2,14 +2,7 @@ from app import db
 from app.finance import finance
 from flask import redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from app.models import (
-    Account,
-    AccountType,
-    Category,
-    Paycheck,
-    StockTransaction,
-    Transaction,
-)
+from app.models import Account, Category, Paycheck, StockTransaction, Transaction
 from datetime import date
 import calendar
 from collections import defaultdict
@@ -38,14 +31,6 @@ def accounts():
 def account_details(account_id):
     account = Account.query.filter_by(id=account_id).first_or_404()
     return render_template('finance/account_details.html', account=account)
-
-
-@finance.route('/account_types')
-@login_required
-def account_types():
-    account_types = AccountType.query.all()
-
-    return render_template("finance/account_types.html", account_types=account_types)
 
 
 def get_stock_values(end_date=date.today()):

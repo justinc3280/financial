@@ -33,13 +33,6 @@ class AccountForm(FlaskForm):
     account_category = SelectField('Account Category', coerce=int)
 
 
-class AccountTypeForm(FlaskForm):
-    name = StringField('Name', validators=[DataRequired()])
-    middle_level = StringField('Middle Level', validators=[DataRequired()])
-    top_level = StringField('Top Level', validators=[DataRequired()])
-    submit = SubmitField('Submit')
-
-
 class FileUploadForm(FlaskForm):
     file_upload = FileField('File')
     submit = SubmitField('Submit')
