@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h4>{{ year }} Stock Quantities</h4>
+
+<table class="table">
+    <tr>
+        <th></th>
+        {% for month_name in months %}
+        <th>{{ month_name }}</th>
+        {% endfor %}
+    </tr>
+    {% for symbol, data in stock_data.items() %}
+    {% set quantities = data.get(year) %}
+    {% if quantities %}
+    <tr>
+        <td>{{ symbol }}</td>
+        {% for quantity in quantities %}
+        <td>{{ quantity }}</td>
+        {% endfor %}
+    </tr>
+    {% endif %}
+    {% endfor %}
+</table>
+
+{% endblock content %}

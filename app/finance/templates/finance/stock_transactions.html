@@ -2,37 +2,40 @@
 
 {% block content %}
 
-  <h4>Stock Transactions</h4>
-  <table class="table">
-    <tr>
-      <th>Type</th>
-      <th>Date</th>
-      <th>Symbol</th>
-      <th>Quantity</th>
-      <th>PPS</th>
-      <th>Fee</th>
-      <th>Total</th>
-      <th>Description</th>
-      <th><th>
-    </tr>
-    {% for stock_transaction in stock_transactions | sort(attribute='date') %}
-      {% set properties = stock_transaction.get_properties() %}
-      {% set pps = (stock_transaction.amount / properties.get('quantity')) / properties.get('split_adjustment', 1) if properties.get('quantity') else 0 %}
-      <tr>
-        <td>{{ stock_transaction.category.name | capitalize }}</td>
-        <td>{{ stock_transaction.date | date }}</td>
-        <td>{{ properties.get('symbol') }}</td>
-        <td>{{ properties.get('quantity', 0) * properties.get('split_adjustment', 1) }}</td>
-        <td>{{ pps | money(show_as_positive=True) }}</td>
-        <td>{{ properties.get('transaction_fee') | money }}</td>
-        <td>{{ stock_transaction.amount | money(show_as_positive=True) }}</td>
-        <td>{{ stock_transaction.description }}</td>
-        <td>
-          <a href="{{ url_for('finance.edit_stock_transaction', transaction_id=stock_transaction.id) }}"><i class="fa fa-pencil-square-o" aria-hidden="true"></i></a>
-        </td>
-      </tr>
-    {% endfor %}
-  </table>
-  <a class="btn btn-primary" href="{{ url_for('finance.edit_stock_transaction', transaction_id=0) }}">Add Stock Transaction</a>
+<h4>Stock Transactions</h4>
+<table class="table">
+  <tr>
+    <th>Type</th>
+    <th>Date</th>
+    <th>Symbol</th>
+    <th>Quantity</th>
+    <th>PPS</th>
+    <th>Fee</th>
+    <th>Total</th>
+    <th>Description</th>
+    <th>
+    <th>
+  </tr>
+  {% for stock_transaction in stock_transactions %}
+  {% set properties = stock_transaction.get_properties() %}
+  {% set pps = (stock_transaction.amount / properties.get('quantity')) / properties.get('split_adjustment', 1) if properties.get('quantity') else 0 %}
+  <tr>
+    <td>{{ stock_transaction.category.name | capitalize }}</td>
+    <td>{{ stock_transaction.date | date }}</td>
+    <td>{{ properties.get('symbol') }}</td>
+    <td>{{ properties.get('quantity', 0) * properties.get('split_adjustment', 1) }}</td>
+    <td>{{ pps | money(show_as_positive=True) }}</td>
+    <td>{{ properties.get('transaction_fee') | money }}</td>
+    <td>{{ stock_transaction.amount | money(show_as_positive=True) }}</td>
+    <td>{{ stock_transaction.description }}</td>
+    <td>
+      <a href="{{ url_for('finance.edit_stock_transaction', transaction_id=stock_transaction.id) }}"><i
+          class="fa fa-pencil-square-o" aria-hidden="true"></i></a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+<a class="btn btn-primary" href="{{ url_for('finance.edit_stock_transaction', transaction_id=0) }}">Add Stock
+  Transaction</a>
 
 {% endblock %}

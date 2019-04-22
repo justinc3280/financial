@@ -32,6 +32,72 @@ def account_details(account_id):
     return render_template('finance/account_details.html', account=account)
 
 
+@finance.route('/stocks/quantity/')
+def stocks_quantity():
+    year = 2018
+    end_date = date(2018, 12, 31)
+    stock_transactions = (
+        Transaction.query.join(Transaction.category)
+        .join(Transaction.account)
+        .filter(
+            Transaction.date <= end_date,
+            Category.name.in_(['Buy', 'Sell', 'Dividend Reinvest']),
+            Account.user == current_user,
+        )
+        .order_by(Transaction.date)
+        .all()
+    )
+
+    data = defaultdict(lambda: defaultdict(list))
+    for transaction in stock_transactions:
+        properties = transaction.get_properties()
+        symbol = properties.get('symbol')
+        if symbol:
+            quantity = properties.get('quantity') * properties.get(
+                'split_adjustment', 1
+            )
+            if 'Total' not in data[symbol]:
+                previous_quantity = 0
+                if transaction.category.name in ['Buy', 'Dividend Reinvest']:
+                    data[symbol]['Total'] = quantity
+                else:
+                    data[symbol]['Total'] = -quantity
+            else:
+                previous_quantity = data[symbol].get('Total')
+                if transaction.category.name in ['Buy', 'Dividend Reinvest']:
+                    data[symbol]['Total'] += quantity
+                else:
+                    data[symbol]['Total'] -= quantity
+
+            current_length = len(
+                data[symbol][transaction.date.year]
+            )  # should always be 0 or 12
+
+            # will this work if there are multiple transactions in one day that are out of order?
+
+            if (
+                transaction.date.month > current_length
+            ):  # start from 0, months prior = 0 months >= are new value:
+                for i in range(0, 12):
+                    if i < transaction.date.month:  # minus one or no?
+                        data[symbol][transaction.date.year].append(previous_quantity)
+                    else:
+                        data[symbol][transaction.date.year].append(
+                            data[symbol].get('Total')
+                        )
+
+            else:  # start from current month, all >= are new value
+                for i in range(transaction.date.month - 1, 12):
+                    data[symbol][transaction.date.year][i] = data[symbol]['Total']
+
+    return render_template(
+        'finance/quantity.html',
+        year=year,
+        stock_data=data,
+        months=calendar.month_name[1:],
+    )
+
+
 def get_stock_values(end_date=date.today()):
     stocks_data = defaultdict(lambda: defaultdict(int))
 
@@ -94,6 +160,7 @@ def stock_transactions():
             Category.name.in_(['Buy', 'Sell', 'Dividend Reinvest']),
             Account.user == current_user,
         )
+        .order_by(Transaction.date)
         .all()
     )
 
@@ -523,4 +590,3 @@ def stocks_monthly_prices():
     return render_template(
         'finance/monthly_prices.html', stock_data=data, months=calendar.month_name[1:]
     )
-
