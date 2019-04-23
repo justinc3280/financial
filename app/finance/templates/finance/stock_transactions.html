@@ -15,7 +15,7 @@
       <th>Description</th>
       <th><th>
     </tr>
-    {% for stock_transaction in stock_transactions | sort(attribute='date') %}
+    {% for stock_transaction in stock_transactions %}
       {% set properties = stock_transaction.get_properties() %}
       {% set pps = (stock_transaction.amount / properties.get('quantity')) / properties.get('split_adjustment', 1) if properties.get('quantity') else 0 %}
       <tr>

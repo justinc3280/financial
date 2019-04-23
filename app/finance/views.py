@@ -8,7 +8,7 @@ import calendar
 from collections import defaultdict
 from sqlalchemy.orm import aliased
 from app.finance.charts import generate_chart
-from app.finance import stocks_data as Stocks
+from app.finance.stocks_data import Stocks, get_latest_stock_price, get_monthly_stock_ending_prices
 
 
 @finance.route('/')
@@ -30,6 +30,36 @@ def accounts():
 def account_details(account_id):
     account = Account.query.filter_by(id=account_id).first_or_404()
     return render_template('finance/account_details.html', account=account)
+
+
+@finance.route('/stocks/quantity/')
+def stocks_quantity():
+    year = 2019
+    current_date = date.today()
+    end_date = date(year, 12, 31) if year < current_date.year else date.today()
+
+    stock_transactions = (
+        Transaction.query.join(Transaction.category)
+        .join(Transaction.account)
+        .filter(
+            Transaction.date <= end_date,
+            Category.name.in_(['Buy', 'Sell', 'Dividend Reinvest']),
+            Account.user == current_user,
+        )
+        .order_by(Transaction.date)
+        .all()
+    )
+
+    stocks = Stocks(stock_transactions)
+
+    stocks_data = stocks.get_monthly_data_for_year(year)
+
+    return render_template(
+        'finance/quantity.html',
+        year=year,
+        stock_data=stocks_data,
+        months=calendar.month_name[1:],
+    )
 
 
 def get_stock_values(end_date=date.today()):
@@ -64,7 +94,7 @@ def get_stock_values(end_date=date.today()):
     total_market_value = 0
     for symbol, stock_data in stocks_data.items():
         if stock_data.get('quantity', 0) > 0:
-            latest_price = Stocks.get_latest_stock_price(symbol)
+            latest_price = get_latest_stock_price(symbol)
             if latest_price:
                 stock_data['latest_price'] = latest_price
                 stock_data['market_value'] = market_value = (
@@ -94,6 +124,7 @@ def stock_transactions():
             Category.name.in_(['Buy', 'Sell', 'Dividend Reinvest']),
             Account.user == current_user,
         )
+        .order_by(Transaction.date)
         .all()
     )
 
@@ -517,10 +548,9 @@ def stocks_monthly_prices():
 
     data = {}
     for symbol in stock_symbols:
-        prices = Stocks.get_monthly_stock_ending_prices(symbol).get(year)
+        prices = get_monthly_stock_ending_prices(symbol).get(year)
         data[symbol] = [prices.get(i) for i in range(1, 13)]
 
     return render_template(
         'finance/monthly_prices.html', stock_data=data, months=calendar.month_name[1:]
     )
-

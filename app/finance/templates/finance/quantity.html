@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h4>{{ year }} Stock Quantities</h4>
+
+<table class="table">
+    <tr>
+        <th></th>
+        {% for month_name in months %}
+        <th>{{ month_name }}</th>
+        {% endfor %}
+    </tr>
+    {% for symbol, data in stock_data.items() %}
+    <tr>
+        <td>{{ symbol }}</td>
+        {% for month_data in data %}
+        <td>{{ month_data.quantity }}</td>
+        {% endfor %}
+    </tr>
+    {% endfor %}
+</table>
+
+{% endblock content %}
