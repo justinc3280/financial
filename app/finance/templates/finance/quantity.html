@@ -17,7 +17,7 @@
     <tr>
         <td>{{ symbol }}</td>
         {% for quantity in quantities %}
-        <td>{{ quantity }}</td>
+        <td>{{ quantity | round(3) }}</td>
         {% endfor %}
     </tr>
     {% endif %}

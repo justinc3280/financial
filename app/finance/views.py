@@ -34,8 +34,9 @@ def account_details(account_id):
 
 @finance.route('/stocks/quantity/')
 def stocks_quantity():
-    year = 2018
-    end_date = date(2018, 12, 31)
+    year = 2019
+    current_date = date.today()
+    end_date = date(year, 12, 31) if year < current_date.year else date.today()
     stock_transactions = (
         Transaction.query.join(Transaction.category)
         .join(Transaction.account)
@@ -48,52 +49,51 @@ def stocks_quantity():
         .all()
     )
 
-    data = defaultdict(lambda: defaultdict(list))
+    stocks_data = defaultdict(lambda: defaultdict(list))
     for transaction in stock_transactions:
         properties = transaction.get_properties()
         symbol = properties.get('symbol')
-        if symbol:
-            quantity = properties.get('quantity') * properties.get(
-                'split_adjustment', 1
-            )
-            if 'Total' not in data[symbol]:
+        quantity = properties.get('quantity')
+        if symbol and quantity:
+            data = stocks_data[symbol]
+            quantity = quantity * properties.get('split_adjustment', 1)
+            if 'Total' not in data:
                 previous_quantity = 0
-                if transaction.category.name in ['Buy', 'Dividend Reinvest']:
-                    data[symbol]['Total'] = quantity
-                else:
-                    data[symbol]['Total'] = -quantity
+                new_quantity = (
+                    quantity
+                    if transaction.category.name in ['Buy', 'Dividend Reinvest']
+                    else -quantity
+                )
             else:
-                previous_quantity = data[symbol].get('Total')
+                previous_quantity = data.get('Total')
                 if transaction.category.name in ['Buy', 'Dividend Reinvest']:
-                    data[symbol]['Total'] += quantity
+                    new_quantity = previous_quantity + quantity
                 else:
-                    data[symbol]['Total'] -= quantity
+                    new_quantity = previous_quantity - quantity
+            data['Total'] = new_quantity
 
-            current_length = len(
-                data[symbol][transaction.date.year]
-            )  # should always be 0 or 12
+            transaction_year = transaction.date.year
+            num_months = (
+                12 if transaction_year < current_date.year else current_date.month
+            )
+            if transaction_year not in data:
+                data[transaction_year] = [previous_quantity] * num_months
 
-            # will this work if there are multiple transactions in one day that are out of order?
+            for month_index in range(transaction.date.month - 1, num_months):
+                data[transaction_year][month_index] = new_quantity
 
-            if (
-                transaction.date.month > current_length
-            ):  # start from 0, months prior = 0 months >= are new value:
-                for i in range(0, 12):
-                    if i < transaction.date.month:  # minus one or no?
-                        data[symbol][transaction.date.year].append(previous_quantity)
-                    else:
-                        data[symbol][transaction.date.year].append(
-                            data[symbol].get('Total')
-                        )
-
-            else:  # start from current month, all >= are new value
-                for i in range(transaction.date.month - 1, 12):
-                    data[symbol][transaction.date.year][i] = data[symbol]['Total']
+            # update all future years up until end_date
+            for i in range(transaction_year + 1, year + 1):
+                if new_quantity != 0:
+                    num_months = 12 if i < current_date.year else current_date.month
+                    data[i] = [new_quantity] * num_months
+                else:
+                    data.pop(i, None)
 
     return render_template(
         'finance/quantity.html',
         year=year,
-        stock_data=data,
+        stock_data=stocks_data,
         months=calendar.month_name[1:],
     )
 
