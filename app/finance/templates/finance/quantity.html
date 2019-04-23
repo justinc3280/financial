@@ -12,15 +12,12 @@
         {% endfor %}
     </tr>
     {% for symbol, data in stock_data.items() %}
-    {% set year_data = data.get(year) %}
-    {% if year_data %}
     <tr>
         <td>{{ symbol }}</td>
-        {% for month_data in year_data %}
+        {% for month_data in data %}
         <td>{{ month_data.quantity }}</td>
         {% endfor %}
     </tr>
-    {% endif %}
     {% endfor %}
 </table>
 

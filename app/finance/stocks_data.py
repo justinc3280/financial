@@ -40,45 +40,56 @@ def get_monthly_stock_ending_prices(symbol):
         )
     return monthly_closing_prices
 
+class Stocks():
 
-def get_monthly_stock_data(stock_transactions, end_date=date.today()):
+    def __init__(self, transactions):
+        self._transactions = transactions
+        self._generate_stock_data()
 
-    stocks_data = defaultdict(lambda: defaultdict(list))
-    for transaction in stock_transactions:
-        properties = transaction.get_properties()
-        symbol = properties.get('symbol')
-        quantity = properties.get('quantity')
-        if symbol and quantity:
-            data = stocks_data[symbol]
-            buy_or_sell = (
-                1 if transaction.category.name in ['Buy', 'Dividend Reinvest'] else -1
-            )
-            quantity = quantity * properties.get('split_adjustment', 1) * buy_or_sell
-            if 'Total' not in data:
-                previous_quantity = 0
-                new_quantity = quantity
-                data['Total'] = {'quantity': new_quantity}
-            else:
-                previous_quantity = data['Total'].get('quantity')
-                new_quantity = round(previous_quantity + quantity, 3)
-                data['Total']['quantity'] = new_quantity
-
-            transaction_year = transaction.date.year
-            current_date = date.today()
-            num_months = (
-                12 if transaction_year < current_date.year else current_date.month
-            )
-            if transaction_year not in data:
-                data[transaction_year] = [{'quantity': previous_quantity}] * num_months
-
-            for month_index in range(transaction.date.month - 1, num_months):
-                data[transaction_year][month_index]['quantity'] = new_quantity
-
-            # update all future years up until end_date
-            for i in range(transaction_year + 1, end_date.year + 1):
-                if new_quantity != 0:
-                    num_months = 12 if i < current_date.year else current_date.month
-                    data[i] = [{'quantity': new_quantity}] * num_months
+    def _generate_stock_data(self):
+        stocks_data = defaultdict(lambda: defaultdict(list))
+        for transaction in self._transactions:
+            properties = transaction.get_properties()
+            symbol = properties.get('symbol')
+            quantity = properties.get('quantity')
+            if symbol and quantity:
+                data = stocks_data[symbol]
+                buy_or_sell = (
+                    1 if transaction.category.name in ['Buy', 'Dividend Reinvest'] else -1
+                )
+                quantity = quantity * properties.get('split_adjustment', 1) * buy_or_sell
+                if 'Total' not in data:
+                    previous_quantity = 0
+                    new_quantity = quantity
+                    data['Total'] = {'quantity': new_quantity}
                 else:
-                    data.pop(i, None)
-    return stocks_data
+                    previous_quantity = data['Total'].get('quantity')
+                    new_quantity = round(previous_quantity + quantity, 3)
+                    data['Total']['quantity'] = new_quantity
+
+                transaction_year = transaction.date.year
+                current_date = date.today()
+                num_months = (
+                    12 if transaction_year < current_date.year else current_date.month
+                )
+                if transaction_year not in data:
+                    data[transaction_year] = [{'quantity': previous_quantity}] * num_months
+
+                for month_index in range(transaction.date.month - 1, num_months):
+                    data[transaction_year][month_index]['quantity'] = new_quantity
+
+                # update all future years up until end_date
+                for i in range(transaction_year + 1, current_date.year + 1):
+                    if new_quantity != 0:
+                        num_months = 12 if i < current_date.year else current_date.month
+                        data[i] = [{'quantity': new_quantity}] * num_months
+                    else:
+                        data.pop(i, None)
+        self._stocks_data = stocks_data
+
+    def get_monthly_data_for_year(self, year):
+        monthly_data = {}
+        for symbol, data in self._stocks_data.items():
+            if year in data:
+                monthly_data[symbol] = data.get(year)
+        return monthly_data
