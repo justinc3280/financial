@@ -1,7 +1,7 @@
 import requests
 from cachetools import cached, TTLCache
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, date
 
 base_url = 'https://cloud.iexapis.com/v1'
 token = 'pk_6f63e0a751884d75b526ca178528e749'
@@ -39,3 +39,50 @@ def get_monthly_stock_ending_prices(symbol):
             data.get('4. close')
         )
     return monthly_closing_prices
+
+
+def get_monthly_stock_data(stock_transactions, end_date=date.today()):
+
+    stocks_data = defaultdict(lambda: defaultdict(list))
+    for transaction in stock_transactions:
+        properties = transaction.get_properties()
+        symbol = properties.get('symbol')
+        quantity = properties.get('quantity')
+        if symbol and quantity:
+            data = stocks_data[symbol]
+            quantity = quantity * properties.get('split_adjustment', 1)
+            if 'Total' not in data:
+                previous_quantity = 0
+                new_quantity = (
+                    quantity
+                    if transaction.category.name in ['Buy', 'Dividend Reinvest']
+                    else -quantity
+                )
+                data['Total'] = {'quantity': new_quantity}
+            else:
+                previous_quantity = data['Total'].get('quantity')
+                if transaction.category.name in ['Buy', 'Dividend Reinvest']:
+                    new_quantity = round(previous_quantity + quantity, 3)
+                else:
+                    new_quantity = round(previous_quantity - quantity, 3)
+                data['Total']['quantity'] = new_quantity
+
+            transaction_year = transaction.date.year
+            current_date = date.today()
+            num_months = (
+                12 if transaction_year < current_date.year else current_date.month
+            )
+            if transaction_year not in data:
+                data[transaction_year] = [{'quantity': previous_quantity}] * num_months
+
+            for month_index in range(transaction.date.month - 1, num_months):
+                data[transaction_year][month_index]['quantity'] = new_quantity
+
+            # update all future years up until end_date
+            for i in range(transaction_year + 1, end_date.year + 1):
+                if new_quantity != 0:
+                    num_months = 12 if i < current_date.year else current_date.month
+                    data[i] = [{'quantity': new_quantity}] * num_months
+                else:
+                    data.pop(i, None)
+    return stocks_data
