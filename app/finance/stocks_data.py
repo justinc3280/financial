@@ -50,21 +50,17 @@ def get_monthly_stock_data(stock_transactions, end_date=date.today()):
         quantity = properties.get('quantity')
         if symbol and quantity:
             data = stocks_data[symbol]
-            quantity = quantity * properties.get('split_adjustment', 1)
+            buy_or_sell = (
+                1 if transaction.category.name in ['Buy', 'Dividend Reinvest'] else -1
+            )
+            quantity = quantity * properties.get('split_adjustment', 1) * buy_or_sell
             if 'Total' not in data:
                 previous_quantity = 0
-                new_quantity = (
-                    quantity
-                    if transaction.category.name in ['Buy', 'Dividend Reinvest']
-                    else -quantity
-                )
+                new_quantity = quantity
                 data['Total'] = {'quantity': new_quantity}
             else:
                 previous_quantity = data['Total'].get('quantity')
-                if transaction.category.name in ['Buy', 'Dividend Reinvest']:
-                    new_quantity = round(previous_quantity + quantity, 3)
-                else:
-                    new_quantity = round(previous_quantity - quantity, 3)
+                new_quantity = round(previous_quantity + quantity, 3)
                 data['Total']['quantity'] = new_quantity
 
             transaction_year = transaction.date.year
