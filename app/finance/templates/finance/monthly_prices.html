@@ -2,7 +2,7 @@
 
 {% block content %}
 
-<h4>Monthly Prices</h4>
+<h4>{{ year }} Monthly Prices</h4>
 
 <table class="table">
     <tr>
@@ -11,11 +11,11 @@
         <th>{{ month_name }}</th>
         {% endfor %}
     </tr>
-    {% for symbol, closing_prices in stock_data.items() %}
+    {% for symbol, data in stock_data.items() %}
     <tr>
         <td>{{ symbol }}</td>
-        {% for price in closing_prices %}
-        <td>{{ price | money }}</td>
+        {% for month_data in data %}
+        <td>{{ month_data.get('price', 0) | money }}</td>
         {% endfor %}
     </tr>
     {% endfor %}
