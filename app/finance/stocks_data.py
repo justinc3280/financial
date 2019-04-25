@@ -2,16 +2,13 @@ import requests
 from cachetools import cached, TTLCache
 from collections import defaultdict
 from datetime import datetime, date
+import calendar
 
 base_url = 'https://cloud.iexapis.com/v1'
 token = 'pk_6f63e0a751884d75b526ca178528e749'
 
-alpha_url = 'https://www.alphavantage.co'
-alpha_key = 'S2IEL3KQTDWBOU86'
-
-
-def get_url(symbol, key):
-    return '{}/stock/{}/{}/?token={}'.format(base_url, symbol, key, token)
+w_url = 'https://www.worldtradingdata.com/api/v1'
+w_api_key = 'FDfrcOUb2rDUPTmA70vJuLXCi5PSLox3khlXfG8HQ6PaAMcqD3bWjp8gs7pW'
 
 
 @cached(TTLCache(maxsize=100, ttl=3600))
@@ -19,28 +16,6 @@ def get_latest_stock_price(symbol):
     url = base_url + '/stock/{}/quote/?token={}'.format(symbol, token)
     quote = requests.get(url).json()
     return quote.get('latestPrice')
-
-
-@cached(TTLCache(maxsize=100, ttl=3600))
-def _get_monthly_time_series(symbol):
-    url = alpha_url + '/query?function=TIME_SERIES_MONTHLY&symbol={}&apikey={}'.format(
-        symbol, alpha_key
-    )
-    return requests.get(url).json()
-
-
-def get_monthly_stock_ending_prices(symbol):
-    data = _get_monthly_time_series(symbol)
-    monthly_time_series = data.get('Monthly Time Series')
-    if monthly_time_series:
-        monthly_closing_prices = defaultdict(dict)
-        for date_str, data in monthly_time_series.items():
-            date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
-            monthly_closing_prices[date_obj.year][date_obj.month] = float(
-                data.get('4. close')
-            )
-        return monthly_closing_prices
-    return None
 
 
 class Stocks:
@@ -102,16 +77,39 @@ class Stocks:
 
         # insert price data
         for symbol, yearly_data in stocks_data.items():
-            price_data = get_monthly_stock_ending_prices(symbol)
+            price_data = self._get_daily_stock_prices(symbol)
             if price_data:
                 for year, monthly_data in yearly_data.items():
-                    yearly_price_data = price_data.get(year)
-
                     for month_num, month_data in enumerate(monthly_data, start=1):
-                        ending_price = yearly_price_data.get(month_num)
-                        month_data['price'] = ending_price
+                        date_str = self._get_last_day_of_month_str(year, month_num)
+                        day_prices = price_data.get(date_str)
+                        if not day_prices:
+                            i = 1
+                            while not day_prices and i < 4:
+                                date_str = self._get_last_day_of_month_str(
+                                    year, month_num, offset=i
+                                )
+                                i = i + 1
+                                day_prices = price_data.get(date_str)
+                        if day_prices:
+                            month_data['price'] = float(day_prices.get('close'))
 
         self._stocks_data = stocks_data
+
+    @staticmethod
+    def _get_daily_stock_prices(symbol):
+        start_date = '2011-01-01'
+        end_date = str(date.today())
+        url = w_url + '/history?symbol={}&date_from={}&date_to={}&api_token={}'.format(
+            symbol, start_date, end_date, w_api_key
+        )
+        data = requests.get(url).json()
+        return data.get('history')
+
+    @staticmethod
+    def _get_last_day_of_month_str(year, month, offset=0):
+        ending_day = calendar.monthrange(year, month)[1] - offset
+        return str(date(year, month, ending_day))
 
     def get_monthly_data_for_year(self, year):
         monthly_data = {}

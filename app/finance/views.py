@@ -8,11 +8,7 @@ import calendar
 from collections import defaultdict
 from sqlalchemy.orm import aliased
 from app.finance.charts import generate_chart
-from app.finance.stocks_data import (
-    Stocks,
-    get_latest_stock_price,
-    get_monthly_stock_ending_prices,
-)
+from app.finance.stocks_data import Stocks, get_latest_stock_price, c1, c2
 
 
 @finance.route('/')
@@ -115,7 +111,7 @@ def get_stock_values(end_date=date.today()):
 @login_required
 def stocks():
     stocks_data = get_stock_values()
-
+    0 / 0
     return render_template("finance/stocks.html", stock_data=stocks_data)
 
 
