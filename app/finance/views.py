@@ -8,7 +8,7 @@ import calendar
 from collections import defaultdict
 from sqlalchemy.orm import aliased
 from app.finance.charts import generate_chart
-from app.finance.stocks_data import Stocks, get_latest_stock_price, get_monthly_stock_ending_prices
+from app.finance.stocks_data import Stocks, get_latest_stock_price
 
 
 @finance.route('/')
@@ -32,23 +32,24 @@ def account_details(account_id):
     return render_template('finance/account_details.html', account=account)
 
 
-@finance.route('/stocks/quantity/')
-def stocks_quantity():
-    year = 2019
-    current_date = date.today()
-    end_date = date(year, 12, 31) if year < current_date.year else date.today()
-
-    stock_transactions = (
+def get_stock_transactions():
+    return (
         Transaction.query.join(Transaction.category)
         .join(Transaction.account)
         .filter(
-            Transaction.date <= end_date,
             Category.name.in_(['Buy', 'Sell', 'Dividend Reinvest']),
             Account.user == current_user,
         )
         .order_by(Transaction.date)
         .all()
     )
+
+
+@finance.route('/stocks/quantity/')
+def stocks_quantity():
+    year = 2012
+
+    stock_transactions = get_stock_transactions()
 
     stocks = Stocks(stock_transactions)
 
@@ -544,13 +545,14 @@ def investments_return():
 def stocks_monthly_prices():
 
     year = 2018
-    stock_symbols = ['AAPL', 'BAC', 'JPM', 'SBUX']
-
-    data = {}
-    for symbol in stock_symbols:
-        prices = get_monthly_stock_ending_prices(symbol).get(year)
-        data[symbol] = [prices.get(i) for i in range(1, 13)]
+    stock_transactions = get_stock_transactions()
+    stocks = Stocks(stock_transactions)
+    data = stocks.get_monthly_data_for_year(year)
 
     return render_template(
-        'finance/monthly_prices.html', stock_data=data, months=calendar.month_name[1:]
+        'finance/monthly_prices.html',
+        year=year,
+        stock_data=data,
+        months=calendar.month_name[1:],
     )
+
