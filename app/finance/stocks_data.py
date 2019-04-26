@@ -21,7 +21,6 @@ def get_latest_stock_price(symbol):
 class Stocks:
     def __init__(self, transactions):
         self._transactions = transactions
-        self._symbols = []
         self._current_data = {}
         self._generate_stock_data()
 
@@ -32,9 +31,6 @@ class Stocks:
             symbol = properties.get('symbol')
             quantity = properties.get('quantity')
             if symbol and quantity:
-                if symbol not in self._symbols:
-                    self._symbols.append(symbol)
-
                 data = stocks_data[symbol]
                 buy_or_sell = (
                     1
@@ -75,7 +71,6 @@ class Stocks:
                     else:
                         data.pop(i, None)
 
-        # insert price data
         for symbol, yearly_data in stocks_data.items():
             price_data = self._get_daily_stock_prices(symbol)
             if price_data:
@@ -118,8 +113,3 @@ class Stocks:
                 monthly_data[symbol] = data.get(year)
         return monthly_data
 
-    def get_current_data_for_symbol(self, symbol):
-        return self._current_data.get(symbol)
-
-    def get_current_stocks(self):
-        return self._current_data  # remove quantity 0
