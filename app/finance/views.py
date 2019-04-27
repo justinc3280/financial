@@ -8,7 +8,7 @@ import calendar
 from collections import defaultdict
 from sqlalchemy.orm import aliased
 from app.finance.charts import generate_chart
-from app.finance.stocks_data import Stocks
+from app.finance.stocks import Stocks
 
 
 @finance.route('/')
@@ -516,3 +516,18 @@ def stocks_monthly_prices():
         months=calendar.month_name[1:],
     )
 
+
+@finance.route('/stocks/return/ending_values/')
+def ending_values():
+    year = int(request.args.get('year', date.today().year))
+
+    stock_transactions = get_stock_transactions()
+    stocks = Stocks(stock_transactions)
+    data = stocks.get_monthly_data_for_year(year)
+
+    return render_template(
+        'finance/monthly_ending_values.html',
+        year=year,
+        stock_data=data,
+        months=calendar.month_name[1:],
+    )

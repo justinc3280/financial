@@ -1,21 +1,13 @@
 import requests
 from cachetools import cached, TTLCache
 from collections import defaultdict
-from datetime import datetime, date
-import calendar
+from datetime import date
 
 base_url = 'https://cloud.iexapis.com/v1'
 token = 'pk_6f63e0a751884d75b526ca178528e749'
 
 w_url = 'https://www.worldtradingdata.com/api/v1'
 w_api_key = 'FDfrcOUb2rDUPTmA70vJuLXCi5PSLox3khlXfG8HQ6PaAMcqD3bWjp8gs7pW'
-
-
-@cached(TTLCache(maxsize=100, ttl=3600))
-def get_latest_stock_price(symbol):
-    url = base_url + '/stock/{}/quote/?token={}'.format(symbol, token)
-    quote = requests.get(url).json()
-    return quote.get('latestPrice')
 
 
 class Stocks:
@@ -105,8 +97,11 @@ class Stocks:
                     for year, monthly_data in yearly_data.items():
                         for month_num, month_data in enumerate(monthly_data, start=1):
                             date_str = '{}-{:02d}'.format(year, month_num)
-                            close_price = monthly_price_data.get(date_str, 0)
-                            month_data['price'] = float(close_price)
+                            close_price = float(monthly_price_data.get(date_str, 0))
+                            month_data['price'] = close_price
+                            month_data['market_value'] = (
+                                month_data.get('quantity') * close_price
+                            )
 
         self._stocks_data = stocks_data
 
@@ -128,9 +123,11 @@ class Stocks:
         return monthly_closing_prices
 
     @staticmethod
-    def _get_last_day_of_month_str(year, month, offset=0):
-        ending_day = calendar.monthrange(year, month)[1] - offset
-        return str(date(year, month, ending_day))
+    @cached(TTLCache(maxsize=100, ttl=3600))
+    def _get_latest_stock_price(symbol):
+        url = base_url + '/stock/{}/quote/?token={}'.format(symbol, token)
+        quote = requests.get(url).json()
+        return quote.get('latestPrice')
 
     def get_monthly_data_for_year(self, year):
         monthly_data = {}
@@ -149,9 +146,9 @@ class Stocks:
                 current_data['cost_per_share'] = round(
                     data.get('cost_basis') / data.get('quantity'), 4
                 )
-                current_data['latest_price'] = latest_price = get_latest_stock_price(
-                    symbol
-                )
+                current_data[
+                    'latest_price'
+                ] = latest_price = self._get_latest_stock_price(symbol)
                 current_data['market_value'] = market_value = (
                     data.get('quantity') * latest_price
                 )
