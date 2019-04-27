@@ -69,7 +69,7 @@ def stocks():
 
     stock_transactions = get_stock_transactions()
 
-    stocks = Stocks(stock_transactions)
+    stocks = Stocks(stock_transactions, show_market_values=False)
     stocks_data = stocks.get_current_holdings()
 
     return render_template("finance/stocks.html", stock_data=stocks_data)

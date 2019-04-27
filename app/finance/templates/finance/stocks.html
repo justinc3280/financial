@@ -5,7 +5,7 @@
 	<h4>Stocks</h4>
 	<a class="btn btn-primary" href="{{ url_for('finance.stock_transactions') }}">View Stock Transactions</a>
 
-	<table class="table">
+	<table class="table text-right">
 		<tr>
 			<th>Symbol</th>
 			<th>Quantity</th>
@@ -13,6 +13,7 @@
 			<th>Cost</th>
 			<th>Price Per Share</th>
 			<th>Market Value</th>
+			<th>% of Portfolio</th>
 		</tr>
 		{% for stock_symbol, data in stock_data.items() if stock_symbol != 'Total' %}
 			<tr>
@@ -22,15 +23,18 @@
 				<td>{{ data.cost_basis | money }}</td>
 				<td>{{ data.latest_price | money }}</td>
 				<td>{{ data.market_value | money }}</td>
+				<td>{{ "%.2f"|format(data.portfolio_percentage) }}</td>
+
 			</tr>
 		{% endfor %}
-		<tr>
+		<tr class="font-weight-bold">
 			<td>Total</td>
 			<td></td>
 			<td></td>
 			<td>{{ stock_data.get('Total').get('cost_basis') | money }}</td>
 			<td></td>
 			<td>{{ stock_data.get('Total').get('market_value') | money }}</td>
+			<td></td>
 		</tr>
 	</table>
 

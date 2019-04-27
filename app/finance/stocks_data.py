@@ -162,5 +162,13 @@ class Stocks:
             'cost_basis': total_cost_basis,
             'market_value': total_market_value,
         }
+
+        for symbol in current_holdings:
+            current_holdings[symbol]['portfolio_percentage'] = round(
+                (current_holdings[symbol].get('market_value') / total_market_value)
+                * 100,
+                2,
+            )
+
         return current_holdings
 
