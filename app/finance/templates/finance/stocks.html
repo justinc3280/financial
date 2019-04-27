@@ -23,7 +23,7 @@
 				<td>{{ data.cost_basis | money }}</td>
 				<td>{{ data.latest_price | money }}</td>
 				<td>{{ data.market_value | money }}</td>
-				<td>{{ "%.2f"|format(data.portfolio_percentage) }}</td>
+				<td>{{ data.portfolio_percentage | percentage }}</td>
 
 			</tr>
 		{% endfor %}

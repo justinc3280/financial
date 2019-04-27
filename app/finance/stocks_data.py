@@ -3,7 +3,6 @@ from cachetools import cached, TTLCache
 from collections import defaultdict
 from datetime import datetime, date
 import calendar
-import pdb
 
 base_url = 'https://cloud.iexapis.com/v1'
 token = 'pk_6f63e0a751884d75b526ca178528e749'
@@ -165,9 +164,7 @@ class Stocks:
 
         for symbol in current_holdings:
             current_holdings[symbol]['portfolio_percentage'] = round(
-                (current_holdings[symbol].get('market_value') / total_market_value)
-                * 100,
-                2,
+                current_holdings[symbol].get('market_value') / total_market_value, 4
             )
 
         return current_holdings
