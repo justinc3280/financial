@@ -8,7 +8,7 @@ import calendar
 from collections import defaultdict
 from sqlalchemy.orm import aliased
 from app.finance.charts import generate_chart
-from app.finance.stocks_data import Stocks, get_latest_stock_price
+from app.finance.stocks_data import Stocks
 
 
 @finance.route('/')
@@ -47,11 +47,11 @@ def get_stock_transactions():
 
 @finance.route('/stocks/quantity/')
 def stocks_quantity():
-    year = 2012
+    year = int(request.args.get('year', date.today().year))
 
     stock_transactions = get_stock_transactions()
 
-    stocks = Stocks(stock_transactions)
+    stocks = Stocks(stock_transactions, show_market_values=False)
 
     stocks_data = stocks.get_monthly_data_for_year(year)
 
@@ -63,54 +63,14 @@ def stocks_quantity():
     )
 
 
-def get_stock_values(end_date=date.today()):
-    stocks_data = defaultdict(lambda: defaultdict(int))
-
-    stock_transactions = (
-        Transaction.query.join(Transaction.category)
-        .join(Transaction.account)
-        .filter(
-            Transaction.date <= end_date,
-            Category.name.in_(['Buy', 'Sell', 'Dividend Reinvest']),
-            Account.user == current_user,
-        )
-        .all()
-    )
-    for stock_transaction in stock_transactions:
-        properties = stock_transaction.get_properties()
-        symbol = properties.get('symbol')
-        if symbol:
-            quantity = properties.get('quantity') * properties.get(
-                'split_adjustment', 1
-            )
-            if stock_transaction.category.name in ['Buy', 'Dividend Reinvest']:
-                stocks_data[symbol]['quantity'] += quantity
-                stocks_data[symbol]['cost'] += abs(stock_transaction.amount)
-                stocks_data['Total']['cost'] += abs(stock_transaction.amount)
-            elif stock_transaction.category.name == 'Sell':
-                stocks_data[symbol]['quantity'] -= quantity
-                stocks_data[symbol]['cost'] -= abs(properties.get('cost_basis', 0))
-                stocks_data['Total']['cost'] -= abs(properties.get('cost_basis', 0))
-
-    total_market_value = 0
-    for symbol, stock_data in stocks_data.items():
-        if stock_data.get('quantity', 0) > 0:
-            latest_price = get_latest_stock_price(symbol)
-            if latest_price:
-                stock_data['latest_price'] = latest_price
-                stock_data['market_value'] = market_value = (
-                    stock_data.get('quantity') * latest_price
-                )
-                total_market_value += market_value
-    stocks_data['Total']['market_value'] = total_market_value
-
-    return stocks_data
-
-
 @finance.route('/stocks')
 @login_required
 def stocks():
-    stocks_data = get_stock_values()
+
+    stock_transactions = get_stock_transactions()
+
+    stocks = Stocks(stock_transactions, show_market_values=False)
+    stocks_data = stocks.get_current_holdings()
 
     return render_template("finance/stocks.html", stock_data=stocks_data)
 
