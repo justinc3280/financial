@@ -95,34 +95,38 @@ class Stocks:
 
         if self._show_market_values:
             for symbol, yearly_data in stocks_data.items():
-                price_data = self._get_daily_stock_prices(symbol)
-                if price_data:
+                start_date = str(date(min(yearly_data.keys()), 1, 1))
+                end_date = str(date(max(yearly_data.keys()), 12, 31))
+                monthly_price_data = self._get_stock_monthly_close_prices(
+                    symbol, start_date, end_date
+                )
+
+                if monthly_price_data:
                     for year, monthly_data in yearly_data.items():
                         for month_num, month_data in enumerate(monthly_data, start=1):
-                            date_str = self._get_last_day_of_month_str(year, month_num)
-                            day_prices = price_data.get(date_str)
-                            if not day_prices:
-                                i = 1
-                                while not day_prices and i < 4:
-                                    date_str = self._get_last_day_of_month_str(
-                                        year, month_num, offset=i
-                                    )
-                                    i = i + 1
-                                    day_prices = price_data.get(date_str)
-                            if day_prices:
-                                month_data['price'] = float(day_prices.get('close'))
+                            date_str = '{}-{:02d}'.format(year, month_num)
+                            close_price = monthly_price_data.get(date_str, 0)
+                            month_data['price'] = float(close_price)
 
         self._stocks_data = stocks_data
 
     @staticmethod
-    def _get_daily_stock_prices(symbol):
-        start_date = '2011-01-01'
-        end_date = str(date.today())
+    @cached(TTLCache(maxsize=100, ttl=86400))
+    def _get_stock_monthly_close_prices(symbol, start_date, end_date=str(date.today())):
         url = w_url + '/history?symbol={}&date_from={}&date_to={}&api_token={}'.format(
             symbol, start_date, end_date, w_api_key
         )
         data = requests.get(url).json()
-        return data.get('history')
+        historical_prices = data.get('history')
+
+        monthly_closing_prices = {}
+        for date_str, prices in historical_prices.items():
+            # Assume dict is sorted as newest first
+            year_month_str = date_str[:7]
+            if year_month_str not in monthly_closing_prices:
+                monthly_closing_prices[year_month_str] = prices.get('close')
+
+        return monthly_closing_prices
 
     @staticmethod
     def _get_last_day_of_month_str(year, month, offset=0):
