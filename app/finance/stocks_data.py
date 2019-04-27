@@ -113,9 +113,8 @@ class Stocks:
     @staticmethod
     @cached(TTLCache(maxsize=100, ttl=86400))
     def _get_stock_monthly_close_prices(symbol, start_date, end_date=str(date.today())):
-        url = w_url + '/history?symbol={}&date_from={}&date_to={}&api_token={}'.format(
-            symbol, start_date, end_date, w_api_key
-        )
+        url = f"""{w_url}/history?symbol={symbol}&sort=newest
+              &date_from={start_date}&date_to={end_date}&api_token={w_api_key}"""
         data = requests.get(url).json()
         historical_prices = data.get('history')
 

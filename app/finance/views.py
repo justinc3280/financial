@@ -504,7 +504,7 @@ def investments_return():
 @finance.route('/stocks/monthly_prices/')
 def stocks_monthly_prices():
 
-    year = 2018
+    year = int(request.args.get('year', date.today().year))
     stock_transactions = get_stock_transactions()
     stocks = Stocks(stock_transactions)
     data = stocks.get_monthly_data_for_year(year)
