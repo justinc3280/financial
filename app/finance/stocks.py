@@ -1,7 +1,11 @@
 import requests
-from cachetools import cached, TTLCache
 from collections import defaultdict
 from datetime import date
+import calendar
+import json
+from redis import StrictRedis
+
+redis = StrictRedis()
 
 base_url = 'https://cloud.iexapis.com/v1'
 token = 'pk_6f63e0a751884d75b526ca178528e749'
@@ -106,28 +110,46 @@ class Stocks:
         self._stocks_data = stocks_data
 
     @staticmethod
-    @cached(TTLCache(maxsize=100, ttl=86400))
     def _get_stock_monthly_close_prices(symbol, start_date, end_date=str(date.today())):
-        url = f"""{w_url}/history?symbol={symbol}&sort=newest
-              &date_from={start_date}&date_to={end_date}&api_token={w_api_key}"""
-        data = requests.get(url).json()
-        historical_prices = data.get('history')
+        redis_key = f'monthly_close_prices-{symbol}-{start_date}-{end_date}'
+        result = redis.get(redis_key)
 
-        monthly_closing_prices = {}
-        for date_str, prices in historical_prices.items():
-            # Assume dict is sorted as newest first
-            year_month_str = date_str[:7]
-            if year_month_str not in monthly_closing_prices:
-                monthly_closing_prices[year_month_str] = prices.get('close')
+        if result:
+            value_json = result.decode('utf-8')
+            monthly_closing_prices = json.loads(value_json)
+        else:
+            url = f"""{w_url}/history?symbol={symbol}&sort=newest
+                &date_from={start_date}&date_to={end_date}&api_token={w_api_key}"""
+            data = requests.get(url).json()
+            historical_prices = data.get('history')
+
+            monthly_closing_prices = {}
+            for date_str, prices in historical_prices.items():
+                # Assume dict is sorted as newest first
+                year_month_str = date_str[:7]
+                if year_month_str not in monthly_closing_prices:
+                    monthly_closing_prices[year_month_str] = prices.get('close')
+
+            value_json = json.dumps(monthly_closing_prices)
+            redis.set(redis_key, value_json, ex=86400)
 
         return monthly_closing_prices
 
     @staticmethod
-    @cached(TTLCache(maxsize=100, ttl=3600))
     def _get_latest_stock_price(symbol):
-        url = base_url + '/stock/{}/quote/?token={}'.format(symbol, token)
-        quote = requests.get(url).json()
-        return quote.get('latestPrice')
+        redis_key = f'current_price-{symbol}'
+        result = redis.get(redis_key)
+
+        if result:
+            latest_price = float(result.decode('utf-8'))
+        else:
+            url = base_url + '/stock/{}/quote/?token={}'.format(symbol, token)
+            quote = requests.get(url).json()
+            latest_price = quote.get('latestPrice')
+
+            redis.set(redis_key, latest_price, ex=3600)
+
+        return latest_price
 
     def get_monthly_data_for_year(self, year):
         monthly_data = {}
