@@ -8,7 +8,7 @@ import calendar
 from collections import defaultdict
 from sqlalchemy.orm import aliased
 from app.finance.charts import generate_chart
-from app.finance.stocks_data import Stocks
+from app.finance.stocks import Stocks
 
 
 @finance.route('/')
@@ -37,7 +37,15 @@ def get_stock_transactions():
         Transaction.query.join(Transaction.category)
         .join(Transaction.account)
         .filter(
-            Category.name.in_(['Buy', 'Sell', 'Dividend Reinvest']),
+            Category.name.in_(
+                [
+                    'Buy',
+                    'Sell',
+                    'Dividend Reinvest',
+                    'Transfer Stock In',
+                    'Transfer Stock Out',
+                ]
+            ),
             Account.user == current_user,
         )
         .order_by(Transaction.date)
@@ -82,7 +90,15 @@ def stock_transactions():
         Transaction.query.join(Transaction.category)
         .join(Transaction.account)
         .filter(
-            Category.name.in_(['Buy', 'Sell', 'Dividend Reinvest']),
+            Category.name.in_(
+                [
+                    'Buy',
+                    'Sell',
+                    'Dividend Reinvest',
+                    'Transfer Stock In',
+                    'Transfer Stock Out',
+                ]
+            ),
             Account.user == current_user,
         )
         .order_by(Transaction.date)
