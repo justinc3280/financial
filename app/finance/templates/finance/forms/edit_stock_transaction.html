@@ -1,35 +1,11 @@
-{% extends "forms/base.html" %}
+{% extends "forms/base_modal.html" %}
 
-{% block form_title %}{{ type }} Stock Transaction{% endblock form_title %}
+{% block modal_title %}Edit Stock Transaction{% endblock modal_title %}
 
-{% block form_content %}
-  {{ render_field(form.transaction_type) }}
-  {{ render_field(form.date) }}
+{% block modal_content %}
   {{ render_field(form.symbol) }}
   {{ render_field(form.quantity) }}
-  {{ render_field(form.cost_basis, class="hide_with_buy") }}
+  {{ render_field(form.cost_basis) }}
   {{ render_field(form.transaction_fee) }}
   {{ render_field(form.split_adjustment) }}
-{% endblock form_content %}
-
-{% block form_script %}
-  <script>
-    var $typeField = $("#transaction_type");
-    var $costBasisField = $(".hide_with_buy");
-
-    function hideWithBuy(value) {
-      if(value == 'Buy') {
-        $costBasisField.addClass('d-none');
-      } else {
-        $costBasisField.removeClass('d-none');
-      }
-    }
-
-    $(document).ready(function() {
-      hideWithBuy($typeField.val());
-      $typeField.on('change', function() {
-        hideWithBuy($typeField.val());
-      })
-    });
-  </script>
-{% endblock form_script %}
+{% endblock modal_content %}

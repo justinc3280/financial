@@ -54,10 +54,18 @@ class Transaction(db.Model):
         else:
             return {}
 
+    def set_properties(self, properties):
+        self.properties = json.dumps(properties)
+
     def update_properties(self, data):
         current_properties = self.get_properties()
         current_properties.update(data)
-        self.properties = json.dumps(current_properties)
+        self.set_properties(current_properties)
+
+    def remove_property(self, key):
+        current_properties = self.get_properties()
+        current_properties.pop(key, None)
+        self.set_properties(current_properties)
 
 
 class FileFormat(db.Model):
