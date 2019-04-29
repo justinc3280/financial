@@ -1,23 +1,17 @@
-import requests
 from collections import defaultdict
 from datetime import date
 import calendar
 import json
 from redis import StrictRedis
+from app.finance.stock_data_api import get_historical_monthly_prices, get_latest_price
+
 
 redis = StrictRedis()
 
-base_url = 'https://cloud.iexapis.com/v1'
-token = 'pk_6f63e0a751884d75b526ca178528e749'
-
-w_url = 'https://www.worldtradingdata.com/api/v1'
-w_api_key = 'FDfrcOUb2rDUPTmA70vJuLXCi5PSLox3khlXfG8HQ6PaAMcqD3bWjp8gs7pW'
-
 
 class Stocks:
-    def __init__(self, transactions, show_market_values=True):
-        self._show_market_values = show_market_values
-        self._transactions = transactions
+    def __init__(self, transactions):
+        self._transactions = sorted(transactions, key=lambda x: x.date)
         self._current_data = {}
         self._generate_stock_data()
 
@@ -89,23 +83,23 @@ class Stocks:
                     else:
                         data.pop(i, None)
 
-        if self._show_market_values:
-            for symbol, yearly_data in stocks_data.items():
-                start_date = str(date(min(yearly_data.keys()), 1, 1))
-                end_date = str(date(max(yearly_data.keys()), 12, 31))
-                monthly_price_data = self._get_stock_monthly_close_prices(
-                    symbol, start_date, end_date
-                )
+        for symbol, yearly_data in stocks_data.items():
+            start_date = str(date(min(yearly_data.keys()), 1, 1))
+            end_date = str(date(max(yearly_data.keys()), 12, 31))
+            monthly_price_data = self._get_stock_monthly_close_prices(
+                symbol, start_date, end_date
+            )
 
-                if monthly_price_data:
-                    for year, monthly_data in yearly_data.items():
-                        for month_num, month_data in enumerate(monthly_data, start=1):
-                            date_str = '{}-{:02d}'.format(year, month_num)
-                            close_price = float(monthly_price_data.get(date_str, 0))
-                            month_data['price'] = close_price
-                            month_data['market_value'] = (
-                                month_data.get('quantity') * close_price
-                            )
+            if monthly_price_data:
+                for year, monthly_data in yearly_data.items():
+                    for month_num, month_data in enumerate(monthly_data, start=1):
+                        date_str = '{}-{:02d}'.format(year, month_num)
+                        close_price = float(monthly_price_data.get(date_str, 0))
+                        month_data['price'] = close_price
+                        quantity = month_data.get('quantity')
+                        month_data['market_value'] = (
+                            quantity * close_price if quantity > 0 else 0
+                        )
 
         self._stocks_data = stocks_data
 
@@ -118,17 +112,9 @@ class Stocks:
             value_json = result.decode('utf-8')
             monthly_closing_prices = json.loads(value_json)
         else:
-            url = f"""{w_url}/history?symbol={symbol}&sort=newest
-                &date_from={start_date}&date_to={end_date}&api_token={w_api_key}"""
-            data = requests.get(url).json()
-            historical_prices = data.get('history')
-
-            monthly_closing_prices = {}
-            for date_str, prices in historical_prices.items():
-                # Assume dict is sorted as newest first
-                year_month_str = date_str[:7]
-                if year_month_str not in monthly_closing_prices:
-                    monthly_closing_prices[year_month_str] = prices.get('close')
+            monthly_closing_prices = get_historical_monthly_prices(
+                symbol, start_date, end_date
+            )
 
             value_json = json.dumps(monthly_closing_prices)
             redis.set(redis_key, value_json, ex=86400)
@@ -143,10 +129,7 @@ class Stocks:
         if result:
             latest_price = float(result.decode('utf-8'))
         else:
-            url = base_url + '/stock/{}/quote/?token={}'.format(symbol, token)
-            quote = requests.get(url).json()
-            latest_price = quote.get('latestPrice')
-
+            latest_price = get_latest_price(symbol)
             redis.set(redis_key, latest_price, ex=3600)
 
         return latest_price
@@ -157,6 +140,17 @@ class Stocks:
             if year in data:
                 monthly_data[symbol] = data.get(year)
         return monthly_data
+
+    def get_monthly_total_market_value_for_year(self, year):
+        total_monthly_market_value = []
+        for symbol, data in self._stocks_data.items():
+            for month_index, month_data in enumerate(data.get(year, [])):
+                market_value = month_data.get('market_value', 0)
+                if month_index >= len(total_monthly_market_value):
+                    total_monthly_market_value.append(market_value)
+                else:
+                    total_monthly_market_value[month_index] += market_value
+        return total_monthly_market_value
 
     def get_current_holdings(self):
         current_holdings = {}
@@ -179,15 +173,16 @@ class Stocks:
                 total_cost_basis += data.get('cost_basis', 0)
                 total_market_value += market_value
 
-        current_holdings['Total'] = {
-            'cost_basis': total_cost_basis,
-            'market_value': total_market_value,
-        }
+        if total_market_value > 0:
+            current_holdings['Total'] = {
+                'cost_basis': total_cost_basis,
+                'market_value': total_market_value,
+            }
 
-        for symbol in current_holdings:
-            current_holdings[symbol]['portfolio_percentage'] = round(
-                current_holdings[symbol].get('market_value') / total_market_value, 4
-            )
+            for symbol in current_holdings:
+                current_holdings[symbol]['portfolio_percentage'] = round(
+                    current_holdings[symbol].get('market_value') / total_market_value, 4
+                )
 
         return current_holdings
 

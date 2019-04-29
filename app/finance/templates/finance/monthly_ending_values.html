@@ -11,14 +11,12 @@
         <th>{{ month_name }}</th>
         {% endfor %}
     </tr>
-    {% for symbol, data in stock_data.items() %}
     <tr>
-        <td>{{ symbol }}</td>
-        {% for month_data in data %}
-        <td>{{ month_data.get('market_value', 0) | money }}</td>
+        <td>Total</td>
+        {% for market_value in market_values %}
+            <td>{{ market_value | money }}</td>
         {% endfor %}
     </tr>
-    {% endfor %}
 </table>
 
 {% endblock content %}

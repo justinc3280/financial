@@ -6,7 +6,8 @@ from app.models import Account, Category, Paycheck, StockTransaction, Transactio
 from datetime import date
 import calendar
 from collections import defaultdict
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, joinedload
+from app.finance.accounts import AccountData, AccountsManager, BrokerageAccount
 from app.finance.charts import generate_chart
 from app.finance.stocks import Stocks
 
@@ -51,7 +52,7 @@ def stocks_quantity():
 
     stock_transactions = get_stock_transactions()
 
-    stocks = Stocks(stock_transactions, show_market_values=False)
+    stocks = Stocks(stock_transactions)
 
     stocks_data = stocks.get_monthly_data_for_year(year)
 
@@ -69,7 +70,7 @@ def stocks():
 
     stock_transactions = get_stock_transactions()
 
-    stocks = Stocks(stock_transactions, show_market_values=False)
+    stocks = Stocks(stock_transactions)
     stocks_data = stocks.get_current_holdings()
 
     return render_template("finance/stocks.html", stock_data=stocks_data)
@@ -521,13 +522,25 @@ def stocks_monthly_prices():
 def ending_values():
     year = int(request.args.get('year', date.today().year))
 
-    stock_transactions = get_stock_transactions()
-    stocks = Stocks(stock_transactions)
-    data = stocks.get_monthly_data_for_year(year)
+    # stock_transactions = get_stock_transactions()
+    # stocks = Stocks(stock_transactions)
+    # data = stocks.get_monthly_total_market_value_for_year(year)
+
+    brokerage_accounts = (
+        Account.query.join(Account.category)
+        .filter(Category.name == 'Brokerage Account', Account.user == current_user)
+        .options(joinedload(Account.transactions))
+        .all()
+    )
+
+    account_manager = AccountsManager()
+    for account in brokerage_accounts:
+        account_manager.add_account(BrokerageAccount(account))
+    0 / 0
 
     return render_template(
         'finance/monthly_ending_values.html',
         year=year,
-        stock_data=data,
+        market_values=data,
         months=calendar.month_name[1:],
     )
