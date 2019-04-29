@@ -25,7 +25,8 @@ class Stocks:
                 data = stocks_data[symbol]
                 buy_or_sell = (
                     1
-                    if transaction.category.name in ['Buy', 'Dividend Reinvest']
+                    if transaction.category.name
+                    in ['Buy', 'Dividend Reinvest', 'Transfer Stock In']
                     else -1
                 )
                 quantity = (

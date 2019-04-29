@@ -77,17 +77,8 @@ class PaychecksForm(FlaskForm):
 
 
 class StockTransactionForm(FlaskForm):
-    date = DateField('Date', validators=[DataRequired()], format='%m/%d/%Y')
     symbol = StringField('Symbol', validators=[DataRequired()])
     quantity = FloatField('Quantity', validators=[DataRequired()])
-    cost_basis = FloatField('Cost Basis', validators=[Optional()])
-    transaction_fee = FloatField('Fee')
-    transaction_type = SelectField(
-        'Type', choices=[('Buy', 'Buy'), ('Sell', 'Sell')], validators=[DataRequired()]
-    )
+    cost_basis = FloatField('Cost Basis', validators=[DataRequired()])
+    transaction_fee = FloatField('Fee', validators=[DataRequired()])
     split_adjustment = FloatField('Stock Split Adjustment', validators=[Optional()])
-    submit = SubmitField('Submit')
-
-    # def validate_cost_basis(form, field):
-    #     if form.transaction_type.data == 'sell' and not field.data:
-    #         raise ValidationError('Name must be less than 50 characters')

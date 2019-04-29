@@ -38,7 +38,15 @@ def get_stock_transactions():
         Transaction.query.join(Transaction.category)
         .join(Transaction.account)
         .filter(
-            Category.name.in_(['Buy', 'Sell', 'Dividend Reinvest']),
+            Category.name.in_(
+                [
+                    'Buy',
+                    'Sell',
+                    'Dividend Reinvest',
+                    'Transfer Stock In',
+                    'Transfer Stock Out',
+                ]
+            ),
             Account.user == current_user,
         )
         .order_by(Transaction.date)
@@ -83,7 +91,15 @@ def stock_transactions():
         Transaction.query.join(Transaction.category)
         .join(Transaction.account)
         .filter(
-            Category.name.in_(['Buy', 'Sell', 'Dividend Reinvest']),
+            Category.name.in_(
+                [
+                    'Buy',
+                    'Sell',
+                    'Dividend Reinvest',
+                    'Transfer Stock In',
+                    'Transfer Stock Out',
+                ]
+            ),
             Account.user == current_user,
         )
         .order_by(Transaction.date)
