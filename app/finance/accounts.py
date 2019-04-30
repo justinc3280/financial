@@ -8,7 +8,7 @@ class AccountData:
         self.name = account.name
         self._starting_balance = account.starting_balance
         self._category = account.category
-        self._transactions = sorted(account.transactions, key=lambda x: x.date)
+        self.transactions = sorted(account.transactions, key=lambda x: x.date)
         self._ending_monthly_balances = self._generate_monthly_ending_balances()
 
     def __repr__(self):
@@ -18,7 +18,7 @@ class AccountData:
         ending_monthly_balances = {}
         current_balance = self._starting_balance
 
-        for transaction in self._transactions:
+        for transaction in self.transactions:
             previous_balance = current_balance
             current_balance = round(current_balance + transaction.amount, 2)
 
@@ -55,22 +55,13 @@ class BrokerageAccount(AccountData):
     def __init__(self, account):
         AccountData.__init__(self, account)
         self.is_brokerage_account = True
-        self._stocks = Stocks(self._transactions)  # N^2, bad
-
-    def get_current_stock_holdings(self):
-        return self._stocks.get_current_holdings()
-
-    def get_stocks_monthly_market_values(self, year):
-        return self._stocks.get_monthly_total_market_value_for_year(year)
 
 
-class AccountsManager:
+class AccountManager:
     def __init__(self, accounts=[]):
         self._accounts = []
         self._total_monthly_balances = {}
         self._monthly_balances_by_account = {}
-        self._current_stock_holdings = {}
-        self._stock_monthly_data = {}
         for account in accounts:
             self.add_account(account)
 
@@ -84,17 +75,10 @@ class AccountsManager:
         )
 
         if account.is_brokerage_account:
-            account_current_holdings = account.get_current_stock_holdings()
-            for symbol, yearly_data in account_current_holdings.items():
-                if symbol not in self._current_stock_holdings:
-                    new_yearly_data = yearly_data
-                else:
-                    new_yearly_data = self.merge_yearly_data(
-                        self._current_stock_holdings[symbol], yearly_data
-                    )
+            if not hasattr(self, '_stocks'):
+                self._stocks = Stocks()
 
-                self._current_stock_holdings[symbol] = new_yearly_data
-            # need to update portfolio percentages
+            self._stocks.add_account(account)
 
     @staticmethod
     def merge_yearly_data(x, y):
@@ -127,10 +111,17 @@ class AccountsManager:
         return self._total_monthly_balances.get(year)
 
     def get_current_stock_holdings(self):
-        return self._current_stock_holdings
+        if not self._stocks:
+            return None
+        return self._stocks.get_current_holdings()
 
     def get_stocks_monthly_market_values(self, year):
-        total_monthly_market_value = {}
-        for account in self._brokerage_accounts:
-            values = account.get_stocks_monthly_market_values()
+        if not self._stocks:
+            return None
+        return self._stocks.get_monthly_total_market_value_for_year(year)
+
+    def get_stocks_monthly_data_for_year(self, year):
+        if not self._stocks:
+            return None
+        return self._stocks.get_monthly_data_for_year(year)
 

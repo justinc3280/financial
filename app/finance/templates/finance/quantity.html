@@ -15,7 +15,7 @@
     <tr>
         <td>{{ symbol }}</td>
         {% for month_data in data %}
-        <td>{{ month_data.market_value | money }}</td>
+        <td>{{ month_data.quantity }}</td>
         {% endfor %}
     </tr>
     {% endfor %}
