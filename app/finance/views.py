@@ -6,7 +6,8 @@ from app.models import Account, Category, Paycheck, StockTransaction, Transactio
 from datetime import date
 import calendar
 from collections import defaultdict
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, joinedload
+from app.finance.accounts import AccountManager
 from app.finance.charts import generate_chart
 from app.finance.stocks import Stocks
 
@@ -53,15 +54,21 @@ def get_stock_transactions():
     )
 
 
+def get_brokerage_accounts():
+    return (
+        Account.query.join(Account.category)
+        .filter(Category.name == 'Brokerage Account', Account.user == current_user)
+        .options(joinedload(Account.transactions))
+        .all()
+    )
+
+
 @finance.route('/stocks/quantity/')
 def stocks_quantity():
     year = int(request.args.get('year', date.today().year))
 
-    stock_transactions = get_stock_transactions()
-
-    stocks = Stocks(stock_transactions, show_market_values=False)
-
-    stocks_data = stocks.get_monthly_data_for_year(year)
+    account_manager = AccountManager(get_brokerage_accounts())
+    stocks_data = account_manager.get_stocks_monthly_data_for_year(year)
 
     return render_template(
         'finance/quantity.html',
@@ -75,10 +82,8 @@ def stocks_quantity():
 @login_required
 def stocks():
 
-    stock_transactions = get_stock_transactions()
-
-    stocks = Stocks(stock_transactions, show_market_values=False)
-    stocks_data = stocks.get_current_holdings()
+    account_manager = AccountManager(get_brokerage_accounts())
+    stocks_data = account_manager.get_current_stock_holdings()
 
     return render_template("finance/stocks.html", stock_data=stocks_data)
 
@@ -521,9 +526,9 @@ def investments_return():
 def stocks_monthly_prices():
 
     year = int(request.args.get('year', date.today().year))
-    stock_transactions = get_stock_transactions()
-    stocks = Stocks(stock_transactions)
-    data = stocks.get_monthly_data_for_year(year)
+
+    account_manager = AccountManager(get_brokerage_accounts())
+    data = account_manager.get_stocks_monthly_data_for_year(year)
 
     return render_template(
         'finance/monthly_prices.html',
@@ -532,3 +537,19 @@ def stocks_monthly_prices():
         months=calendar.month_name[1:],
     )
 
+
+@finance.route('/stocks/return/ending_values/')
+def ending_values():
+    year = int(request.args.get('year', date.today().year))
+
+    account_manager = AccountManager(get_brokerage_accounts())
+    stocks_data = account_manager.get_stocks_monthly_data_for_year(year)
+    total_data = account_manager.get_stocks_monthly_market_values(year)
+
+    return render_template(
+        'finance/monthly_ending_values.html',
+        year=year,
+        stocks_data=stocks_data,
+        total_data=total_data,
+        months=calendar.month_name[1:],
+    )

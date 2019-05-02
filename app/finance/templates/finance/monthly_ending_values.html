@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h4>{{ year }} Monthly Ending Value</h4>
+
+<table class="table">
+    <tr>
+        <th></th>
+        {% for month_name in months %}
+        <th>{{ month_name }}</th>
+        {% endfor %}
+    </tr>
+    {% for symbol, data in stocks_data.items() | sort %}
+        <tr>
+            <td>{{ symbol }}</td>
+            {% for value in data %}
+                <td>{{ value.market_value | money }}</td>
+            {% endfor %}
+        </tr>
+    {% endfor %}
+    <tr class="font-weight-bold">
+        <td>Total</td>
+        {% for market_value in total_data %}
+            <td>{{ market_value | money }}</td>
+        {% endfor %}
+    </tr>
+</table>
+
+{% endblock content %}
