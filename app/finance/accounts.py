@@ -1,6 +1,6 @@
 from datetime import date
 from app.finance.stocks import Stocks
-from app.finance.utils import merge_lists
+from app.finance.utils import get_decimal, merge_dict_of_lists
 
 
 class AccountData:
@@ -19,11 +19,11 @@ class AccountData:
 
     def _generate_monthly_ending_balances(self):
         ending_monthly_balances = {}
-        current_balance = self._starting_balance
+        current_balance = get_decimal(self._starting_balance)
 
         for transaction in self.transactions:
             previous_balance = current_balance
-            current_balance = round(current_balance + transaction.amount, 2)
+            current_balance = current_balance + get_decimal(transaction.amount)
 
             transaction_year = transaction.date.year
             current_date = date.today()
@@ -70,7 +70,7 @@ class AccountManager:
         account_monthly_balances = account.get_monthly_ending_balances()
         self._monthly_balances_by_account[account.name] = account_monthly_balances
 
-        self._total_monthly_balances = self.merge_yearly_data(
+        self._total_monthly_balances = merge_dict_of_lists(
             self._total_monthly_balances, account_monthly_balances
         )
 
@@ -79,26 +79,6 @@ class AccountManager:
                 self._stocks = Stocks()
 
             self._stocks.add_account(account)
-
-    @staticmethod
-    def merge_yearly_data(x, y):
-        years = set()
-        years.update(x.keys())
-        years.update(y.keys())
-
-        total_yearly_data = {}
-        for year in years:
-            x_data = x.get(year)
-            y_data = y.get(year)
-            if x_data and y_data:
-                data = merge_lists(x_data, y_data)
-            elif x_data:
-                data = x_data
-            elif y_data:
-                data = y_data
-        if data:
-            total_yearly_data[year] = data
-        return total_yearly_data
 
     def get_accounts_monthly_ending_balances_for_year(self, year):
         ending_balances = {}

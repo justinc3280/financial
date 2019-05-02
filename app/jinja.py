@@ -1,3 +1,6 @@
+from decimal import Decimal, ROUND_HALF_UP
+
+
 def percentage(fraction):
     return '{:.2%}'.format(fraction)
 
@@ -5,6 +8,11 @@ def percentage(fraction):
 def money(amount, show_as_positive=False):
     if amount is None:
         return None
+
+    if isinstance(amount, Decimal):
+        amount = amount.quantize(Decimal('1.00'), rounding=ROUND_HALF_UP)
+    else:
+        amount = round(amount, 2)
 
     if show_as_positive:
         amount = abs(amount)
