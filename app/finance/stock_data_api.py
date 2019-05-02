@@ -10,7 +10,7 @@ w_api_key = 'FDfrcOUb2rDUPTmA70vJuLXCi5PSLox3khlXfG8HQ6PaAMcqD3bWjp8gs7pW'
 alpha_url = 'https://www.alphavantage.co'
 alpha_key = 'S2IEL3KQTDWBOU86'
 
-
+# need exceptions if apis return errors
 def _get_iex_latest_price(symbol):
     url = base_url + '/stock/{}/quote/?token={}'.format(symbol, token)
     quote = requests.get(url).json()
@@ -48,7 +48,11 @@ def _get_alpha_vantage_historical_monthly_prices(symbol, start_date, end_date):
 
 
 def get_historical_monthly_prices(symbol, start_date, end_date):
-    if symbol == 'SFTBY':
+    if symbol in ['SFTBY', 'PSX', 'SBUX']:
+        # found issues with world trade data:
+        # 1) SFTBY prices ended at 1/18/2019
+        # 2) SBUX and PSX missing data for 3/29/2019
+        # 3) VFINX off by 1 cent on 2/28/2018 (251.28 should be 251.27)
         return _get_alpha_vantage_historical_monthly_prices(
             symbol, start_date, end_date
         )

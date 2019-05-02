@@ -20,6 +20,7 @@ class Stocks:
     def add_account(self, account):
         self._accounts.append(account)
         self._transactions.extend(account.transactions)
+        self._initialized = False
 
     def _initialize(self):
         transactions = sorted(self._transactions, key=lambda x: x.date)
@@ -177,7 +178,7 @@ class Stocks:
         total_monthly_market_value = []
         for symbol, data in self._stocks_data.items():
             for month_index, month_data in enumerate(data.get(year, [])):
-                market_value = month_data.get('market_value', 0)
+                market_value = round(month_data.get('market_value', 0), 2)
                 if month_index >= len(total_monthly_market_value):
                     total_monthly_market_value.append(market_value)
                 else:

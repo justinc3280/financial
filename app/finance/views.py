@@ -7,7 +7,7 @@ from datetime import date
 import calendar
 from collections import defaultdict
 from sqlalchemy.orm import aliased, joinedload
-from app.finance.accounts import AccountData, AccountManager, BrokerageAccount
+from app.finance.accounts import AccountManager
 from app.finance.charts import generate_chart
 from app.finance.stocks import Stocks
 
@@ -67,9 +67,7 @@ def get_brokerage_accounts():
 def stocks_quantity():
     year = int(request.args.get('year', date.today().year))
 
-    account_manager = AccountManager(
-        [BrokerageAccount(act) for act in get_brokerage_accounts()]
-    )
+    account_manager = AccountManager(get_brokerage_accounts())
     stocks_data = account_manager.get_stocks_monthly_data_for_year(year)
 
     return render_template(
@@ -84,9 +82,7 @@ def stocks_quantity():
 @login_required
 def stocks():
 
-    account_manager = AccountManager(
-        [BrokerageAccount(act) for act in get_brokerage_accounts()]
-    )
+    account_manager = AccountManager(get_brokerage_accounts())
     stocks_data = account_manager.get_current_stock_holdings()
 
     return render_template("finance/stocks.html", stock_data=stocks_data)
@@ -531,9 +527,7 @@ def stocks_monthly_prices():
 
     year = int(request.args.get('year', date.today().year))
 
-    account_manager = AccountManager(
-        [BrokerageAccount(act) for act in get_brokerage_accounts()]
-    )
+    account_manager = AccountManager(get_brokerage_accounts())
     data = account_manager.get_stocks_monthly_data_for_year(year)
 
     return render_template(
@@ -548,14 +542,14 @@ def stocks_monthly_prices():
 def ending_values():
     year = int(request.args.get('year', date.today().year))
 
-    account_manager = AccountManager(
-        [BrokerageAccount(act) for act in get_brokerage_accounts()]
-    )
-    data = account_manager.get_stocks_monthly_market_values(year)
+    account_manager = AccountManager(get_brokerage_accounts())
+    stocks_data = account_manager.get_stocks_monthly_data_for_year(year)
+    total_data = account_manager.get_stocks_monthly_market_values(year)
 
     return render_template(
         'finance/monthly_ending_values.html',
         year=year,
-        market_values=data,
+        stocks_data=stocks_data,
+        total_data=total_data,
         months=calendar.month_name[1:],
     )

@@ -8,6 +8,9 @@ class AccountData:
         self.name = account.name
         self._starting_balance = account.starting_balance
         self._category = account.category
+        self._is_brokerage_account = (
+            True if account.category.name == 'Brokerage Account' else False
+        )
         self.transactions = sorted(account.transactions, key=lambda x: x.date)
         self._ending_monthly_balances = self._generate_monthly_ending_balances()
 
@@ -51,12 +54,6 @@ class AccountData:
         return self._ending_monthly_balances
 
 
-class BrokerageAccount(AccountData):
-    def __init__(self, account):
-        AccountData.__init__(self, account)
-        self.is_brokerage_account = True
-
-
 class AccountManager:
     def __init__(self, accounts=[]):
         self._accounts = []
@@ -66,6 +63,9 @@ class AccountManager:
             self.add_account(account)
 
     def add_account(self, account):
+        if not isinstance(account, AccountData):
+            account = AccountData(account)
+
         self._accounts.append(account)
         account_monthly_balances = account.get_monthly_ending_balances()
         self._monthly_balances_by_account[account.name] = account_monthly_balances
@@ -74,7 +74,7 @@ class AccountManager:
             self._total_monthly_balances, account_monthly_balances
         )
 
-        if account.is_brokerage_account:
+        if account._is_brokerage_account:
             if not hasattr(self, '_stocks'):
                 self._stocks = Stocks()
 
