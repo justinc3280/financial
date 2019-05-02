@@ -4,7 +4,7 @@ import calendar
 import json
 from redis import StrictRedis
 from app.finance.stock_data_api import get_historical_monthly_prices, get_latest_price
-
+from app.finance.utils import get_decimal, round_decimal
 
 redis = StrictRedis()
 
@@ -38,7 +38,7 @@ class Stocks:
             if transaction.category.name in stock_transaction_categories:
                 properties = transaction.get_properties()
                 symbol = properties.get('symbol')
-                quantity = properties.get('quantity')
+                quantity = get_decimal(properties.get('quantity'))
                 if symbol and quantity:
                     data = stocks_data[symbol]
                     buy_or_sell = (
@@ -48,15 +48,21 @@ class Stocks:
                         else -1
                     )
                     quantity = (
-                        quantity * properties.get('split_adjustment', 1) * buy_or_sell
+                        quantity
+                        * get_decimal(properties.get('split_adjustment', 1))
+                        * buy_or_sell
                     )
                     if buy_or_sell > 0:
-                        cost_basis = abs(transaction.amount) * buy_or_sell
+                        cost_basis = get_decimal(abs(transaction.amount) * buy_or_sell)
                     else:
-                        cost_basis = abs(properties.get('cost_basis', 0)) * buy_or_sell
+                        cost_basis = get_decimal(
+                            abs(properties.get('cost_basis', 0)) * buy_or_sell
+                        )
+
                     if symbol not in current_data:
-                        previous_quantity = previous_cost_basis = 0
+                        previous_quantity = 0
                         new_quantity = quantity
+                        previous_cost_basis = 0
                         new_cost_basis = cost_basis
                         current_data[symbol] = {
                             'quantity': new_quantity,
@@ -64,9 +70,9 @@ class Stocks:
                         }
                     else:
                         previous_quantity = current_data[symbol].get('quantity')
-                        new_quantity = round(previous_quantity + quantity, 3)
+                        new_quantity = previous_quantity + quantity
                         previous_cost_basis = current_data[symbol].get('cost_basis')
-                        new_cost_basis = round(previous_cost_basis + cost_basis, 4)
+                        new_cost_basis = previous_cost_basis + cost_basis
                         current_data[symbol]['quantity'] = new_quantity
                         current_data[symbol]['cost_basis'] = new_cost_basis
 
@@ -119,11 +125,11 @@ class Stocks:
                 for year, monthly_data in yearly_data.items():
                     for month_num, month_data in enumerate(monthly_data, start=1):
                         date_str = '{}-{:02d}'.format(year, month_num)
-                        close_price = float(monthly_price_data.get(date_str, 0))
+                        close_price = get_decimal(monthly_price_data.get(date_str, 0))
                         month_data['price'] = close_price
                         quantity = month_data.get('quantity')
                         month_data['market_value'] = (
-                            round(quantity * close_price, 4) if quantity > 0 else 0
+                            round_decimal(quantity * close_price) if quantity > 0 else 0
                         )
 
         self._current_data = current_data
@@ -178,13 +184,11 @@ class Stocks:
         total_monthly_market_value = []
         for symbol, data in self._stocks_data.items():
             for month_index, month_data in enumerate(data.get(year, [])):
-                market_value = round(month_data.get('market_value', 0), 2)
+                market_value = round_decimal(month_data.get('market_value', 0))
                 if month_index >= len(total_monthly_market_value):
                     total_monthly_market_value.append(market_value)
                 else:
-                    total_monthly_market_value[month_index] = round(
-                        total_monthly_market_value[month_index] + market_value, 4
-                    )
+                    total_monthly_market_value[month_index] += market_value
         return total_monthly_market_value
 
     def get_current_holdings(self, market_values=True):
@@ -197,21 +201,19 @@ class Stocks:
         for symbol, data in self._current_data.items():
             if data.get('quantity', 0) > 0:
                 current_data = dict(data)
-                current_data['cost_per_share'] = round(
-                    data.get('cost_basis') / data.get('quantity'), 4
+                current_data['cost_per_share'] = data.get('cost_basis') / data.get(
+                    'quantity'
                 )
-                current_data[
-                    'latest_price'
-                ] = latest_price = self._get_latest_stock_price(symbol)
-                current_data['market_value'] = market_value = round(
-                    data.get('quantity') * latest_price, 4
+                current_data['latest_price'] = latest_price = get_decimal(
+                    self._get_latest_stock_price(symbol)
+                )
+                current_data['market_value'] = market_value = round_decimal(
+                    data.get('quantity') * latest_price
                 )
                 current_holdings[symbol] = current_data
 
-                total_cost_basis = round(
-                    total_cost_basis + data.get('cost_basis', 0), 4
-                )
-                total_market_value = round(total_market_value + market_value, 4)
+                total_cost_basis += data.get('cost_basis', 0)
+                total_market_value += market_value
 
         if total_market_value > 0:
             current_holdings['Total'] = {
@@ -221,10 +223,9 @@ class Stocks:
 
             for symbol in current_holdings:
                 if symbol != 'Total':
-                    current_holdings[symbol]['portfolio_percentage'] = round(
+                    current_holdings[symbol]['portfolio_percentage'] = (
                         current_holdings[symbol].get('market_value')
-                        / total_market_value,
-                        4,
+                        / total_market_value
                     )
 
         return current_holdings
