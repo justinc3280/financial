@@ -23,7 +23,7 @@ class AccountData:
 
         for transaction in self.transactions:
             previous_balance = current_balance
-            current_balance = current_balance + get_decimal(transaction.amount)
+            current_balance += get_decimal(transaction.amount)
 
             transaction_year = transaction.date.year
             current_date = date.today()

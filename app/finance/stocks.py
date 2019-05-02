@@ -128,8 +128,8 @@ class Stocks:
                         close_price = get_decimal(monthly_price_data.get(date_str, 0))
                         month_data['price'] = close_price
                         quantity = month_data.get('quantity')
-                        month_data['market_value'] = round_decimal(
-                            quantity * close_price if quantity > 0 else 0
+                        month_data['market_value'] = (
+                            round_decimal(quantity * close_price) if quantity > 0 else 0
                         )
 
         self._current_data = current_data
