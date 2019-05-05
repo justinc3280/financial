@@ -70,6 +70,7 @@ class AccountManager:
         account_monthly_balances = account.get_monthly_ending_balances()
         self._monthly_balances_by_account[account.name] = account_monthly_balances
 
+        # bug here, not getting all years, is this even needed
         self._total_monthly_balances = merge_dict_of_lists(
             self._total_monthly_balances, account_monthly_balances
         )
