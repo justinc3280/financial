@@ -12,6 +12,14 @@ from app.finance.charts import generate_chart
 from app.finance.stocks import Stocks
 
 
+def get_accounts():
+    return (
+        Account.query.filter(Account.user == current_user)
+        .options(joinedload(Account.transactions), joinedload(Account.category))
+        .all()
+    )
+
+
 @finance.route('/')
 @finance.route('/index')
 @login_required
@@ -33,41 +41,11 @@ def account_details(account_id):
     return render_template('finance/account_details.html', account=account)
 
 
-def get_stock_transactions():
-    return (
-        Transaction.query.join(Transaction.category)
-        .join(Transaction.account)
-        .filter(
-            Category.name.in_(
-                [
-                    'Buy',
-                    'Sell',
-                    'Dividend Reinvest',
-                    'Transfer Stock In',
-                    'Transfer Stock Out',
-                ]
-            ),
-            Account.user == current_user,
-        )
-        .order_by(Transaction.date)
-        .all()
-    )
-
-
-def get_brokerage_accounts():
-    return (
-        Account.query.join(Account.category)
-        .filter(Category.name == 'Brokerage Account', Account.user == current_user)
-        .options(joinedload(Account.transactions))
-        .all()
-    )
-
-
 @finance.route('/stocks/quantity/')
 def stocks_quantity():
     year = int(request.args.get('year', date.today().year))
 
-    account_manager = AccountManager(get_brokerage_accounts())
+    account_manager = AccountManager(get_accounts())
     stocks_data = account_manager.get_stocks_monthly_data_for_year(year)
 
     return render_template(
@@ -82,7 +60,7 @@ def stocks_quantity():
 @login_required
 def stocks():
 
-    account_manager = AccountManager(get_brokerage_accounts())
+    account_manager = AccountManager(get_accounts())
     stocks_data = account_manager.get_current_stock_holdings()
 
     return render_template("finance/stocks.html", stock_data=stocks_data)
@@ -217,38 +195,45 @@ def initialized_category_data(num_months):
     return {index: total for index, total in enumerate([0] * num_months, start=1)}
 
 
-def get_accounts_category_monthly_balances(start_date, end_date):
-    # currently only works if start and end date are in the same year. TODO: Fix
-    num_months = end_date.month - start_date.month + 1
+def get_accounts_category_monthly_balances(year):
+    def list_to_dict(list):
+        return {i: data for i, data in enumerate(list, start=1)}
 
-    ending_month_dates = []
-    for month_num in range(start_date.month, end_date.month + 1):
-        last_day = calendar.monthrange(start_date.year, month_num)[1]
-        ending_month_dates.append(date(start_date.year, month_num, last_day))
+    current_date = date.today()
+    num_months = 12 if year < current_date.year else current_date.month
+
+    account_manager = AccountManager(current_user.accounts)
+    account_ending_balances = account_manager.get_accounts_monthly_ending_balances_for_year(
+        year
+    )
 
     accounts_monthly_ending_balance = {}
+
+    for account_name, ending_balances in account_ending_balances.items():
+        accounts_monthly_ending_balance[account_name] = list_to_dict(ending_balances)
+
+    accounts_monthly_ending_balance['Stocks (Market Value)'] = list_to_dict(
+        account_manager.get_stocks_monthly_market_values(year)
+    )
+
     for (
         account
     ) in (
         current_user.accounts
     ):  # maybe pass in user or accounts to make this function predictable
-        ending_balances = {
-            index: account.get_ending_balance(date)
-            for index, date in enumerate(ending_month_dates, start=1)
-        }
-        accounts_monthly_ending_balance[account.name] = ending_balances
-
-        parent_categories = (
-            account.category.get_parent_categories() if account.category else []
-        )
-        for parent in parent_categories:
-            if parent.name not in accounts_monthly_ending_balance:
-                accounts_monthly_ending_balance[
-                    parent.name
-                ] = initialized_category_data(num_months)
-            accounts_monthly_ending_balance[parent.name] = add_dict_totals(
-                accounts_monthly_ending_balance.get(parent.name), ending_balances
+        ending_balances = accounts_monthly_ending_balance.get(account.name)
+        if ending_balances:
+            parent_categories = (
+                account.category.get_parent_categories() if account.category else []
             )
+            for parent in parent_categories:
+                if parent.name not in accounts_monthly_ending_balance:
+                    accounts_monthly_ending_balance[
+                        parent.name
+                    ] = initialized_category_data(num_months)
+                accounts_monthly_ending_balance[parent.name] = add_dict_totals(
+                    accounts_monthly_ending_balance.get(parent.name), ending_balances
+                )
 
     total_current_assetts = accounts_monthly_ending_balance.get(
         'Current Assetts', initialized_category_data(num_months)
@@ -342,12 +327,8 @@ def add_dict_totals(dict1, dict2):
 @login_required
 def balance_sheet():
     year = int(request.args.get('year', date.today().year))
-    start_date = date(year, 1, 1)
-    end_date = date(year, 12, 31)
 
-    current_monthly_totals = get_accounts_category_monthly_balances(
-        start_date, end_date
-    )
+    current_monthly_totals = get_accounts_category_monthly_balances(year)
 
     root_categories = Category.query.filter(
         Category.parent == None, Category.name.in_(['Assetts', 'Liabilities'])
@@ -527,7 +508,7 @@ def stocks_monthly_prices():
 
     year = int(request.args.get('year', date.today().year))
 
-    account_manager = AccountManager(get_brokerage_accounts())
+    account_manager = AccountManager(get_accounts())
     data = account_manager.get_stocks_monthly_data_for_year(year)
 
     return render_template(
@@ -542,7 +523,7 @@ def stocks_monthly_prices():
 def ending_values():
     year = int(request.args.get('year', date.today().year))
 
-    account_manager = AccountManager(get_brokerage_accounts())
+    account_manager = AccountManager(get_accounts())
     stocks_data = account_manager.get_stocks_monthly_data_for_year(year)
     total_data = account_manager.get_stocks_monthly_market_values(year)
 
