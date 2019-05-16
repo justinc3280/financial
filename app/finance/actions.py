@@ -271,7 +271,7 @@ def add_paycheck():
     gtl_col = 13
     gym_reimbursement_col = 14
     company_col = 15
-    espp_col = 16
+    espp_col = None
 
     if form.validate_on_submit():
         file_contents = form.file_upload.data.read().decode('utf-8').splitlines()
@@ -293,7 +293,7 @@ def add_paycheck():
             gtl = float(row[gtl_col - 1])
             gym_reimbursement = float(row[gym_reimbursement_col - 1])
             company_name = row[company_col - 1]
-            espp = float(row[espp_col - 1])
+            espp = float(row[espp_col - 1]) if espp_col else None
 
             exists = Paycheck.query.filter(
                 Paycheck.date == date,

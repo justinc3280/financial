@@ -2,23 +2,38 @@
 
 {% block content %}
 
-<h4>Cash Flows</h4>
+<h4>{{ year }} Return On Investments</h4>
 
 <table class="table">
     <tr>
-        <th>Date</th>
-        <th>Amount</th>
-        <th>Description</th>
-        <th>Account</th>
+        <th></th>
+        <th>Beginning Value</th>
+        <th>Cash Flows</th>
+        <th>Adj. Cash Flows</th>
+        <th>Gains (Losses)</th>
+        <th>Ending Value</th>
+        <th>Return (%)</th>
     </tr>
-    {% for transaction in transactions | sort(attribute='date') %}
-    <tr>
-        <td>{{ transaction.date }}</td>
-        <td>{{ transaction.amount | money }}</td>
-        <td>{{ transaction.description }}</td>
-        <td>{{ transaction.account.name }}</td>
-    </tr>
+    {% for values in data %}
+        <tr>
+            <td>{{ values.month }}</td>
+            <td>{{ values.starting_balance | money }}</td>
+            <td>{{ values.cash_flows | money }}</td>
+            <td>{{ values.adj_cash_flows | money }}</td>
+            <td>{{ values.gain | money }}</td>
+            <td>{{ values.ending_balance | money }}</td>
+            <td>{{ values.return_pct | percentage }}</td>
+        </tr>
     {% endfor %}
+    <tr>
+        <td>Total</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td>{{ total_rtn | percentage }}</td>
+    </tr>
 </table>
 
 {% endblock content %}

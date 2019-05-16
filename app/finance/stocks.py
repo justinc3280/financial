@@ -34,6 +34,7 @@ class Stocks:
 
         current_data = {}
         stocks_data = defaultdict(lambda: defaultdict(list))
+        cash_flows = defaultdict(lambda: defaultdict(list))
         for transaction in transactions:
             if transaction.category.name in stock_transaction_categories:
                 properties = transaction.get_properties()
@@ -113,6 +114,10 @@ class Stocks:
                             ]
                         else:
                             data.pop(i, None)
+            elif transaction.category.name in ['Transfer In', 'Transfer Out']:
+                cash_flows[transaction.date.year][transaction.date.month].append(
+                    (get_decimal(transaction.amount), transaction.date)
+                )
 
         for symbol, yearly_data in stocks_data.items():
             start_date = str(date(min(yearly_data.keys()), 1, 1))
@@ -134,6 +139,7 @@ class Stocks:
 
         self._current_data = current_data
         self._stocks_data = stocks_data
+        self._cash_flows = cash_flows
         self._initialized = True
 
     @staticmethod
@@ -191,7 +197,7 @@ class Stocks:
                     total_monthly_market_value[month_index] += market_value
         return total_monthly_market_value
 
-    def get_current_holdings(self, market_values=True):
+    def get_current_holdings(self):
         if not self._initialized:
             self._initialize()
 
@@ -230,3 +236,31 @@ class Stocks:
 
         return current_holdings
 
+    def get_cash_flows(self, year, month):
+        if not self._initialized:
+            self._initialize()
+
+        yearly_cash_flows = self._cash_flows.get(year)
+        if yearly_cash_flows:
+            cash_flows = [
+                cash_flow[0] for cash_flow in yearly_cash_flows.get(month, [])
+            ]
+            return sum(cash_flows)
+        else:
+            return 0
+
+    def get_adjusted_cash_flows(self, year, month):
+        if not self._initialized:
+            self._initialize()
+
+        yearly_cash_flows = self._cash_flows.get(year)
+        if yearly_cash_flows:
+            cash_flows = yearly_cash_flows.get(month, [])
+            adj_value = 0
+            for cash_flow, date in cash_flows:
+                days_in_month = calendar.monthrange(year, month)[1]
+                num_days = days_in_month - date.day
+                adj_value += cash_flow * get_decimal(num_days / days_in_month)
+            return adj_value
+        else:
+            return 0
