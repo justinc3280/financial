@@ -4,7 +4,7 @@ import calendar
 import json
 from redis import StrictRedis
 from app.finance.stock_data_api import get_historical_monthly_prices, get_latest_price
-from app.finance.utils import get_decimal, round_decimal
+from app.finance.utils import get_decimal, round_decimal, merge_dict_of_lists
 
 redis = StrictRedis()
 
@@ -13,6 +13,7 @@ class Stocks:
     def __init__(self, accounts=[]):
         self._accounts = []
         self._transactions = []
+        self._total_brokerage_cash_balances = {}
         for account in accounts:
             self.add_account(account)
         self._initialized = False
@@ -20,6 +21,12 @@ class Stocks:
     def add_account(self, account):
         self._accounts.append(account)
         self._transactions.extend(account.transactions)
+
+        account_monthly_balances = account.get_monthly_ending_balances()
+        self._total_brokerage_cash_balances = merge_dict_of_lists(
+            self._total_brokerage_cash_balances, account_monthly_balances
+        )
+
         self._initialized = False
 
     def _initialize(self):
@@ -34,6 +41,7 @@ class Stocks:
 
         current_data = {}
         stocks_data = defaultdict(lambda: defaultdict(list))
+        cash_flow_transactions = defaultdict(lambda: defaultdict(list))
         for transaction in transactions:
             if transaction.category.name in stock_transaction_categories:
                 properties = transaction.get_properties()
@@ -113,6 +121,10 @@ class Stocks:
                             ]
                         else:
                             data.pop(i, None)
+            elif transaction.category.name in ['Transfer In', 'Transfer Out']:
+                cash_flow_transactions[transaction.date.year][
+                    transaction.date.month
+                ].append(transaction)
 
         for symbol, yearly_data in stocks_data.items():
             start_date = str(date(min(yearly_data.keys()), 1, 1))
@@ -134,6 +146,7 @@ class Stocks:
 
         self._current_data = current_data
         self._stocks_data = stocks_data
+        self._cash_flow_transactions = cash_flow_transactions
         self._initialized = True
 
     @staticmethod
@@ -191,7 +204,7 @@ class Stocks:
                     total_monthly_market_value[month_index] += market_value
         return total_monthly_market_value
 
-    def get_current_holdings(self, market_values=True):
+    def get_current_holdings(self):
         if not self._initialized:
             self._initialize()
 
@@ -229,4 +242,77 @@ class Stocks:
                     )
 
         return current_holdings
+
+    def _get_total_ending_balances_for_year(self, year):
+        if not self._initialized:
+            self._initialize()
+
+        market_values = self.get_monthly_total_market_value_for_year(year)
+        cash_values = self._total_brokerage_cash_balances.get(year)
+
+        data = []
+        for i, amount in enumerate(market_values):
+            cash = cash_values[i]
+            data.append(amount + cash)
+        return data
+
+    def _get_cash_flows(self, year, month):
+        if not self._initialized:
+            self._initialize()
+
+        cash_flows = {}
+        total_value = 0
+        adj_value = 0
+
+        yearly_cash_flow_transactions = self._cash_flow_transactions.get(year)
+        if yearly_cash_flow_transactions:
+            month_cash_flow_transactions = yearly_cash_flow_transactions.get(month, [])
+            for cash_flow_transaction in month_cash_flow_transactions:
+                amount = get_decimal(cash_flow_transaction.amount)
+                total_value += amount
+                days_in_month = calendar.monthrange(year, month)[1]
+                num_days = days_in_month - cash_flow_transaction.date.day
+                adj_value += amount * get_decimal(num_days / days_in_month)
+
+        cash_flows['total'] = total_value
+        cash_flows['adjusted'] = adj_value
+
+        return cash_flows
+
+    def get_roi_data(self, year):
+        if not self._initialized:
+            self._initialize()
+
+        monthly_ending_values = self._get_total_ending_balances_for_year(year)
+
+        previous_year_data = self._get_total_ending_balances_for_year(year - 1)
+        starting_value = previous_year_data[-1] if previous_year_data else 0
+
+        data = []
+        for i, value in enumerate(monthly_ending_values):
+            month_index = i + 1
+            starting_balance = (
+                starting_value if i == 0 else monthly_ending_values[i - 1]
+            )
+            cash_flows = self._get_cash_flows(year, month_index)
+            total_cash_flows = cash_flows.get('total')
+            adj_cash_flows = cash_flows.get('adjusted')
+            gain = value - total_cash_flows - starting_balance
+            return_pct = gain / (starting_balance + adj_cash_flows)
+            return_pct_plus_one = return_pct + 1
+
+            data.append(
+                {
+                    'month': calendar.month_name[month_index],
+                    'starting_balance': starting_balance,
+                    'cash_flows': total_cash_flows,
+                    'adj_cash_flows': adj_cash_flows,
+                    'ending_balance': value,
+                    'gain': gain,
+                    'return_pct': return_pct,
+                    'return_pct_plus_one': return_pct_plus_one,
+                }
+            )
+
+        return data
 

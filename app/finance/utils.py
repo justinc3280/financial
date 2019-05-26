@@ -43,8 +43,9 @@ def merge_dict_of_lists(x, y):
             data = x_data
         elif y_data:
             data = y_data
-    if data:
-        total_data[key] = data
+        if data:
+            total_data[key] = data
+
     return total_data
 
 

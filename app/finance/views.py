@@ -7,6 +7,7 @@ from datetime import date
 import calendar
 from collections import defaultdict
 from sqlalchemy.orm import aliased, joinedload
+from functools import reduce
 from app.finance.accounts import AccountManager
 from app.finance.charts import generate_chart
 from app.finance.stocks import Stocks
@@ -39,21 +40,6 @@ def accounts():
 def account_details(account_id):
     account = Account.query.filter_by(id=account_id).first_or_404()
     return render_template('finance/account_details.html', account=account)
-
-
-@finance.route('/stocks/quantity/')
-def stocks_quantity():
-    year = int(request.args.get('year', date.today().year))
-
-    account_manager = AccountManager(get_accounts())
-    stocks_data = account_manager.get_stocks_monthly_data_for_year(year)
-
-    return render_template(
-        'finance/quantity.html',
-        year=year,
-        stock_data=stocks_data,
-        months=calendar.month_name[1:],
-    )
 
 
 @finance.route('/stocks')
@@ -477,60 +463,19 @@ def charts(category_name=None):
     return render_template('finance/charts.html', charts=charts)
 
 
-@finance.route('/stocks/return/cash_flows/')
-def investments_return():
-    year = int(request.args.get('year', date.today().year))
-    start_date = date(2011, 1, 1)
-    end_date = date(year, 12, 31)
-
-    account_category = aliased(Category)
-    transaction_category = aliased(Category)
-    cash_flow_transactions = (
-        Transaction.query.join(
-            transaction_category, Transaction.category_id == transaction_category.id
-        )
-        .join(Transaction.account)
-        .join(account_category, Account.category_id == account_category.id)
-        .filter(
-            Account.user == current_user,
-            account_category.name == 'Brokerage Account',
-            transaction_category.name.in_(['Transfer In', 'Transfer Out']),
-            Transaction.date.between(start_date, end_date),
-        )
-        .all()
-    )
-
-    return render_template('finance/return.html', transactions=cash_flow_transactions)
-
-
-@finance.route('/stocks/monthly_prices/')
-def stocks_monthly_prices():
-
+@finance.route('/stocks/return/')
+@login_required
+def stocks_return():
     year = int(request.args.get('year', date.today().year))
 
     account_manager = AccountManager(get_accounts())
-    data = account_manager.get_stocks_monthly_data_for_year(year)
+
+    data = account_manager.get_brokerage_roi_data(year)
+
+    monthly_returns_plus_one = [d.get('return_pct_plus_one') for d in data]
+
+    year_return_pct = reduce(lambda x, y: x * y, monthly_returns_plus_one) - 1
 
     return render_template(
-        'finance/monthly_prices.html',
-        year=year,
-        stock_data=data,
-        months=calendar.month_name[1:],
-    )
-
-
-@finance.route('/stocks/return/ending_values/')
-def ending_values():
-    year = int(request.args.get('year', date.today().year))
-
-    account_manager = AccountManager(get_accounts())
-    stocks_data = account_manager.get_stocks_monthly_data_for_year(year)
-    total_data = account_manager.get_stocks_monthly_market_values(year)
-
-    return render_template(
-        'finance/monthly_ending_values.html',
-        year=year,
-        stocks_data=stocks_data,
-        total_data=total_data,
-        months=calendar.month_name[1:],
+        'finance/return.html', year=year, data=data, total_rtn=year_return_pct
     )
