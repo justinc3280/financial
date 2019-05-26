@@ -58,7 +58,6 @@ class AccountManager:
     def __init__(self, accounts=[]):
         self._accounts = []
         self._total_monthly_balances = {}
-        self._total_brokerage_cash_balances = {}
         self._monthly_balances_by_account = {}
         for account in accounts:
             self.add_account(account)
@@ -76,9 +75,6 @@ class AccountManager:
         )
 
         if account._is_brokerage_account:
-            self._total_brokerage_cash_balances = merge_dict_of_lists(
-                self._total_brokerage_cash_balances, account_monthly_balances
-            )
 
             if not hasattr(self, '_stocks'):
                 self._stocks = Stocks()
@@ -110,26 +106,8 @@ class AccountManager:
             return None
         return self._stocks.get_monthly_data_for_year(year)
 
-    def get_brokerage_monthly_ending_balances_for_year(self, year):
+    def get_brokerage_roi_data(self, year):
         if not self._stocks:
             return None
-
-        market_values = self._stocks.get_monthly_total_market_value_for_year(year)
-        cash_values = self._total_brokerage_cash_balances.get(year)
-
-        data = []
-        for i, amount in enumerate(market_values):
-            cash = cash_values[i]
-            data.append(amount + cash)
-        return data
-
-    def get_brokerage_cash_flows(self, year, month):
-        if not self._stocks:
-            return None
-        return self._stocks.get_cash_flows(year, month)
-
-    def get_brokerage_adjusted_cash_flows(self, year, month):
-        if not self._stocks:
-            return None
-        return self._stocks.get_adjusted_cash_flows(year, month)
+        return self._stocks.get_roi_data(year)
 

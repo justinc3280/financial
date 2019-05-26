@@ -470,39 +470,9 @@ def stocks_return():
 
     account_manager = AccountManager(get_accounts())
 
-    monthly_ending_values = account_manager.get_brokerage_monthly_ending_balances_for_year(
-        year
-    )
+    data = account_manager.get_brokerage_roi_data(year)
 
-    previous_year_data = account_manager.get_brokerage_monthly_ending_balances_for_year(
-        year - 1
-    )
-    starting_value = previous_year_data[-1] if previous_year_data else 0
-
-    data = []
-    monthly_returns_plus_one = []
-    for i, value in enumerate(monthly_ending_values):
-        month_index = i + 1
-        starting_balance = starting_value if i == 0 else monthly_ending_values[i - 1]
-        cash_flows = account_manager.get_brokerage_cash_flows(year, month_index)
-        adj_cash_flows = account_manager.get_brokerage_adjusted_cash_flows(
-            year, month_index
-        )
-        gain = value - cash_flows - starting_balance
-        return_pct = gain / (starting_balance + adj_cash_flows)
-
-        data.append(
-            {
-                'month': calendar.month_name[month_index],
-                'starting_balance': starting_balance,
-                'cash_flows': cash_flows,
-                'adj_cash_flows': adj_cash_flows,
-                'ending_balance': value,
-                'gain': gain,
-                'return_pct': return_pct,
-            }
-        )
-        monthly_returns_plus_one.append(return_pct + 1)
+    monthly_returns_plus_one = [d.get('return_pct_plus_one') for d in data]
 
     year_return_pct = reduce(lambda x, y: x * y, monthly_returns_plus_one) - 1
 
