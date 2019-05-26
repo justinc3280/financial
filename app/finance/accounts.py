@@ -75,7 +75,6 @@ class AccountManager:
         )
 
         if account._is_brokerage_account:
-
             if not hasattr(self, '_stocks'):
                 self._stocks = Stocks()
 
