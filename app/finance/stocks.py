@@ -18,6 +18,11 @@ class Stocks:
             self.add_account(account)
         self._initialized = False
 
+    def __getattr__(self, name):
+        if not self._initialized:
+            self._initialize()
+        return getattr(self, name)
+
     def add_account(self, account):
         self._accounts.append(account)
         self._transactions.extend(account.transactions)
@@ -181,9 +186,6 @@ class Stocks:
         return latest_price
 
     def get_monthly_data_for_year(self, year):
-        if not self._initialized:
-            self._initialize()
-
         monthly_data = {}
         for symbol, data in self._stocks_data.items():
             if year in data:
@@ -191,9 +193,6 @@ class Stocks:
         return monthly_data
 
     def get_monthly_total_market_value_for_year(self, year):
-        if not self._initialized:
-            self._initialize()
-
         total_monthly_market_value = []
         for symbol, data in self._stocks_data.items():
             for month_index, month_data in enumerate(data.get(year, [])):
@@ -205,9 +204,6 @@ class Stocks:
         return total_monthly_market_value
 
     def get_current_holdings(self):
-        if not self._initialized:
-            self._initialize()
-
         current_holdings = {}
         total_cost_basis = 0
         total_market_value = 0
@@ -244,9 +240,6 @@ class Stocks:
         return current_holdings
 
     def _get_total_ending_balances_for_year(self, year):
-        if not self._initialized:
-            self._initialize()
-
         market_values = self.get_monthly_total_market_value_for_year(year)
         cash_values = self._total_brokerage_cash_balances.get(year)
 
@@ -257,9 +250,6 @@ class Stocks:
         return data
 
     def _get_cash_flows(self, year, month):
-        if not self._initialized:
-            self._initialize()
-
         cash_flows = {}
         total_value = 0
         adj_value = 0
@@ -293,9 +283,6 @@ class Stocks:
         return (overall_return + 1) ** get_decimal((1 / num_years)) - 1
 
     def get_monthly_roi_data(self, year):
-        if not self._initialized:
-            self._initialize()
-
         monthly_ending_values = self._get_total_ending_balances_for_year(year)
 
         previous_year_data = self._get_total_ending_balances_for_year(year - 1)
@@ -334,9 +321,6 @@ class Stocks:
         return data
 
     def get_compounded_roi(self, start_year, end_year):
-        if not self._initialized:
-            self._initialize()
-
         data = {}
         num_months = 0
         annual_returns = []
