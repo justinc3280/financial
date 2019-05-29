@@ -279,7 +279,20 @@ class Stocks:
 
         return cash_flows
 
-    def get_roi_data(self, year):
+    @staticmethod
+    def get_geometrically_linked_return(returns):
+        overall_return = returns[0] + 1
+        if len(returns) > 1:
+            for r in returns[1:]:
+                overall_return *= r + 1
+        return overall_return - 1
+
+    @staticmethod
+    def get_compounded_annual_return(overall_return, num_months):
+        num_years = num_months / 12
+        return (overall_return + 1) ** get_decimal((1 / num_years)) - 1
+
+    def get_monthly_roi_data(self, year):
         if not self._initialized:
             self._initialize()
 
@@ -288,7 +301,9 @@ class Stocks:
         previous_year_data = self._get_total_ending_balances_for_year(year - 1)
         starting_value = previous_year_data[-1] if previous_year_data else 0
 
-        data = []
+        data = {}
+        monthly_data = []
+        returns = []
         for i, value in enumerate(monthly_ending_values):
             month_index = i + 1
             starting_balance = (
@@ -299,9 +314,9 @@ class Stocks:
             adj_cash_flows = cash_flows.get('adjusted')
             gain = value - total_cash_flows - starting_balance
             return_pct = gain / (starting_balance + adj_cash_flows)
-            return_pct_plus_one = return_pct + 1
+            returns.append(return_pct)
 
-            data.append(
+            monthly_data.append(
                 {
                     'month': calendar.month_name[month_index],
                     'starting_balance': starting_balance,
@@ -310,9 +325,36 @@ class Stocks:
                     'ending_balance': value,
                     'gain': gain,
                     'return_pct': return_pct,
-                    'return_pct_plus_one': return_pct_plus_one,
                 }
             )
 
+        data['annual_return'] = self.get_geometrically_linked_return(returns)
+        data['monthly_data'] = monthly_data
+
+        return data
+
+    def get_compounded_roi(self, start_year, end_year):
+        if not self._initialized:
+            self._initialize()
+
+        data = {}
+        num_months = 0
+        annual_returns = []
+        for year in range(start_year, end_year + 1):
+            monthly_data = self.get_monthly_roi_data(year)
+            if monthly_data:
+                num_months += len(monthly_data.get('monthly_data'))
+                annual_returns.append(
+                    {'year': year, 'annual_return': monthly_data.get('annual_return')}
+                )
+
+        overall_gain = self.get_geometrically_linked_return(
+            [r['annual_return'] for r in annual_returns]
+        )
+        data['overall_gain'] = overall_gain
+        data['compounded_annual_gain'] = self.get_compounded_annual_return(
+            overall_gain, num_months
+        )
+        data['annual_returns'] = annual_returns
         return data
 

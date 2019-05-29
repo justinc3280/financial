@@ -108,5 +108,9 @@ class AccountManager:
     def get_brokerage_roi_data(self, year):
         if not self._stocks:
             return None
-        return self._stocks.get_roi_data(year)
+        return self._stocks.get_monthly_roi_data(year)
 
+    def get_brokerage_compounded_roi(self, start_year, end_year):
+        if not self._stocks:
+            return None
+        return self._stocks.get_compounded_roi(start_year, end_year)
