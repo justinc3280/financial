@@ -6,33 +6,22 @@
 
 <table class="table">
     <tr>
-        <th></th>
-        <th>Beginning Value</th>
-        <th>Cash Flows</th>
-        <th>Adj. Cash Flows</th>
-        <th>Gains (Losses)</th>
-        <th>Ending Value</th>
-        <th>Return (%)</th>
+        <th>Year</th>
+        <th>Return</th>
     </tr>
-    {% for values in data %}
+    {% for value in data.annual_returns %}
         <tr>
-            <td>{{ values.month }}</td>
-            <td>{{ values.starting_balance | money }}</td>
-            <td>{{ values.cash_flows | money }}</td>
-            <td>{{ values.adj_cash_flows | money }}</td>
-            <td>{{ values.gain | money }}</td>
-            <td>{{ values.ending_balance | money }}</td>
-            <td>{{ values.return_pct | percentage }}</td>
+            <td><a class="text-dark" href="{{ url_for('finance.stocks_return_data', year=value.year) }}">{{ value.year }}</a></td>
+            <td>{{ value.annual_return | percentage }}</td>
         </tr>
     {% endfor %}
-    <tr>
-        <td>Total</td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td>{{ total_rtn | percentage }}</td>
+    <tr class="font-weight-bold">
+        <td>Overall Return</td>
+        <td>{{ data.overall_gain | percentage }}</td>
+    </tr>
+    <tr class="font-weight-bold">
+        <td>Compounded Annual Return</td>
+        <td>{{ data.compounded_annual_gain | percentage }}</td>
     </tr>
 </table>
 

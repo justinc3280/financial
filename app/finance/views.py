@@ -7,7 +7,6 @@ from datetime import date
 import calendar
 from collections import defaultdict
 from sqlalchemy.orm import aliased, joinedload
-from functools import reduce
 from app.finance.accounts import AccountManager
 from app.finance.charts import generate_chart
 from app.finance.stocks import Stocks
@@ -463,6 +462,25 @@ def charts(category_name=None):
     return render_template('finance/charts.html', charts=charts)
 
 
+@finance.route('/stocks/return/data')
+@login_required
+def stocks_return_data():
+    year = int(request.args.get('year', date.today().year))
+
+    account_manager = AccountManager(get_accounts())
+
+    data = account_manager.get_brokerage_roi_data(year)
+    monthly_data = data.get('monthly_data')
+    annual_return = data.get('annual_return')
+
+    return render_template(
+        'finance/return_data.html',
+        year=year,
+        data=monthly_data,
+        annual_return=annual_return,
+    )
+
+
 @finance.route('/stocks/return/')
 @login_required
 def stocks_return():
@@ -470,12 +488,7 @@ def stocks_return():
 
     account_manager = AccountManager(get_accounts())
 
-    data = account_manager.get_brokerage_roi_data(year)
+    total_roi_data = account_manager.get_brokerage_compounded_roi(2011, year)
 
-    monthly_returns_plus_one = [d.get('return_pct_plus_one') for d in data]
+    return render_template('finance/return.html', year=year, data=total_roi_data)
 
-    year_return_pct = reduce(lambda x, y: x * y, monthly_returns_plus_one) - 1
-
-    return render_template(
-        'finance/return.html', year=year, data=data, total_rtn=year_return_pct
-    )

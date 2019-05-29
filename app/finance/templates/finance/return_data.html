@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h4>{{ year }} Return On Investments</h4>
+
+<table class="table">
+    <tr>
+        <th></th>
+        <th>Beginning Value</th>
+        <th>Cash Flows</th>
+        <th>Adj. Cash Flows</th>
+        <th>Gains (Losses)</th>
+        <th>Ending Value</th>
+        <th>Return (%)</th>
+    </tr>
+    {% for values in data %}
+        <tr>
+            <td>{{ values.month }}</td>
+            <td>{{ values.starting_balance | money }}</td>
+            <td>{{ values.cash_flows | money }}</td>
+            <td>{{ values.adj_cash_flows | money }}</td>
+            <td>{{ values.gain | money }}</td>
+            <td>{{ values.ending_balance | money }}</td>
+            <td>{{ values.return_pct | percentage }}</td>
+        </tr>
+    {% endfor %}
+    <tr class="font-weight-bold">
+        <td>Total</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td>{{ annual_return | percentage }}</td>
+    </tr>
+</table>
+
+{% endblock content %}
