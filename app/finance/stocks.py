@@ -48,6 +48,7 @@ class Stocks:
         stocks_data = defaultdict(lambda: defaultdict(list))
         cash_flow_transactions = defaultdict(lambda: defaultdict(list))
         for transaction in transactions:
+            cash_flow_amount = None
             if transaction.category.name in stock_transaction_categories:
                 properties = transaction.get_properties()
                 symbol = properties.get('symbol')
@@ -126,10 +127,23 @@ class Stocks:
                             ]
                         else:
                             data.pop(i, None)
-            elif transaction.category.name in ['Transfer In', 'Transfer Out']:
+
+                if transaction.category.name == 'Transfer Stock In':
+                    cash_flow_amount = transaction.get_property('market_value', 0)
+                elif transaction.category.name == 'Transfer Stock Out':
+                    cash_flow_amount = -transaction.get_property('market_value', 0)
+            elif transaction.category.name in [
+                'Transfer In',
+                'Transfer Out',
+                'Brokerage Fee',
+                'Refund',
+            ]:
+                cash_flow_amount = transaction.amount
+
+            if cash_flow_amount:
                 cash_flow_transactions[transaction.date.year][
                     transaction.date.month
-                ].append(transaction)
+                ].append((transaction.date, cash_flow_amount))
 
         for symbol, yearly_data in stocks_data.items():
             start_date = str(date(min(yearly_data.keys()), 1, 1))
@@ -257,11 +271,11 @@ class Stocks:
         yearly_cash_flow_transactions = self._cash_flow_transactions.get(year)
         if yearly_cash_flow_transactions:
             month_cash_flow_transactions = yearly_cash_flow_transactions.get(month, [])
-            for cash_flow_transaction in month_cash_flow_transactions:
-                amount = get_decimal(cash_flow_transaction.amount)
+            for date, amount in month_cash_flow_transactions:
+                amount = get_decimal(amount)
                 total_value += amount
                 days_in_month = calendar.monthrange(year, month)[1]
-                num_days = days_in_month - cash_flow_transaction.date.day
+                num_days = days_in_month - date.day
                 adj_value += amount * get_decimal(num_days / days_in_month)
 
         cash_flows['total'] = total_value

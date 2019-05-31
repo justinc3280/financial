@@ -3,9 +3,13 @@
 {% block modal_title %}Edit Stock Transaction{% endblock modal_title %}
 
 {% block modal_content %}
+  <div class="mb-3">{{ transaction.description}}</div>
   {{ render_field(form.symbol) }}
   {{ render_field(form.quantity) }}
   {{ render_field(form.cost_basis) }}
+  {% if transaction.category.name in ['Transfer Stock In', 'Transfer Stock Out'] %}
+    {{ render_field(form.market_value)}}
+  {% endif %}
   {{ render_field(form.transaction_fee) }}
   {{ render_field(form.split_adjustment) }}
 {% endblock modal_content %}

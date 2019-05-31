@@ -371,11 +371,13 @@ def edit_stock_transaction(transaction_id):
         'Dividend Reinvest',
     ]:
         cost_basis = abs(stock_transaction.amount)
+
     data = {
         'symbol': properties.get('symbol'),
         'quantity': properties.get('quantity'),
         'transaction_fee': properties.get('transaction_fee'),
         'cost_basis': cost_basis,
+        'market_value': properties.get('market_value'),
         'split_adjustment': properties.get('split_adjustment'),
     }
 
@@ -387,6 +389,7 @@ def edit_stock_transaction(transaction_id):
             'quantity': form.quantity.data,
             'transaction_fee': form.transaction_fee.data,
             'cost_basis': form.cost_basis.data,
+            'market_value': form.market_value.data,
         }
 
         if form.split_adjustment.data:
@@ -398,5 +401,9 @@ def edit_stock_transaction(transaction_id):
 
         db.session.commit()
         return redirect(url_for('finance.stock_transactions'))
-    return render_template('finance/forms/edit_stock_transaction.html', form=form)
+    return render_template(
+        'finance/forms/edit_stock_transaction.html',
+        form=form,
+        transaction=stock_transaction,
+    )
 
