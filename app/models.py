@@ -54,6 +54,12 @@ class Transaction(db.Model):
         else:
             return {}
 
+    def get_property(self, name, default=None):
+        if self.properties:
+            return json.loads(str(self.properties)).get(name, default)
+        else:
+            return default
+
     def set_properties(self, properties):
         self.properties = json.dumps(properties)
 

@@ -82,3 +82,4 @@ class StockTransactionForm(FlaskForm):
     cost_basis = FloatField('Cost Basis', validators=[DataRequired()])
     transaction_fee = FloatField('Fee', validators=[DataRequired()])
     split_adjustment = FloatField('Stock Split Adjustment', validators=[Optional()])
+    market_value = FloatField('Market Value', validators=[Optional()])
