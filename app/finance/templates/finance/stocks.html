@@ -1,42 +1,68 @@
 {% extends "base.html" %}
 
 {% block content %}
-
+<div class="container-fluid">
 	<h4>Stocks</h4>
 	<a class="btn btn-primary" href="{{ url_for('finance.stock_transactions') }}">View Stock Transactions</a>
 	<a class="btn btn-primary" href="{{ url_for('finance.stocks_return') }}">ROI</a>
 
-	<table class="table text-right">
-		<tr>
-			<th>Symbol</th>
-			<th>Quantity</th>
-			<th>Cost Per Share</th>
-			<th>Cost</th>
-			<th>Price Per Share</th>
-			<th>Market Value</th>
-			<th>% of Portfolio</th>
-		</tr>
+	<div class="row">
 		{% for stock_symbol, data in stock_data.items() if stock_symbol != 'Total' %}
-			<tr>
-				<td>{{ stock_symbol }}</td>
-				<td>{{ data.quantity }}</td>
-				<td>{{ data.cost_per_share | money }}</td>
-				<td>{{ data.cost_basis | money }}</td>
-				<td>{{ data.latest_price | money }}</td>
-				<td>{{ data.market_value | money }}</td>
-				<td>{{ data.portfolio_percentage | percentage }}</td>
-
-			</tr>
+			<div class="col-md-6">
+				<div class="card my-2">
+					<div class="card-header">
+						<h5 class="text-center">{{ stock_symbol }}</h5>
+					</div>
+					<div class="card-body">
+						<div class="row">
+							<div class="col-sm-4 mb-4">
+								<p class="font-weight-bold mb-1">Quantity</p>
+								{{ data.quantity }}
+							</div>
+							<div class="col-sm-4 mb-4">
+								<p class="font-weight-bold mb-1">Cost Per Share</p>
+								{{ data.cost_per_share | money }}
+							</div>
+							<div class="col-sm-4 mb-4">
+								<p class="font-weight-bold mb-1">Cost</p>
+								{{ data.cost_basis | money }}
+							</div>
+							<div class="col-sm-4 mb-4">
+								<p class="font-weight-bold mb-1">Portfolio %</p>
+								{{ data.portfolio_percentage  | percentage }}
+							</div>
+							<div class="col-sm-4 mb-4">
+								<p class="font-weight-bold mb-1">Price Per Share</p>
+								{{ data.latest_price | money }}
+							</div>
+							<div class="col-sm-4 mb-4">
+								<p class="font-weight-bold mb-1">Market Value</p>
+								{{ data.market_value | money }}
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
 		{% endfor %}
-		<tr class="font-weight-bold">
-			<td>Total</td>
-			<td></td>
-			<td></td>
-			<td>{{ stock_data.get('Total').get('cost_basis') | money }}</td>
-			<td></td>
-			<td>{{ stock_data.get('Total').get('market_value') | money }}</td>
-			<td></td>
-		</tr>
-	</table>
-
-{% endblock %}
+		<div class="col-md-6">
+			<div class="card my-2">
+				<div class="card-header">
+					<h5 class="text-center">Total</h5>
+				</div>
+				<div class="card-body">
+					<div class="row">
+						<div class="col-sm-6 mb-4">
+							<p class="font-weight-bold mb-1">Cost</p>
+							{{ stock_data.get('Total').get('cost_basis') | money }}
+						</div>
+						<div class="col-sm-6 mb-4">
+							<p class="font-weight-bold mb-1">Market Value</p>
+							{{ stock_data.get('Total').get('market_value') | money }}
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+{% endblock content %}
