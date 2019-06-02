@@ -45,6 +45,7 @@ class Stocks:
         ]
 
         current_data = {}
+        current_date = date.today()
         stocks_data = defaultdict(lambda: defaultdict(list))
         cash_flow_transactions = defaultdict(lambda: defaultdict(list))
         for transaction in transactions:
@@ -91,7 +92,6 @@ class Stocks:
                         current_data[symbol]['cost_basis'] = new_cost_basis
 
                     transaction_year = transaction.date.year
-                    current_date = date.today()
                     num_months = (
                         12
                         if transaction_year < current_date.year
@@ -156,7 +156,14 @@ class Stocks:
                 for year, monthly_data in yearly_data.items():
                     for month_num, month_data in enumerate(monthly_data, start=1):
                         date_str = '{}-{:02d}'.format(year, month_num)
-                        close_price = get_decimal(monthly_price_data.get(date_str, 0))
+                        prev_month_date_str = '{}-{:02d}'.format(year, month_num - 1)
+                        # if current month hasen't had a trading day there will be no close price yet.
+                        # so use the previous month close price as a default
+                        close_price = get_decimal(
+                            monthly_price_data.get(
+                                date_str, monthly_price_data.get(prev_month_date_str, 0)
+                            )
+                        )
                         month_data['price'] = close_price
                         quantity = month_data.get('quantity')
                         month_data['market_value'] = (
@@ -337,11 +344,18 @@ class Stocks:
     def get_compounded_roi(self, start_year, end_year):
         data = {}
         num_months = 0
+        current_date = date.today()
         annual_returns = []
         for year in range(start_year, end_year + 1):
             monthly_data = self.get_monthly_roi_data(year)
             if monthly_data:
-                num_months += len(monthly_data.get('monthly_data'))
+                if year == current_date.year:
+                    num_months += len(monthly_data.get('monthly_data')) - 1
+                    days_in_month = calendar.monthrange(year, current_date.month)[1]
+                    percent_of_month = round(current_date.day / days_in_month, 4)
+                    num_months += percent_of_month
+                else:
+                    num_months += len(monthly_data.get('monthly_data'))
                 annual_returns.append(
                     {'year': year, 'annual_return': monthly_data.get('annual_return')}
                 )
