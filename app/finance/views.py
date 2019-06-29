@@ -129,6 +129,7 @@ def paycheck_col_to_category_name(col_name):
         'gym_reimbursement': 'Other Income',
         'fsa': 'FSA Contribution',
         'net_pay': 'Net Pay',
+        'expense_reimbursement': 'Expense Reimbursement',
         'espp': 'ESPP Refunded',
     }
     return translation[col_name]
@@ -161,6 +162,7 @@ def convert_paychecks_to_transactions(paychecks):
                 'gross_pay',
                 'net_pay',
                 'gym_reimbursement',
+                'expense_reimbursement',
                 'gtl_in',
                 'retirement_match_in',
             ]:

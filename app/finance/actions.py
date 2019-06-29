@@ -270,7 +270,8 @@ def add_paycheck():
     ret_match_col = 12
     gtl_col = 13
     gym_reimbursement_col = 14
-    company_col = 15
+    expense_reimbursement_col = 15
+    company_col = 16
     espp_col = None
 
     if form.validate_on_submit():
@@ -292,6 +293,7 @@ def add_paycheck():
             retirement_match = row[ret_match_col - 1]
             gtl = float(row[gtl_col - 1])
             gym_reimbursement = float(row[gym_reimbursement_col - 1])
+            expense_reimbursement = float(row[expense_reimbursement_col - 1])
             company_name = row[company_col - 1]
             espp = float(row[espp_col - 1]) if espp_col else None
 
@@ -323,6 +325,8 @@ def add_paycheck():
                     other_fields['gtl'] = gtl
                 if gym_reimbursement:
                     other_fields['gym_reimbursement'] = gym_reimbursement
+                if expense_reimbursement:
+                    other_fields['expense_reimbursement'] = expense_reimbursement
                 if espp:
                     other_fields['espp'] = espp
                 paycheck.update_properties(other_fields)
