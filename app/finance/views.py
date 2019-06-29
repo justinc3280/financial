@@ -162,6 +162,7 @@ def convert_paychecks_to_transactions(paychecks):
                 'gross_pay',
                 'net_pay',
                 'gym_reimbursement',
+                'expense_reimbursement',
                 'gtl_in',
                 'retirement_match_in',
             ]:
