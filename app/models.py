@@ -17,7 +17,7 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(64), index=True, unique=True)
     email = db.Column(db.String(120), index=True, unique=True)
     password_hash = db.Column(db.String(128))
-    accounts = db.relationship('Account', backref='user', lazy='dynamic')
+    accounts = db.relationship('Account', backref='user')
     paychecks = db.relationship('Paycheck', backref='user', lazy='dynamic')
     stock_transactions = db.relationship(
         'StockTransaction', backref='user', lazy='dynamic'
@@ -28,6 +28,13 @@ class User(db.Model, UserMixin):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    def get_api_repr(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email
+        }
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
