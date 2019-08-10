@@ -30,11 +30,7 @@ class User(db.Model, UserMixin):
         return check_password_hash(self.password_hash, password)
 
     def get_api_repr(self):
-        return {
-            'id': self.id,
-            'username': self.username,
-            'email': self.email
-        }
+        return {'id': self.id, 'username': self.username, 'email': self.email}
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
