@@ -3,3 +3,4 @@
 .vscode
 Categories.csv
 __pycache__/
+dump.rdb
