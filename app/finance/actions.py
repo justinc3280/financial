@@ -264,14 +264,15 @@ def add_paycheck():
     state_tax_col = 6
     dental_col = 7
     health_col = 8
-    traditional_ret_col = 9
-    roth_ret_col = 10
-    net_pay_col = 11
-    ret_match_col = 12
-    gtl_col = 13
-    gym_reimbursement_col = 14
-    expense_reimbursement_col = 15
-    company_col = 16
+    fsa_col = 9
+    traditional_ret_col = 10
+    roth_ret_col = 11
+    net_pay_col = 12
+    ret_match_col = 13
+    gtl_col = 14
+    gym_reimbursement_col = 15
+    expense_reimbursement_col = 16
+    company_col = 17
     espp_col = None
 
     if form.validate_on_submit():
@@ -287,6 +288,7 @@ def add_paycheck():
             state_income_tax = row[state_tax_col - 1]
             dental_insurance = row[dental_col - 1]
             health_insurance = row[health_col - 1]
+            fsa = row[fsa_col - 1]
             traditional_retirement = row[traditional_ret_col - 1]
             roth_retirement = row[roth_ret_col - 1]
             net_pay = row[net_pay_col - 1]
@@ -329,6 +331,8 @@ def add_paycheck():
                     other_fields['expense_reimbursement'] = expense_reimbursement
                 if espp:
                     other_fields['espp'] = espp
+                if fsa:
+                    other_fields['fsa'] = float(fsa)
                 paycheck.update_properties(other_fields)
                 db.session.add(paycheck)
 
