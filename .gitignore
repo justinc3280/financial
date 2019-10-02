@@ -2,5 +2,6 @@
 .DS_Store
 .vscode
 Categories.csv
+dump.rdb
 __pycache__/
 dump.rdb
