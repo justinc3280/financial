@@ -48,9 +48,9 @@ def _get_alpha_vantage_historical_monthly_prices(symbol, start_date, end_date):
 
 
 def get_historical_monthly_prices(symbol, start_date, end_date):
-    if symbol in ['SFTBY', 'PSX', 'SBUX', 'VFINX']:
+    if symbol in ['PSX', 'SBUX', 'VFINX']:
         # found issues with world trade data:
-        # 1) SFTBY prices ended at 1/18/2019
+        # 1) SFTBY prices ended at 1/18/2019, now it works?
         # 2) SBUX and PSX missing data for 3/29/2019
         # 3) VFINX off by 1 cent on 2/28/2018 (251.28 should be 251.27)
         return _get_alpha_vantage_historical_monthly_prices(
