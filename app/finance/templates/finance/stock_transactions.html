@@ -18,7 +18,7 @@
     </tr>
     {% for stock_transaction in stock_transactions %}
       {% set properties = stock_transaction.get_properties() %}
-      {% set pps = (stock_transaction.amount / properties.get('quantity')) / properties.get('split_adjustment', 1) if properties.get('quantity') else 0 %}
+      {% set pps = ((stock_transaction.amount + properties.get('transaction_fee', 0)) / properties.get('quantity')) / properties.get('split_adjustment', 1) if properties.get('quantity') else 0 %}
       <tr>
         <td>{{ stock_transaction.category.name }}</td>
         <td>{{ stock_transaction.date | date }}</td>

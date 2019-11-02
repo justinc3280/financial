@@ -11,6 +11,7 @@
     <th>Federal Income Tax</th>
     <th>Social Security Tax</th>
     <th>Medicare Tax</th>
+    <th>MA PFML Tax</th>
     <th>State Income Tax</th>
     <th>Health Insurance</th>
     <th>Dental Insurance</th>
@@ -33,6 +34,7 @@
       <td>{{ paycheck.federal_income_tax | money }}</td>
       <td>{{ paycheck.social_security_tax | money }}</td>
       <td>{{ paycheck.medicare_tax | money }}</td>
+      <td>{{ paycheck_properties.get('ma_pfml_tax', 0) | money }}</td>
       <td>{{ paycheck.state_income_tax | money }}</td>
       <td>{{ paycheck.health_insurance | money }}</td>
       <td>{{ paycheck.dental_insurance | money }}</td>
