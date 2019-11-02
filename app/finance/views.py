@@ -116,6 +116,7 @@ def paycheck_col_to_category_name(col_name):
         'federal_income_tax': 'Federal Income Tax',
         'social_security_tax': 'Social Security Tax',
         'medicare_tax': 'Medicare Tax',
+        'ma_pfml_tax': 'MA PFML Tax',
         'state_income_tax': 'State Income Tax',
         'health_insurance': 'Health Insurance Premium',
         'dental_insurance': 'Dental Insurance Premium',
@@ -139,10 +140,11 @@ def convert_paychecks_to_transactions(paychecks):
     transactions = []
     for paycheck in paychecks:
         paycheck_dict = paycheck.__dict__
+        paycheck_dict['retirement_match_in'] = paycheck.retirement_match
         paycheck_date = paycheck_dict.get('date')
         for key, value in paycheck.get_properties().items():
             paycheck_dict[key] = value
-            if key in ['gtl', 'retirement_match']:
+            if key == 'gtl':
                 paycheck_dict['{}_in'.format(key)] = value
 
         [

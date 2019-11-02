@@ -261,18 +261,19 @@ def add_paycheck():
     fed_tax_col = 3
     ss_tax_col = 4
     med_tax_col = 5
-    state_tax_col = 6
-    dental_col = 7
-    health_col = 8
-    fsa_col = 9
-    traditional_ret_col = 10
-    roth_ret_col = 11
-    net_pay_col = 12
-    ret_match_col = 13
-    gtl_col = 14
-    gym_reimbursement_col = 15
-    expense_reimbursement_col = 16
-    company_col = 17
+    ma_pfml_tax_col = 6
+    state_tax_col = 7
+    dental_col = 8
+    health_col = 9
+    fsa_col = 10
+    traditional_ret_col = 11
+    roth_ret_col = 12
+    net_pay_col = 13
+    ret_match_col = 14
+    gtl_col = 15
+    gym_reimbursement_col = 16
+    expense_reimbursement_col = 17
+    company_col = 18
     espp_col = None
 
     if form.validate_on_submit():
@@ -283,12 +284,13 @@ def add_paycheck():
             date = datetime.strptime(date, '%m/%d/%Y').date()
             gross_pay = row[gross_pay_col - 1]
             federal_income_tax = row[fed_tax_col - 1]
+            ma_pfml_tax = float(row[ma_pfml_tax_col - 1])
             social_security_tax = row[ss_tax_col - 1]
             medicare_tax = row[med_tax_col - 1]
             state_income_tax = row[state_tax_col - 1]
             dental_insurance = row[dental_col - 1]
             health_insurance = row[health_col - 1]
-            fsa = row[fsa_col - 1]
+            fsa = float(row[fsa_col - 1])
             traditional_retirement = row[traditional_ret_col - 1]
             roth_retirement = row[roth_ret_col - 1]
             net_pay = row[net_pay_col - 1]
@@ -332,7 +334,9 @@ def add_paycheck():
                 if espp:
                     other_fields['espp'] = espp
                 if fsa:
-                    other_fields['fsa'] = float(fsa)
+                    other_fields['fsa'] = fsa
+                if ma_pfml_tax:
+                    other_fields['ma_pfml_tax'] = ma_pfml_tax
                 paycheck.update_properties(other_fields)
                 db.session.add(paycheck)
 
