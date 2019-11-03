@@ -2,11 +2,10 @@ from collections import defaultdict
 from datetime import date
 import calendar
 import json
-from redis import StrictRedis
+
+from app.cache import cached
 from app.finance.stock_data_api import get_historical_monthly_prices, get_latest_price
 from app.finance.utils import get_decimal, round_decimal, merge_dict_of_lists
-
-redis = StrictRedis()
 
 
 class Stocks:
@@ -176,35 +175,14 @@ class Stocks:
         self._initialized = True
 
     @staticmethod
+    @cached
     def _get_stock_monthly_close_prices(symbol, start_date, end_date=str(date.today())):
-        redis_key = f'monthly_close_prices-{symbol}-{start_date}-{end_date}'
-        result = redis.get(redis_key)
-
-        if result:
-            value_json = result.decode('utf-8')
-            monthly_closing_prices = json.loads(value_json)
-        else:
-            monthly_closing_prices = get_historical_monthly_prices(
-                symbol, start_date, end_date
-            )
-
-            value_json = json.dumps(monthly_closing_prices)
-            redis.set(redis_key, value_json, ex=86400)
-
-        return monthly_closing_prices
+        return get_historical_monthly_prices(symbol, start_date, end_date)
 
     @staticmethod
+    @cached
     def _get_latest_stock_price(symbol):
-        redis_key = f'current_price-{symbol}'
-        result = redis.get(redis_key)
-
-        if result:
-            latest_price = float(result.decode('utf-8'))
-        else:
-            latest_price = get_latest_price(symbol)
-            redis.set(redis_key, latest_price, ex=3600)
-
-        return latest_price
+        return get_latest_price(symbol)
 
     def get_monthly_data_for_year(self, year):
         monthly_data = {}
