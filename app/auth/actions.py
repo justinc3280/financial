@@ -48,10 +48,23 @@ def register():
     form = RegistrationForm()
 
     if form.validate_on_submit():
+        existing_user_username = User.query.filter_by(
+            username=form.username.data
+        ).first()
+        existing_user_email = User.query.filter_by(email=form.email.data).first()
+
+        if existing_user_username:
+            flash('Username is taken')
+        if existing_user_email:
+            flash('Email address is already in use')
+        if existing_user_username or existing_user_email:
+            return redirect(url_for(auth.register))
+
         user = User(username=form.username.data, email=form.email.data)
         user.set_password(form.password.data)
         db.session.add(user)
         db.session.commit()
-        flash('User Registered')
-        return redirect(url_for('auth.login'))
+
+        login_user(user)
+        return redirect(url_for('finance.index'))
     return render_template('auth/forms/register.html', form=form)

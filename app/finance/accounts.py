@@ -59,6 +59,7 @@ class AccountManager:
         self._accounts = []
         self._total_monthly_balances = {}
         self._monthly_balances_by_account = {}
+        self._stocks = None
         for account in accounts:
             self.add_account(account)
 
