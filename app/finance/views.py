@@ -201,8 +201,9 @@ def get_accounts_category_monthly_balances(year):
     for account_name, ending_balances in account_ending_balances.items():
         accounts_monthly_ending_balance[account_name] = list_to_dict(ending_balances)
 
-    accounts_monthly_ending_balance['Stocks (Market Value)'] = list_to_dict(
-        account_manager.get_stocks_monthly_market_values(year)
+    stock_monthly_values = account_manager.get_stocks_monthly_market_values(year)
+    accounts_monthly_ending_balance['Stocks (Market Value)'] = (
+        list_to_dict(stock_monthly_values) if stock_monthly_values else None
     )
 
     for (

@@ -4,6 +4,7 @@
 
 <h4>{{ year }} Return On Investments</h4>
 
+{% if data %}
 <table class="table">
     <tr>
         <th>Year</th>
@@ -24,5 +25,8 @@
         <td>{{ data.compounded_annual_gain | percentage }}</td>
     </tr>
 </table>
+{% else %}
+    No data to display
+{% endif %}
 
 {% endblock content %}
