@@ -1,11 +1,15 @@
-from collections import defaultdict
-from datetime import date
 import calendar
+from collections import defaultdict
+import concurrent.futures
+from datetime import date
 import json
+import logging
 
-from app.cache import cached
+from app.caching import cached
 from app.finance.stock_data_api import get_historical_monthly_prices, get_latest_price
 from app.finance.utils import get_decimal, round_decimal, merge_dict_of_lists
+
+logger = logging.getLogger(__name__)
 
 
 class Stocks:
@@ -144,30 +148,47 @@ class Stocks:
                     transaction.date.month
                 ].append((transaction.date, cash_flow_amount))
 
-        for symbol, yearly_data in stocks_data.items():
-            start_date = str(date(min(yearly_data.keys()), 1, 1))
-            end_date = str(date(max(yearly_data.keys()), 12, 31))
-            monthly_price_data = self._get_stock_monthly_close_prices(
-                symbol, start_date, end_date
-            )
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future_to_symbol = {}
+            for symbol, yearly_data in stocks_data.items():
+                start_date = str(date(min(yearly_data.keys()), 1, 1))
+                end_date = str(date(max(yearly_data.keys()), 12, 31))
+                future_obj = executor.submit(
+                    self._get_stock_monthly_close_prices, symbol, start_date, end_date
+                )
+                future_to_symbol.update({future_obj: symbol})
 
-            if monthly_price_data:
-                for year, monthly_data in yearly_data.items():
-                    for month_num, month_data in enumerate(monthly_data, start=1):
-                        date_str = '{}-{:02d}'.format(year, month_num)
-                        prev_month_date_str = '{}-{:02d}'.format(year, month_num - 1)
-                        # if current month hasen't had a trading day there will be no close price yet.
-                        # so use the previous month close price as a default
-                        close_price = get_decimal(
-                            monthly_price_data.get(
-                                date_str, monthly_price_data.get(prev_month_date_str, 0)
+            for future in concurrent.futures.as_completed(future_to_symbol):
+                symbol = future_to_symbol[future]
+                try:
+                    monthly_price_data = future.result()
+                except Exception as e:
+                    logger.exception(e)
+                    continue
+
+                if monthly_price_data:
+                    yearly_data = stocks_data[symbol]
+                    for year, monthly_data in yearly_data.items():
+                        for month_num, month_data in enumerate(monthly_data, start=1):
+                            date_str = '{}-{:02d}'.format(year, month_num)
+                            prev_month_date_str = '{}-{:02d}'.format(
+                                year, month_num - 1
                             )
-                        )
-                        month_data['price'] = close_price
-                        quantity = month_data.get('quantity')
-                        month_data['market_value'] = (
-                            round_decimal(quantity * close_price) if quantity > 0 else 0
-                        )
+                            # if current month hasen't had a trading day there will be no close price yet.
+                            # so use the previous month close price as a default
+                            close_price = get_decimal(
+                                monthly_price_data.get(
+                                    date_str,
+                                    monthly_price_data.get(prev_month_date_str, 0),
+                                )
+                            )
+                            month_data['price'] = close_price
+                            quantity = month_data.get('quantity')
+                            month_data['market_value'] = (
+                                round_decimal(quantity * close_price)
+                                if quantity > 0
+                                else 0
+                            )
 
         self._current_data = current_data
         self._stocks_data = stocks_data
@@ -177,7 +198,10 @@ class Stocks:
     @staticmethod
     @cached
     def _get_stock_monthly_close_prices(symbol, start_date, end_date=str(date.today())):
-        return get_historical_monthly_prices(symbol, start_date, end_date)
+        monthly_prices = get_historical_monthly_prices(symbol, start_date, end_date)
+        if not monthly_prices:
+            logger.warning('No monthly prices found for symbol %s', symbol)
+        return monthly_prices
 
     @staticmethod
     @cached

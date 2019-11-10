@@ -1,5 +1,8 @@
-import requests
 from datetime import datetime
+import logging
+import requests
+
+logger = logging.getLogger(__name__)
 
 base_url = 'https://cloud.iexapis.com/v1'
 token = 'pk_6f63e0a751884d75b526ca178528e749'
@@ -36,6 +39,14 @@ def _get_alpha_vantage_historical_monthly_prices(symbol, start_date, end_date):
     url = f'{alpha_url}/query?function=TIME_SERIES_MONTHLY_ADJUSTED&symbol={symbol}&apikey={alpha_key}'
     data = requests.get(url).json()
     historical_prices = data.get('Monthly Adjusted Time Series')
+    if historical_prices is None:
+        error_message = data.get('Note')
+        logger.error(
+            'No data from Alpha Vantage for symbol: %s. Error Message: %s',
+            symbol,
+            error_message,
+        )
+        return None
 
     monthly_closing_prices = {}
     for date_str, prices in historical_prices.items():

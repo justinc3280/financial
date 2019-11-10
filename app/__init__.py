@@ -17,6 +17,7 @@ login.login_view = 'auth.login'
 
 from app.api import api as api_bp
 from app.auth import auth as auth_bp
+from app.caching import cache
 from app.errors import errors as errors_bp
 from app.finance import finance as finance_bp
 from app.jinja import register_jinja_filters
@@ -60,6 +61,7 @@ def create_app(config_object=Config):
         log_file_handler.setLevel(logging.INFO)
         logger.addHandler(log_file_handler)
 
+    cache.connect()
     logger.info('Financial App initialized, Debug=%s', app.debug)
 
     return app
