@@ -1,8 +1,11 @@
 import functools
 import json
+import logging
 
 from redis import StrictRedis
 from redis.exceptions import ConnectionError as RedisConnectionException
+
+logger = logging.getLogger(__name__)
 
 
 def cached(func):
@@ -48,10 +51,10 @@ class RedisCache:
         try:
             result = op_dict[op_name](*args, **kwargs)
         except RedisConnectionException:
-            print('Failed to connect to Redis Server')
+            logger.warning('Failed to connect to Redis Server')
             return None
         except Exception as e:
-            print(e)
+            logger.exception(e)
             return None
         else:
             return result
