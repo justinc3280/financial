@@ -1,15 +1,17 @@
-from app import db
-from app.finance import finance
-from flask import redirect, render_template, request, url_for
-from flask_login import current_user, login_required
-from app.models import Account, Category, Paycheck, StockTransaction, Transaction
-from datetime import date
 import calendar
 from collections import defaultdict
+from datetime import date
+import json
+
+from flask import redirect, render_template, request, url_for
+from flask_login import current_user, login_required
 from sqlalchemy.orm import aliased, joinedload
+
+from app import db
+from app.finance import finance
 from app.finance.accounts import AccountManager
-from app.finance.charts import generate_chart
 from app.finance.stocks import Stocks
+from app.models import Account, Category, Paycheck, StockTransaction, Transaction
 
 
 def get_accounts():
@@ -430,7 +432,10 @@ def get_plotting_data_for_category(data):
     amounts = []
     for month_num, amount in data.items():
         months.append(calendar.month_abbr[month_num])
-        amounts.append(abs(amount))
+        amounts.append(abs(round(amount, 2)))
+
+    months = json.dumps(months)
+    amounts = json.dumps(amounts)
     return months, amounts
 
 
@@ -449,21 +454,26 @@ def charts(category_name=None):
     if category_name:
         category_data = category_monthly_totals.get(category_name)
         if category_data:
+            title = f'{year} {category_name}'.title()
             months, amounts = get_plotting_data_for_category(category_data)
-            charts.append(
-                generate_chart(months, amounts, title='2018 {}'.format(category_name))
-            )
+            charts.append({'title': title, 'x-axis': months, 'y-axis': amounts})
     else:
         income_data = category_monthly_totals.get('Income')
+        income_title = f'{year} Income'.title()
         income_months, income_amounts = get_plotting_data_for_category(income_data)
         charts.append(
-            generate_chart(income_months, income_amounts, title='2018 Income')
+            {'title': income_title, 'x-axis': income_months, 'y-axis': income_amounts}
         )
-
+        expense_title = f'{year} Expense'.title()
         expense_data = category_monthly_totals.get('Expense')
-        months, amounts = get_plotting_data_for_category(expense_data)
-        charts.append(generate_chart(months, amounts, title='2018 Expenses'))
-
+        expense_months, expense_amounts = get_plotting_data_for_category(expense_data)
+        charts.append(
+            {
+                'title': expense_title,
+                'x-axis': expense_months,
+                'y-axis': expense_amounts,
+            }
+        )
     return render_template('finance/charts.html', charts=charts)
 
 

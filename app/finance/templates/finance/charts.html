@@ -1,11 +1,55 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <div class="row justify-content-center">
-        {% for chart in charts %}
-        <div class="col text-center">
-            <img src="data:image/png;base64,{{ chart }}">
+    <div class="container-fluid">
+        <div class="row justify-content-center">
+            {% for chart in charts %}
+                <div class='col'>
+                    <canvas id="myChart"
+                            data-title="{{ chart.get('title') }}"
+                            data-x-axis="{{ chart.get('x-axis') }}"
+                            data-y-axis="{{ chart.get('y-axis') }}">
+                    </canvas>
+                </div>
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
 {% endblock content %}
+
+{% block scripts %}
+    <script>
+        var canvases = $("canvas").each(function() {
+            var ctx = this.getContext('2d');
+            var title = $(this).data('title');
+            var xData = $(this).data('x-axis');
+            var yData = $(this).data('y-axis');
+
+            var chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: xData,
+                    datasets: [{
+                        label: '$',
+                        data: yData
+                    }]
+                },
+                options: {
+                    title: {
+                        display: true,
+                        text: title
+                    },
+                    legend: {
+                        display: false
+                    },
+                    scales: {
+                        yAxes: [{
+                            ticks: {
+                                beginAtZero: true
+                            }
+                        }]
+                    }
+                }
+            });
+        });
+    </script>
+{% endblock scripts %}
