@@ -1,0 +1,22 @@
+version: '3'
+services:
+  financial:
+    restart: always
+    build: .
+    environment:
+      REDIS_HOST: "redis"
+      REDIS_PORT: 6379
+    depends_on:
+      - redis
+
+  redis:
+    restart: always
+    image: "redis:5.0.6"
+
+  nginx:
+    restart: always
+    build: ./nginx
+    ports:
+      - "8080:80"
+    depends_on:
+      - financial
