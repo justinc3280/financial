@@ -61,7 +61,7 @@ def create_app(config_object=Config):
         log_file_handler.setLevel(logging.INFO)
         logger.addHandler(log_file_handler)
 
-    cache.connect()
+    cache.connect(app.config['REDIS_HOST'], app.config['REDIS_PORT'])
     logger.info('Financial App initialized, Debug=%s', app.debug)
 
     return app

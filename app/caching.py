@@ -40,7 +40,7 @@ def cached(func):
 
 class RedisCache:
     def __init__(self):
-        self.cache_obj = StrictRedis()
+        self.cache_obj = None
         self.initialized = False
         self.is_connected = False
 
@@ -63,10 +63,17 @@ class RedisCache:
         else:
             return result
 
-    def connect(self):
+    def connect(self, host, port):
+        self.cache_obj = StrictRedis(host=host, port=port)
         self.is_connected = self._perform_operation('ping')
         if self.is_connected:
-            logger.info('Successfully connected to the Redis Server')
+            logger.info(
+                'Successfully connected to the Redis Server on host: %s:%s', host, port
+            )
+        else:
+            logger.warning(
+                'Failed to connect to the Redis Server on host: %s:%s', host, port
+            )
         self.initialized = True
 
     def get(self, key):
