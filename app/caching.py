@@ -11,9 +11,6 @@ logger = logging.getLogger(__name__)
 def cached(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        if not cache.initialized:
-            cache.connect()
-
         if cache.is_connected:
             key = str(func.__name__)
             if args:
@@ -41,11 +38,10 @@ def cached(func):
 class RedisCache:
     def __init__(self):
         self.cache_obj = None
-        self.initialized = False
         self.is_connected = False
 
     def _perform_operation(self, op_name, *args, **kwargs):
-        if self.initialized and not self.is_connected:
+        if self.cache_obj and not self.is_connected:
             return None
         op_dict = {
             'ping': self.cache_obj.ping,
@@ -74,7 +70,6 @@ class RedisCache:
             logger.warning(
                 'Failed to connect to the Redis Server on host: %s:%s', host, port
             )
-        self.initialized = True
 
     def get(self, key):
         value = self._perform_operation('get', key)
