@@ -39,7 +39,7 @@ class User(db.Model, UserMixin):
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.Date)
-    description = db.Column(db.String(120))
+    description = db.Column(db.String(240))
     amount = db.Column(db.Float)
     category_id = db.Column(db.Integer, db.ForeignKey("category.id"))
     category = db.relationship('Category')
