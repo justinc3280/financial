@@ -19,9 +19,6 @@ class User(db.Model, UserMixin):
     password_hash = db.Column(db.String(128))
     accounts = db.relationship('Account', backref='user')
     paychecks = db.relationship('Paycheck', backref='user', lazy='dynamic')
-    stock_transactions = db.relationship(
-        'StockTransaction', backref='user', lazy='dynamic'
-    )
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -97,7 +94,6 @@ class Account(db.Model):
     file_format = db.relationship('FileFormat', uselist=False)
     transactions = db.relationship('Transaction', backref='account')
     starting_balance = db.Column(db.Float)
-    type_id = db.Column(db.Integer)  # not used
     category_id = db.Column(db.Integer, db.ForeignKey("category.id"))
     category = db.relationship('Category')
 
@@ -193,25 +189,3 @@ class Paycheck(db.Model):
         current_properties = self.get_properties()
         current_properties.update(data)
         self.properties = json.dumps(current_properties)
-
-
-class StockTransaction(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.Date)
-    symbol = db.Column(db.String(60))
-    quantity = db.Column(db.Float)
-    price_per_share = db.Column(db.Float)
-    transaction_fee = db.Column(db.Float)
-    transaction_type = db.Column(db.String(60))
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
-
-    def total_cost(self):
-        return round((self.quantity * self.price_per_share) + self.transaction_fee, 2)
-
-    def adjusted_price_per_share(self):
-        return self.total_cost() / self.quantity
-
-    def __repr__(self):
-        return '<StockTransaction- date: {}, type: {}, symbol: {}, quantity: {}>'.format(
-            self.date, self.transaction_type, self.symbol, self.quantity
-        )
