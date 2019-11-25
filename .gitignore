@@ -1,5 +1,6 @@
 *.db
 .DS_Store
+.env
 .vscode
 Categories.csv
 dump.rdb
