@@ -1,7 +1,7 @@
 """initial migration
 
 Revision ID: f323aa9aa7a2
-Revises: 
+Revises:
 Create Date: 2019-11-16 16:14:19.087453
 
 """
@@ -96,7 +96,7 @@ def upgrade():
     op.create_table('transaction',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('date', sa.Date(), nullable=True),
-    sa.Column('description', sa.String(length=120), nullable=True),
+    sa.Column('description', sa.String(length=240), nullable=True),
     sa.Column('amount', sa.Float(), nullable=True),
     sa.Column('category_id', sa.Integer(), nullable=True),
     sa.Column('account_id', sa.Integer(), nullable=True),
