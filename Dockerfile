@@ -5,7 +5,8 @@ WORKDIR /home/financial
 
 COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
-RUN pip3 install gunicorn==19.9.0 pymysql==0.9.3
+RUN apk add gcc musl-dev python3-dev libffi-dev openssl-dev
+RUN pip3 install gunicorn==19.9.0 cryptography==2.8
 
 COPY app app
 COPY migrations migrations
@@ -18,5 +19,4 @@ ENV FLASK_ENV development
 RUN chown -R financial:financial ./
 USER financial
 
-EXPOSE 5000
 ENTRYPOINT ["./boot.sh"]

@@ -7,7 +7,9 @@ services:
       DATABASE_URL: "${DATABASE_URL}"
       REDIS_HOST: "redis"
       REDIS_PORT: 6379
+      DATABASE_URL: mysql+pymysql://financial:password@mysql:3306/financial
     depends_on:
+      - mysql
       - redis
 
   redis:
@@ -21,3 +23,17 @@ services:
       - "80:80"
     depends_on:
       - financial
+
+  mysql:
+    restart: always
+    image: "mysql:8.0.18"
+    environment:
+      MYSQL_ROOT_PASSWORD: "rootpassword"
+      MYSQL_USER: "financial"
+      MYSQL_PASSWORD: "password"
+      MYSQL_DATABASE: "financial"
+    volumes:
+      - db-data:/var/lib/mysql
+
+volumes:
+  db-data:
