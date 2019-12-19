@@ -1,6 +1,7 @@
 *.db
 .DS_Store
 .env
+.flaskenv
 .vscode
 Categories.csv
 dump.rdb
