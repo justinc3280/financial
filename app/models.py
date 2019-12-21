@@ -74,24 +74,10 @@ class Transaction(db.Model, Properties):
         )
 
 
-class FileFormat(db.Model):  # remove
-    id = db.Column(db.Integer, primary_key=True)
-    header_rows = db.Column(db.Integer)
-    num_columns = db.Column(db.Integer)
-    date_column = db.Column(db.Integer)
-    date_format = db.Column(db.String(60))
-    description_column = db.Column(db.Integer)
-    amount_column = db.Column(db.Integer)
-    category_column = db.Column(db.Integer)
-    account_id = db.Column(db.Integer, db.ForeignKey("account.id"))
-    account = db.relationship('Account')
-
-
 class Account(db.Model, Properties):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64))
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
-    file_format = db.relationship('FileFormat', uselist=False)  # remove
     transactions = db.relationship('Transaction', backref='account')
     starting_balance = db.Column(db.Float)
     category_id = db.Column(db.Integer, db.ForeignKey("category.id"))
@@ -143,7 +129,6 @@ class Category(db.Model):
     name = db.Column(db.String(64))
     parent_id = db.Column(db.Integer, db.ForeignKey("category.id"))
     rank = db.Column(db.Integer)
-    transaction_level = db.Column(db.Boolean)  # not used
     category_type = db.Column(db.String(64))
 
     parent = db.relationship('Category', remote_side=[id])
