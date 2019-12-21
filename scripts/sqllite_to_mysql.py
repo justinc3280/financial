@@ -16,7 +16,9 @@ parser.add_argument('--user', help='MySQL user', required=True)
 parser.add_argument('--password', help='MySQL password', required=True)
 parser.add_argument('--dbname', help='MySQL db name', required=True)
 parser.add_argument('--sqlitedb', help='Name of sqlite database')
-parser.add_argument('--tosqlite', help='Set to send data to sqlite', action='store_true')
+parser.add_argument(
+    '--tosqlite', help='Set to send data to sqlite', action='store_true'
+)
 args = parser.parse_args()
 
 SQLITE_DBNAME = args.sqlitedb or 'app.db'
@@ -41,7 +43,6 @@ else:
 # Delete data from destination database
 destination_session.query(m.Transaction).delete()
 destination_session.query(m.Paycheck).delete()
-destination_session.query(m.FileFormat).delete()
 destination_session.query(m.Account).delete()
 destination_session.query(m.User).delete()
 
@@ -95,27 +96,10 @@ for account in source_session.query(m.Account):
             user_id=account.user_id,
             starting_balance=account.starting_balance,
             category_id=account.category_id,
+            properties=account.properties,
         )
     )
 destination_session.add_all(accounts)
-destination_session.flush()
-
-file_formats = []
-for file_format in source_session.query(m.FileFormat):
-    file_formats.append(
-        m.FileFormat(
-            id=file_format.id,
-            header_rows=file_format.header_rows,
-            num_columns=file_format.num_columns,
-            date_column=file_format.date_column,
-            date_format=file_format.date_format,
-            description_column=file_format.description_column,
-            amount_column=file_format.amount_column,
-            category_column=file_format.category_column,
-            account_id=file_format.account_id,
-        )
-    )
-destination_session.add_all(file_formats)
 destination_session.flush()
 
 paychecks = []
@@ -166,7 +150,6 @@ destination_session.close()
 print('Data transfer complete')
 print('{} users transfered'.format(len(users)))
 print('{} categories transfered'.format(len(categories)))
-print('{} file_formats transfered'.format(len(file_formats)))
 print('{} accounts transfered'.format(len(accounts)))
 print('{} paychecks transfered'.format(len(paychecks)))
 print('{} transactions transfered'.format(len(transactions)))
