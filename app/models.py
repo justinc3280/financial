@@ -77,7 +77,7 @@ class Transaction(db.Model, Properties):
         )
 
 
-class FileFormat(db.Model):
+class FileFormat(db.Model): # remove
     id = db.Column(db.Integer, primary_key=True)
     header_rows = db.Column(db.Integer)
     num_columns = db.Column(db.Integer)
@@ -90,11 +90,11 @@ class FileFormat(db.Model):
     account = db.relationship('Account')
 
 
-class Account(db.Model):
+class Account(db.Model, Properties):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64))
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
-    file_format = db.relationship('FileFormat', uselist=False)
+    file_format = db.relationship('FileFormat', uselist=False) # remove
     transactions = db.relationship('Transaction', backref='account')
     starting_balance = db.Column(db.Float)
     category_id = db.Column(db.Integer, db.ForeignKey("category.id"))
