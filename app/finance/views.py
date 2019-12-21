@@ -11,7 +11,7 @@ from app import db
 from app.finance import finance
 from app.finance.accounts import AccountManager
 from app.finance.stocks import Stocks
-from app.models import Account, Category, Paycheck, StockTransaction, Transaction
+from app.models import Account, Category, Paycheck, Transaction
 
 
 def get_accounts():

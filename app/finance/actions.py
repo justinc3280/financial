@@ -10,14 +10,7 @@ from app.finance.forms import (
     PaychecksForm,
     StockTransactionForm,
 )
-from app.models import (
-    Account,
-    Category,
-    FileFormat,
-    Transaction,
-    StockTransaction,
-    Paycheck,
-)
+from app.models import Account, Category, FileFormat, Transaction, Paycheck
 import csv
 from datetime import datetime
 
