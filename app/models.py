@@ -97,7 +97,6 @@ class Account(db.Model):
     file_format = db.relationship('FileFormat', uselist=False)
     transactions = db.relationship('Transaction', backref='account')
     starting_balance = db.Column(db.Float)
-    type_id = db.Column(db.Integer)  # not used
     category_id = db.Column(db.Integer, db.ForeignKey("category.id"))
     category = db.relationship('Category')
 
