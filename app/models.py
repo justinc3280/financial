@@ -12,41 +12,8 @@ def load_user(id):
     return User.query.get(int(id))
 
 
-class User(db.Model, UserMixin):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), index=True, unique=True)
-    email = db.Column(db.String(120), index=True, unique=True)
-    password_hash = db.Column(db.String(128))
-    accounts = db.relationship('Account', backref='user')
-    paychecks = db.relationship('Paycheck', backref='user', lazy='dynamic')
-
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-
-    def get_api_repr(self):
-        return {'id': self.id, 'username': self.username, 'email': self.email}
-
-    def __repr__(self):
-        return '<User {}>'.format(self.username)
-
-
-class Transaction(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.Date)
-    description = db.Column(db.String(240))
-    amount = db.Column(db.Float)
-    category_id = db.Column(db.Integer, db.ForeignKey("category.id"))
-    category = db.relationship('Category')
-    account_id = db.Column(db.Integer, db.ForeignKey("account.id"))
+class Properties:
     properties = db.Column(db.Text, default="{}")
-
-    def __repr__(self):
-        return '<Transaction- date: {}, amount: {}, description: {}>'.format(
-            self.date, self.amount, self.description
-        )
 
     def get_properties(self):
         if self.properties:
@@ -72,6 +39,42 @@ class Transaction(db.Model):
         current_properties = self.get_properties()
         current_properties.pop(key, None)
         self.set_properties(current_properties)
+
+
+class User(db.Model, UserMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(64), index=True, unique=True)
+    email = db.Column(db.String(120), index=True, unique=True)
+    password_hash = db.Column(db.String(128))
+    accounts = db.relationship('Account', backref='user')
+    paychecks = db.relationship('Paycheck', backref='user', lazy='dynamic')
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    def get_api_repr(self):
+        return {'id': self.id, 'username': self.username, 'email': self.email}
+
+    def __repr__(self):
+        return '<User {}>'.format(self.username)
+
+
+class Transaction(db.Model, Properties):
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.Date)
+    description = db.Column(db.String(240))
+    amount = db.Column(db.Float)
+    category_id = db.Column(db.Integer, db.ForeignKey("category.id"))
+    category = db.relationship('Category')
+    account_id = db.Column(db.Integer, db.ForeignKey("account.id"))
+
+    def __repr__(self):
+        return '<Transaction- date: {}, amount: {}, description: {}>'.format(
+            self.date, self.amount, self.description
+        )
 
 
 class FileFormat(db.Model):
@@ -158,7 +161,7 @@ class Category(db.Model):
         return '<Category {}>'.format(self.name)
 
 
-class Paycheck(db.Model):
+class Paycheck(db.Model, Properties):
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.Date)
     company_name = db.Column(db.String(64))
@@ -174,18 +177,6 @@ class Paycheck(db.Model):
     retirement_match = db.Column(db.Float)
     net_pay = db.Column(db.Float)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
-    properties = db.Column(db.Text, default="{}")
 
     def __repr__(self):
         return '<Paycheck {}>'.format(self.date)
-
-    def get_properties(self):
-        if self.properties:
-            return json.loads(str(self.properties))
-        else:
-            return {}
-
-    def update_properties(self, data):
-        current_properties = self.get_properties()
-        current_properties.update(data)
-        self.properties = json.dumps(current_properties)
