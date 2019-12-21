@@ -22,10 +22,7 @@ class Properties:
             return {}
 
     def get_property(self, name, default=None):
-        if self.properties:
-            return json.loads(str(self.properties)).get(name, default)
-        else:
-            return default
+        return self.get_properties().get(name, default)
 
     def set_properties(self, properties):
         self.properties = json.dumps(properties)
@@ -77,7 +74,7 @@ class Transaction(db.Model, Properties):
         )
 
 
-class FileFormat(db.Model): # remove
+class FileFormat(db.Model):  # remove
     id = db.Column(db.Integer, primary_key=True)
     header_rows = db.Column(db.Integer)
     num_columns = db.Column(db.Integer)
@@ -94,7 +91,7 @@ class Account(db.Model, Properties):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64))
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
-    file_format = db.relationship('FileFormat', uselist=False) # remove
+    file_format = db.relationship('FileFormat', uselist=False)  # remove
     transactions = db.relationship('Transaction', backref='account')
     starting_balance = db.Column(db.Float)
     category_id = db.Column(db.Integer, db.ForeignKey("category.id"))
@@ -102,6 +99,32 @@ class Account(db.Model, Properties):
 
     def __repr__(self):
         return '<Account {}>'.format(self.name)
+
+    def get_file_format(self):
+        return self.get_property('file_format')
+
+    def update_file_format(
+        self,
+        header_rows,
+        num_columns,
+        date_column,
+        date_format,
+        description_column,
+        amount_column,
+        category_column,
+    ):
+        format_data = {
+            'file_format': {
+                'header_rows': int(header_rows),
+                'num_columns': int(num_columns),
+                'date_column': int(date_column),
+                'date_format': date_format,
+                'description_column': int(description_column),
+                'amount_column': int(amount_column),
+                'category_column': int(category_column),
+            }
+        }
+        self.update_properties(format_data)
 
     def get_ending_balance(self, end_date=None):
         today = date.today()

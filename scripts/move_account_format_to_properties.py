@@ -23,7 +23,7 @@ for file_format in session.query(FileFormat):
             'date_format': file_format.date_format,
             'description_column': file_format.description_column,
             'amount_column': file_format.amount_column,
-            'category_column': file_format.category_column
+            'category_column': file_format.category_column,
         }
     }
     account = session.query(Account).get(file_format.account_id)

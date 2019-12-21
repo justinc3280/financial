@@ -10,7 +10,7 @@ from app.finance.forms import (
     PaychecksForm,
     StockTransactionForm,
 )
-from app.models import Account, Category, FileFormat, Transaction, Paycheck
+from app.models import Account, Category, Transaction, Paycheck
 import csv
 from datetime import datetime
 
@@ -31,14 +31,16 @@ def edit_account(account_id):
         data['starting_balance'] = account.starting_balance
         if account.category:
             data['account_category'] = account.category.id
-        if account.file_format:
-            data['header_rows'] = account.file_format.header_rows
-            data['num_columns'] = account.file_format.num_columns
-            data['date_column'] = account.file_format.date_column
-            data['date_format'] = account.file_format.date_format
-            data['description_column'] = account.file_format.description_column
-            data['amount_column'] = account.file_format.amount_column
-            data['category_column'] = account.file_format.category_column
+
+        account_file_format = account.get_file_format()
+        if account_file_format:
+            data['header_rows'] = account_file_format['header_rows']
+            data['num_columns'] = account_file_format['num_columns']
+            data['date_column'] = account_file_format['date_column']
+            data['date_format'] = account_file_format['date_format']
+            data['description_column'] = account_file_format['description_column']
+            data['amount_column'] = account_file_format['amount_column']
+            data['category_column'] = account_file_format['category_column']
 
     form = AccountForm(data=data)
     root_categories = Category.query.filter(
@@ -57,30 +59,19 @@ def edit_account(account_id):
         else:
             account = Account(name=form.name.data, user=current_user)
             db.session.add(account)
-            db.session.commit()
 
         account.starting_balance = form.starting_balance.data
         account.category_id = form.account_category.data
-        if account.file_format:
-            account.file_format.header_rows = form.header_rows.data
-            account.file_format.num_columns = form.num_columns.data
-            account.file_format.date_column = form.date_column.data
-            account.file_format.date_format = form.date_format.data
-            account.file_format.description_column = form.description_column.data
-            account.file_format.amount_column = form.amount_column.data
-            account.file_format.category_column = form.category_column.data
-        else:
-            new_format = FileFormat(
-                header_rows=form.header_rows.data,
-                num_columns=form.num_columns.data,
-                date_column=form.date_column.data,
-                date_format=form.date_format.data,
-                description_column=form.description_column.data,
-                amount_column=form.amount_column.data,
-                category_column=form.category_column.data,
-                account_id=account.id,
-            )
-            db.session.add(new_format)
+
+        account.update_file_format(
+            form.header_rows.data,
+            form.num_columns.data,
+            form.date_column.data,
+            form.date_format.data,
+            form.description_column.data,
+            form.amount_column.data,
+            form.category_column.data,
+        )
         db.session.commit()
         return redirect(url_for('finance.account_details', account_id=account.id))
 
@@ -91,9 +82,9 @@ def edit_account(account_id):
 @login_required
 def delete_account(account_id):
     account = Account.query.filter(Account.id == account_id).first_or_404()
+    # Transactions should be handled by a cascade delete
     for transaction in account.transactions:
         db.session.delete(transaction)
-    db.session.delete(account.file_format)
     db.session.delete(account)
     db.session.commit()
     return redirect(url_for('finance.accounts'))
@@ -106,7 +97,8 @@ def transactions(account_id):
     account = Account.query.filter(Account.id == account_id).first_or_404()
 
     if form.validate_on_submit():
-        if account.file_format:
+        account_file_format = account.get_file_format()
+        if account_file_format:
             file_contents = form.file_upload.data.read().decode('utf-8').splitlines()
             data = list(csv.reader(file_contents, delimiter=','))
             # combine these queries
@@ -117,35 +109,29 @@ def transactions(account_id):
                 Category.name == "Other Income"
             ).first()
 
-            if (
-                len(data[account.file_format.header_rows])
-                < account.file_format.category_column
-            ):
-                category_defined = False
-
-            for row in data[account.file_format.header_rows :]:
-                date_data = row[account.file_format.date_column - 1]
+            for row in data[account_file_format['header_rows'] :]:
+                date_data = row[account_file_format['date_column'] - 1]
                 if date_data in [
                     '** No Record found for the given criteria ** ',
                     '***END OF FILE***',
                 ]:
                     continue
                 date = datetime.strptime(
-                    date_data, account.file_format.date_format
+                    date_data, account_file_format['date_format']
                 ).date()
 
-                amount_data = row[account.file_format.amount_column - 1]
+                amount_data = row[account_file_format['amount_column'] - 1]
                 amount_data = amount_data.replace('$', '')
                 amount_data = amount_data.replace('+', '')
                 amount_data = amount_data.replace(' ', '')
                 amount_data = amount_data.replace(',', '')
 
-                description = row[account.file_format.description_column - 1]
+                description = row[account_file_format['description_column'] - 1]
                 if (
-                    len(data[account.file_format.header_rows])
-                    >= account.file_format.category_column
+                    len(data[account_file_format['header_rows']])
+                    >= account_file_format['category_column']
                 ):
-                    category_name = row[account.file_format.category_column - 1]
+                    category_name = row[account_file_format['category_column'] - 1]
                     category_obj = Category.query.filter(
                         Category.name == category_name
                     ).first()
