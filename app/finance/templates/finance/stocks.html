@@ -5,13 +5,13 @@
 	<h4>Stocks</h4>
 	<a class="btn btn-primary" href="{{ url_for('finance.stock_transactions') }}">View Stock Transactions</a>
 	<a class="btn btn-primary" href="{{ url_for('finance.stocks_return') }}">ROI</a>
-	{% if stock_data %}
+	{% if current_holdings %}
 	<div class="row">
-		{% for stock_symbol, data in stock_data.items() if stock_symbol != 'Total' %}
+		{% for data in current_holdings.get_current_holdings() %}
 			<div class="col-md-6">
 				<div class="card my-2">
 					<div class="card-header">
-						<h5 class="text-center">{{ stock_symbol }}</h5>
+						<h5 class="text-center">{{ data.symbol }}</h5>
 					</div>
 					<div class="card-body">
 						<div class="row">
@@ -53,11 +53,11 @@
 					<div class="row">
 						<div class="col-sm-6 mb-4">
 							<p class="font-weight-bold mb-1">Cost</p>
-							{{ stock_data.get('Total').get('cost_basis') | money }}
+							{{ current_holdings.total_cost_basis | money }}
 						</div>
 						<div class="col-sm-6 mb-4">
 							<p class="font-weight-bold mb-1">Market Value</p>
-							{{ stock_data.get('Total').get('market_value') | money }}
+							{{ current_holdings.total_market_value | money }}
 						</div>
 					</div>
 				</div>

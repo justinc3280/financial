@@ -4,25 +4,25 @@
 
 <h4>{{ year }} Return On Investments</h4>
 
-{% if data %}
+{% if multi_year_return %}
 <table class="table">
     <tr>
         <th>Year</th>
         <th>Return</th>
     </tr>
-    {% for value in data.annual_returns %}
+    {% for yearly_return in multi_year_return.yearly_returns %}
         <tr>
-            <td><a class="text-dark" href="{{ url_for('finance.stocks_return_data', year=value.year) }}">{{ value.year }}</a></td>
-            <td>{{ value.annual_return | percentage }}</td>
+            <td><a class="text-dark" href="{{ url_for('finance.stocks_return_data', year=yearly_return.year) }}">{{ yearly_return.year }}</a></td>
+            <td>{{ yearly_return.return_pct | percentage }}</td>
         </tr>
     {% endfor %}
     <tr class="font-weight-bold">
         <td>Overall Return</td>
-        <td>{{ data.overall_gain | percentage }}</td>
+        <td>{{ multi_year_return.return_pct | percentage }}</td>
     </tr>
     <tr class="font-weight-bold">
         <td>Compounded Annual Return</td>
-        <td>{{ data.compounded_annual_gain | percentage }}</td>
+        <td>{{ multi_year_return.annualized_return | percentage }}</td>
     </tr>
 </table>
 {% else %}

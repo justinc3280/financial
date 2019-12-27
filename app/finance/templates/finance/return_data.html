@@ -18,8 +18,8 @@
         <tr>
             <td>{{ values.month }}</td>
             <td>{{ values.starting_balance | money }}</td>
-            <td>{{ values.cash_flows | money }}</td>
-            <td>{{ values.adj_cash_flows | money }}</td>
+            <td>{{ values.total_cash_flow_amount | money }}</td>
+            <td>{{ values.adjusted_cash_flow_amount | money }}</td>
             <td>{{ values.gain | money }}</td>
             <td>{{ values.ending_balance | money }}</td>
             <td>{{ values.return_pct | percentage }}</td>

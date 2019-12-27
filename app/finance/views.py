@@ -48,9 +48,9 @@ def account_details(account_id):
 def stocks():
 
     account_manager = AccountManager(get_accounts())
-    stocks_data = account_manager.get_current_stock_holdings()
-
-    return render_template("finance/stocks.html", stock_data=stocks_data)
+    current_holdings = account_manager.get_current_stock_holdings()
+    # 0 / 0
+    return render_template("finance/stocks.html", current_holdings=current_holdings)
 
 
 @finance.route('/stock_transactions')
@@ -484,9 +484,9 @@ def stocks_return_data():
 
     account_manager = AccountManager(get_accounts())
 
-    data = account_manager.get_brokerage_roi_data(year)
-    monthly_data = data.get('monthly_data')
-    annual_return = data.get('annual_return')
+    yearly_return = account_manager.get_brokerage_roi_data(year)
+    monthly_data = yearly_return.monthly_returns
+    annual_return = yearly_return.return_pct
 
     return render_template(
         'finance/return_data.html',
@@ -503,7 +503,9 @@ def stocks_return():
 
     account_manager = AccountManager(get_accounts())
 
-    total_roi_data = account_manager.get_brokerage_compounded_roi(2011, year)
+    multi_year_return = account_manager.get_brokerage_compounded_roi(2011, year)
 
-    return render_template('finance/return.html', year=year, data=total_roi_data)
+    return render_template(
+        'finance/return.html', year=year, multi_year_return=multi_year_return
+    )
 
