@@ -13,19 +13,26 @@ logger = logging.getLogger(__name__)
 
 
 class Stocks:
+    stock_transaction_categories = [
+        'Buy',
+        'Sell',
+        'Dividend Reinvest',
+        'Transfer Stock In',
+        'Transfer Stock Out',
+    ]
+
     def __init__(self, accounts=[]):
         self._accounts = []
         self._transactions = []
         self._total_brokerage_cash_balances = {}
         for account in accounts:
             self.add_account(account)
-        self._initialized = False
         self._current_holdings = CurrentHoldings()
         self._cash_flow_store = CashFlowStore()
-        # self._ending_balances_store = EndingBalancesStore()
-        self._stocks_data_store = StocksDataStore()
+        self._initialized = False
 
     def __getattr__(self, name):
+        # does this work on methods?
         if not self._initialized:
             self._initialize()
         return getattr(self, name)
@@ -34,6 +41,7 @@ class Stocks:
         self._accounts.append(account)
         self._transactions.extend(account.transactions)
 
+        # maybe pass in a cash_balance store from account manager???
         account_monthly_balances = account.get_monthly_ending_balances()
         self._total_brokerage_cash_balances = merge_dict_of_lists(
             self._total_brokerage_cash_balances, account_monthly_balances
@@ -43,147 +51,14 @@ class Stocks:
 
     def _initialize(self):
         transactions = sorted(self._transactions, key=lambda x: x.date)
-        stock_transaction_categories = [
-            'Buy',
-            'Sell',
-            'Dividend Reinvest',
-            'Transfer Stock In',
-            'Transfer Stock Out',
-        ]
 
-        current_data = {}
-        current_date = date.today()
-        stocks_data = defaultdict(lambda: defaultdict(list))
         for transaction in transactions:
             self._cash_flow_store.add_transaction(transaction)
-            if transaction.category.name in stock_transaction_categories:
-                properties = transaction.get_properties()
-                symbol = properties.get('symbol')
-                quantity = get_decimal(properties.get('quantity'))
-                if symbol and quantity:
-                    data = stocks_data[symbol]
-                    buy_or_sell = (
-                        1
-                        if transaction.category.name
-                        in ['Buy', 'Dividend Reinvest', 'Transfer Stock In']
-                        else -1
-                    )
-                    quantity = (
-                        quantity
-                        * get_decimal(properties.get('split_adjustment', 1))
-                        * buy_or_sell
-                    )
-                    if buy_or_sell > 0:
-                        cost_basis = get_decimal(abs(transaction.amount) * buy_or_sell)
-                    else:
-                        cost_basis = get_decimal(
-                            abs(properties.get('cost_basis', 0)) * buy_or_sell
-                        )
+            if transaction.category.name in self.stock_transaction_categories:
+                self._current_holdings.add_transaction(transaction)
 
-                    current_holding = self._current_holdings.get_holding(symbol)
-                    if current_holding is None:
-                        previous_quantity = 0
-                        new_quantity = quantity
-                        previous_cost_basis = 0
-                        new_cost_basis = cost_basis
-                    else:
-                        previous_quantity = current_holding.quantity
-                        new_quantity = previous_quantity + quantity
-                        previous_cost_basis = current_holding.cost_basis
-                        new_cost_basis = previous_cost_basis + cost_basis
-                    self._current_holdings.add_transaction(
-                        symbol, date, quantity, cost_basis
-                    )
-
-                    transaction_year = transaction.date.year
-                    num_months = (
-                        12
-                        if transaction_year < current_date.year
-                        else current_date.month
-                    )
-
-                    # add year and use previous values for entire year
-                    if transaction_year not in data:
-                        data[transaction_year] = [
-                            {
-                                'quantity': previous_quantity,
-                                'cost_basis': previous_cost_basis,
-                            }
-                            for _ in range(0, num_months)
-                        ]
-
-                    # overwrite the values for the remainder of the year after transaction
-                    for month_index in range(transaction.date.month - 1, num_months):
-                        data[transaction_year][month_index]['quantity'] = new_quantity
-                        data[transaction_year][month_index][
-                            'cost_basis'
-                        ] = new_cost_basis
-
-                    # update all future years with new values up until end_date
-                    for i in range(transaction_year + 1, current_date.year + 1):
-                        if new_quantity != 0:
-                            num_months = (
-                                12 if i < current_date.year else current_date.month
-                            )
-                            data[i] = [
-                                {'quantity': new_quantity, 'cost_basis': new_cost_basis}
-                                for _ in range(0, num_months)
-                            ]
-                        else:
-                            data.pop(i, None)
-
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future_to_symbol = {}
-            for symbol, yearly_data in stocks_data.items():
-                start_date = str(date(min(yearly_data.keys()), 1, 1))
-                end_date = str(date(max(yearly_data.keys()), 12, 31))
-                future_obj = executor.submit(
-                    self._get_stock_monthly_close_prices, symbol, start_date, end_date
-                )
-                future_to_symbol.update({future_obj: symbol})
-
-            for future in concurrent.futures.as_completed(future_to_symbol):
-                symbol = future_to_symbol[future]
-                try:
-                    monthly_price_data = future.result()
-                except Exception as e:
-                    logger.exception(e)
-                    continue
-
-                if monthly_price_data:
-                    yearly_data = stocks_data[symbol]
-                    for year, monthly_data in yearly_data.items():
-                        for month_num, month_data in enumerate(monthly_data, start=1):
-                            date_str = '{}-{:02d}'.format(year, month_num)
-                            prev_month_date_str = '{}-{:02d}'.format(
-                                year, month_num - 1
-                            )
-                            # if current month hasen't had a trading day there will be no close price yet.
-                            # so use the previous month close price as a default
-                            close_price = get_decimal(
-                                monthly_price_data.get(
-                                    date_str,
-                                    monthly_price_data.get(prev_month_date_str, 0),
-                                )
-                            )
-                            month_data['price'] = close_price
-                            quantity = month_data.get('quantity')
-                            month_data['market_value'] = (
-                                round_decimal(quantity * close_price)
-                                if quantity > 0
-                                else 0
-                            )
-
-        self._stocks_data = stocks_data
+        self._current_holdings.set_market_values()
         self._initialized = True
-
-    @staticmethod
-    @cached
-    def _get_stock_monthly_close_prices(symbol, start_date, end_date=str(date.today())):
-        monthly_prices = get_historical_monthly_prices(symbol, start_date, end_date)
-        if not monthly_prices:
-            logger.warning('No monthly prices found for symbol %s', symbol)
-        return monthly_prices
 
     @staticmethod
     @cached
@@ -191,18 +66,24 @@ class Stocks:
         return get_latest_price(symbol)
 
     def get_monthly_total_market_value_for_year(self, year):
+        if not self._initialized:
+            self._initialize()
         total_monthly_market_value = []
-        for symbol, data in self._stocks_data.items():
-            for month_index, month_data in enumerate(data.get(year, [])):
+        for current_holding in self._current_holdings._current_holdings.values(): #fix
+            for month_index, month_data in enumerate(
+                current_holding._historical_data.get(year, [])
+            ):
                 market_value = round_decimal(month_data.get('market_value', 0))
                 if month_index >= len(total_monthly_market_value):
                     total_monthly_market_value.append(market_value)
                 else:
                     total_monthly_market_value[month_index] += market_value
+
         return total_monthly_market_value
 
     def get_current_holdings(self):
-        self._initialize()  # why needed?
+        if not self._initialized:
+            self._initialize()
         current_holdings = self._current_holdings
         return current_holdings
 
@@ -250,35 +131,21 @@ class Stocks:
         )
 
 
-class StocksDataStore:
-    def __init__(self):
-        self._stock_transaction_categories = [
-            'Buy',
-            'Sell',
-            'Dividend Reinvest',
-            'Transfer Stock In',
-            'Transfer Stock Out',
-        ]
-
-
-class EndingBalancesStore:
-    pass
-
-
 class CashFlowStore:
+    cash_flow_categories = [
+        'Transfer Stock In',
+        'Transfer Stock Out',
+        'Transfer In',
+        'Transfer Out',
+        'Brokerage Fee',
+        'Refund',
+    ]
+
     def __init__(self):
-        self._transactions = []  # list of tuples, [(date, amount)]
-        self._cash_flow_categories = [
-            'Transfer Stock In',
-            'Transfer Stock Out',
-            'Transfer In',
-            'Transfer Out',
-            'Brokerage Fee',
-            'Refund',
-        ]
+        self._transactions = []  # list of tuples, [(date, amount)], or object?
 
     def _get_cash_flow_amount(self, transaction):
-        if transaction.category.name not in self._cash_flow_categories:
+        if transaction.category.name not in self.cash_flow_categories:
             cash_flow_amount = None
         elif transaction.category.name == 'Transfer Stock In':
             cash_flow_amount = transaction.get_property('market_value', 0)
@@ -339,21 +206,92 @@ class CashFlowStore:
         return adjusted_value
 
 
+current_date = date.today()
+
+
 class CurrentHolding:
-    def __init__(self, symbol, quantity, cost_basis):
+    def __init__(self, symbol):
         self.symbol = symbol
         # quantity and cost_basis are decimals?
-        self.quantity = quantity
-        self.cost_basis = cost_basis
+        self.quantity = 0
+        self.cost_basis = 0
         self.portfolio_percentage = None
         # expand to historical qty, cost basis, market value
         self._historical_data = {}
 
-    def update_holding(self, quantity, cost_basis):
-        self.quantity += quantity
-        self.cost_basis += cost_basis
+    def update_holding(self, transaction_date, quantity, cost_basis):
+        previous_quantity = self.quantity
+        new_quantity = previous_quantity + quantity
+        self.quantity = new_quantity
 
-    @staticmethod  # will caching work properly if multiple CurrentHolding
+        previous_cost_basis = self.cost_basis
+        new_cost_basis = previous_cost_basis + cost_basis
+        self.cost_basis = new_cost_basis
+
+        transaction_year = transaction_date.year
+        num_months = 12 if transaction_year < current_date.year else current_date.month
+
+        # add year and use previous values for entire year
+        if transaction_year not in self._historical_data:
+            self._historical_data[transaction_year] = [
+                {'quantity': previous_quantity, 'cost_basis': previous_cost_basis}
+                for _ in range(0, num_months)
+            ]
+
+        # overwrite the values for the remainder of the year after transaction
+        for month_index in range(transaction_date.month - 1, num_months):
+            self._historical_data[transaction_year][month_index][
+                'quantity'
+            ] = new_quantity
+            self._historical_data[transaction_year][month_index][
+                'cost_basis'
+            ] = new_cost_basis
+
+        # update all future years with new values up until end_date
+        for i in range(transaction_year + 1, current_date.year + 1):
+            if new_quantity != 0:
+                num_months = 12 if i < current_date.year else current_date.month
+                self._historical_data[i] = [
+                    {'quantity': new_quantity, 'cost_basis': new_cost_basis}
+                    for _ in range(0, num_months)
+                ]
+            else:
+                self._historical_data.pop(i, None)
+
+    def get_monthly_close_prices(self):
+        # Round to beginning of year ??
+        start_date = str(date(min(self._historical_data.keys()), 1, 1))
+        # Round to end of year ??
+        end_date = str(date(max(self._historical_data.keys()), 12, 31))
+        return self._get_stock_monthly_close_prices(self.symbol, start_date, end_date)
+
+    @staticmethod
+    @cached
+    def _get_stock_monthly_close_prices(symbol, start_date, end_date=str(date.today())):
+        monthly_prices = get_historical_monthly_prices(symbol, start_date, end_date)
+        if not monthly_prices:
+            logger.warning('No monthly prices found for symbol %s', symbol)
+        return monthly_prices
+
+    def update_historical_market_values(self, monthly_price_data):
+        for year, monthly_data in self._historical_data.items():
+            for month_num, month_data in enumerate(monthly_data, start=1):
+                date_str = '{}-{:02d}'.format(year, month_num)
+                prev_month_date_str = '{}-{:02d}'.format(year, month_num - 1)
+                # if current month hasen't had a trading day there will be no close price yet.
+                # so use the previous month close price as a default
+                close_price = get_decimal(
+                    monthly_price_data.get(
+                        date_str, monthly_price_data.get(prev_month_date_str, 0)
+                    )
+                )
+                month_data['price'] = close_price
+                quantity = month_data.get('quantity')
+                month_data['market_value'] = (
+                    round_decimal(quantity * close_price) if quantity > 0 else 0
+                )
+
+    @staticmethod
     @cached
     def _get_latest_stock_price(symbol):
         return get_latest_price(symbol)
@@ -382,17 +320,60 @@ class CurrentHolding:
 class CurrentHoldings:
     def __init__(self):
         # Current data to be a dict symbols of CurrentHolding obj ...
-        self._current_data = {}
+        self._current_holdings = {}
         # self._total_cost_basis = 0
 
-    def add_transaction(self, symbol, date, quantity, cost_basis):
-        if symbol not in self._current_data:
-            self._current_data[symbol] = CurrentHolding(symbol, quantity, cost_basis)
-        else:
-            self._current_data[symbol].update_holding(quantity, cost_basis)
+    def add_transaction(transaction):
+        symbol, date, quantity, cost_basis = self._get_transaction_data(transaction)
+        if symbol and symbol not in self._current_holdings:
+            self._current_holdings[symbol] = CurrentHolding(symbol)
+        self._current_holdings[symbol].update_holding(date, quantity, cost_basis)
 
         # cost basis is constant so it can be pre-calculated
         # self._total_cost_basis += cost_basis  # not working
+
+    def _get_transaction_data(self, transaction):
+        properties = transaction.get_properties()
+        symbol = properties.get('symbol')
+        quantity = get_decimal(properties.get('quantity'))
+        if symbol and quantity:
+            buy_or_sell = (
+                1
+                if transaction.category.name
+                in ['Buy', 'Dividend Reinvest', 'Transfer Stock In']
+                else -1
+            )
+            quantity = (
+                quantity
+                * get_decimal(properties.get('split_adjustment', 1))
+                * buy_or_sell
+            )
+            if buy_or_sell > 0:
+                cost_basis = get_decimal(abs(transaction.amount) * buy_or_sell)
+            else:
+                cost_basis = get_decimal(
+                    abs(properties.get('cost_basis', 0)) * buy_or_sell
+                )
+            return symbol, transaction.date, quantity, cost_basis
+        return None, None, None, None
+
+    def set_market_values(self):
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future_to_holding = {}
+            for current_holding in self._current_holdings.values():
+                future_obj = executor.submit(current_holding.get_monthly_close_prices)
+                future_to_holding.update({future_obj: current_holding})
+
+            for future in concurrent.futures.as_completed(future_to_holding):
+                current_holding = future_to_holding[future]
+                try:
+                    monthly_price_data = future.result()
+                except Exception as e:
+                    logger.exception(e)
+                    continue
+
+                if monthly_price_data:
+                    current_holding.update_historical_market_values(monthly_price_data)
 
     @property
     def total_cost_basis(self):
@@ -407,7 +388,7 @@ class CurrentHoldings:
     def total_market_value(self):
         # market value fluctuates so it is calculated on the fly
         total = 0
-        for holding in self._current_data.values():
+        for holding in self._current_holdings.values():
             # Protect against iex 'Unknown Symbol' error (ex. ALOG)
             if holding.quantity > 0:
                 total += holding.market_value
@@ -415,14 +396,14 @@ class CurrentHoldings:
 
     def get_current_holdings(self):
         current_holdings = []
-        for holding in self._current_data.values():
+        for holding in self._current_holdings.values():
             if holding.quantity > 0:
                 holding.set_percentage(self.total_market_value)
                 current_holdings.append(holding)
         return current_holdings
 
     def get_holding(self, symbol):
-        return self._current_data.get(symbol)
+        return self._current_holdings.get(symbol)
 
 
 def get_geometrically_linked_return(returns):
