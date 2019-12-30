@@ -65,61 +65,45 @@ class Stocks:
     def _get_latest_stock_price(symbol):
         return get_latest_price(symbol)
 
-    def get_monthly_total_market_value_for_year(self, year):
-        if not self._initialized:
-            self._initialize()
-        total_monthly_market_value = []
-        for current_holding in self._current_holdings._current_holdings.values(): #fix
-            for month_index, month_data in enumerate(
-                current_holding._historical_data.get(year, [])
-            ):
-                market_value = round_decimal(month_data.get('market_value', 0))
-                if month_index >= len(total_monthly_market_value):
-                    total_monthly_market_value.append(market_value)
-                else:
-                    total_monthly_market_value[month_index] += market_value
-
-        return total_monthly_market_value
-
     def get_current_holdings(self):
         if not self._initialized:
             self._initialize()
         current_holdings = self._current_holdings
         return current_holdings
 
-    def _get_total_ending_balances_for_year(self, year):
-        market_values = self.get_monthly_total_market_value_for_year(year)
-        cash_values = self._total_brokerage_cash_balances.get(year)
+    def _get_monthly_total_market_value_for_year(self, year):
+        if not self._initialized:
+            self._initialize()
+        return self._current_holdings.get_monthly_total_market_value_for_year(year)
 
-        data = []
-        for i, amount in enumerate(market_values):
-            cash = cash_values[i]
-            data.append(amount + cash)
-        return data
+    def _get_total_ending_balances_for_years(self, start_year, end_year):
+        ending_balances = {}
+        for year in range(start_year - 1, end_year + 1):
+            market_values = self._get_monthly_total_market_value_for_year(year)
+            cash_values = self._total_brokerage_cash_balances.get(year)
+
+            month_end_balances = []
+            for i, amount in enumerate(market_values):
+                cash = cash_values[i]
+                month_end_balances.append(amount + cash)
+            if year < start_year:
+                starting_balance = month_end_balances[-1] if month_end_balances else 0
+            else:
+                ending_balances[year] = month_end_balances
+        return ending_balances, starting_balance
 
     def get_monthly_roi_data(self, year):
-        monthly_ending_values = self._get_total_ending_balances_for_year(year)
-
-        previous_year_data = self._get_total_ending_balances_for_year(year - 1)
-        starting_value = previous_year_data[-1] if previous_year_data else 0
+        ending_balances, starting_balance = self._get_total_ending_balances_for_years(
+            year, year
+        )
 
         return YearlyReturn(
-            year, starting_value, monthly_ending_values, self._cash_flow_store
+            year, starting_balance, ending_balances, self._cash_flow_store
         )
 
     def get_compounded_roi(self, start_year, end_year):
-        data = {}
-        num_months = 0
-        current_date = date.today()
-        annual_returns = []
-
-        ending_balances = {}
-        for year in range(start_year, end_year + 1):
-            ending_balances[year] = self._get_total_ending_balances_for_year(year)
-
-        previous_year_data = self._get_total_ending_balances_for_year(start_year - 1)
-        starting_balance = (
-            previous_year_data[-1] if previous_year_data else get_decimal(0)
+        ending_balances, starting_balance = self._get_total_ending_balances_for_years(
+            start_year, end_year
         )
 
         return MultiYearReturn(
@@ -206,17 +190,32 @@ class CashFlowStore:
         return adjusted_value
 
 
-current_date = date.today()
+class HistoricalDataPoint:
+    # Stores the ending data for given month, cash too??
+    def __init__(self, month, year, symbol, quantity, cost_basis):
+        self.month = month
+        self.year = year
+        self.symbol = symbol
+        self.quantity = quantity
+        self.cost_basis = cost_basis
+        self.price_per_share = 0
+        self.market_value = 0
+
+    def update(self, new_quantity, new_cost_basis):
+        self.quantity = new_quantity
+        self.cost_basis = new_cost_basis
+
+    def set_market_value(self, price_per_share):
+        self.price_per_share = price_per_share
+        self.market_value = round_decimal(self.quantity * price_per_share)
 
 
 class CurrentHolding:
     def __init__(self, symbol):
         self.symbol = symbol
-        # quantity and cost_basis are decimals?
         self.quantity = 0
         self.cost_basis = 0
         self.portfolio_percentage = None
-        # expand to historical qty, cost basis, market value
         self._historical_data = {}
 
     def update_holding(self, transaction_date, quantity, cost_basis):
@@ -229,41 +228,41 @@ class CurrentHolding:
         self.cost_basis = new_cost_basis
 
         transaction_year = transaction_date.year
-        num_months = 12 if transaction_year < current_date.year else current_date.month
 
         # add year and use previous values for entire year
         if transaction_year not in self._historical_data:
-            self._historical_data[transaction_year] = [
-                {'quantity': previous_quantity, 'cost_basis': previous_cost_basis}
-                for _ in range(0, num_months)
-            ]
+            self._generate_historical_data_points_for_year(
+                transaction_year, previous_quantity, previous_cost_basis
+            )
 
         # overwrite the values for the remainder of the year after transaction
-        for month_index in range(transaction_date.month - 1, num_months):
-            self._historical_data[transaction_year][month_index][
-                'quantity'
-            ] = new_quantity
-            self._historical_data[transaction_year][month_index][
-                'cost_basis'
-            ] = new_cost_basis
+        for historical_data_point in self._historical_data[transaction_year][
+            transaction_date.month - 1 :
+        ]:
+            historical_data_point.update(new_quantity, new_cost_basis)
 
         # update all future years with new values up until end_date
-        for i in range(transaction_year + 1, current_date.year + 1):
-            if new_quantity != 0:
-                num_months = 12 if i < current_date.year else current_date.month
-                self._historical_data[i] = [
-                    {'quantity': new_quantity, 'cost_basis': new_cost_basis}
-                    for _ in range(0, num_months)
-                ]
+        for year in range(transaction_year + 1, date.today().year + 1):
+            if new_quantity == 0:
+                self._historical_data.pop(year, None)
+            elif year not in self._historical_data:
+                self._generate_historical_data_points_for_year(
+                    year, new_quantity, new_cost_basis
+                )
             else:
-                self._historical_data.pop(i, None)
+                for historical_data_point in self._historical_data[year]:
+                    historical_data_point.update(new_quantity, new_cost_basis)
 
-    def get_monthly_close_prices(self):
-        # Round to beginning of year ??
-        start_date = str(date(min(self._historical_data.keys()), 1, 1))
-        # Round to end of year ??
-        end_date = str(date(max(self._historical_data.keys()), 12, 31))
-        return self._get_stock_monthly_close_prices(self.symbol, start_date, end_date)
+    def _generate_historical_data_points_for_year(self, year, quantity, cost_basis):
+        current_date = date.today()
+        num_months = 12 if year < current_date.year else current_date.month
+        year_historical_data = []
+        for month in range(1, num_months + 1):
+            historical_data_point = HistoricalDataPoint(
+                month, year, self.symbol, quantity, cost_basis
+            )
+            year_historical_data.append(historical_data_point)
+        self._historical_data[year] = year_historical_data
 
     @staticmethod
     @cached
@@ -273,23 +272,30 @@ class CurrentHolding:
             logger.warning('No monthly prices found for symbol %s', symbol)
         return monthly_prices
 
-    def update_historical_market_values(self, monthly_price_data):
-        for year, monthly_data in self._historical_data.items():
-            for month_num, month_data in enumerate(monthly_data, start=1):
-                date_str = '{}-{:02d}'.format(year, month_num)
-                prev_month_date_str = '{}-{:02d}'.format(year, month_num - 1)
+    def set_historical_market_values(self):
+        # Round to beginning of year ??
+        start_date = str(date(min(self._historical_data.keys()), 1, 1))
+        # Round to end of year ??
+        end_date = str(date(max(self._historical_data.keys()), 12, 31))
+        monthly_price_data = self._get_stock_monthly_close_prices(
+            self.symbol, start_date, end_date
+        )
+
+        for year, monthly_historical_data in self._historical_data.items():
+            for historical_data_point in monthly_historical_data:
+                date_str = '{}-{:02d}'.format(year, historical_data_point.month)
+                close_price = monthly_price_data.get(date_str)
+
                 # if current month hasen't had a trading day there will be no close price yet.
                 # so use the previous month close price as a default
-                close_price = get_decimal(
-                    monthly_price_data.get(
-                        date_str, monthly_price_data.get(prev_month_date_str, 0)
+                if close_price is None:
+                    prev_month_date_str = '{}-{:02d}'.format(
+                        year, historical_data_point.month - 1
                     )
-                )
-                month_data['price'] = close_price
-                quantity = month_data.get('quantity')
-                month_data['market_value'] = (
-                    round_decimal(quantity * close_price) if quantity > 0 else 0
-                )
+                    close_price = monthly_price_data.get(prev_month_date_str, 0)
+
+                close_price = get_decimal(close_price)
+                historical_data_point.set_market_value(close_price)
 
     @staticmethod
     @cached
@@ -323,7 +329,7 @@ class CurrentHoldings:
         self._current_holdings = {}
         # self._total_cost_basis = 0
 
-    def add_transaction(transaction):
+    def add_transaction(self, transaction):
         symbol, date, quantity, cost_basis = self._get_transaction_data(transaction)
         if symbol and symbol not in self._current_holdings:
             self._current_holdings[symbol] = CurrentHolding(symbol)
@@ -359,21 +365,8 @@ class CurrentHoldings:
 
     def set_market_values(self):
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future_to_holding = {}
             for current_holding in self._current_holdings.values():
-                future_obj = executor.submit(current_holding.get_monthly_close_prices)
-                future_to_holding.update({future_obj: current_holding})
-
-            for future in concurrent.futures.as_completed(future_to_holding):
-                current_holding = future_to_holding[future]
-                try:
-                    monthly_price_data = future.result()
-                except Exception as e:
-                    logger.exception(e)
-                    continue
-
-                if monthly_price_data:
-                    current_holding.update_historical_market_values(monthly_price_data)
+                executor.submit(current_holding.set_historical_market_values)
 
     @property
     def total_cost_basis(self):
@@ -405,125 +398,126 @@ class CurrentHoldings:
     def get_holding(self, symbol):
         return self._current_holdings.get(symbol)
 
-
-def get_geometrically_linked_return(returns):
-    if not returns:
-        return None
-    overall_return = returns[0] + 1
-    if len(returns) > 1:
-        for r in returns[1:]:
-            overall_return *= r + 1
-    return overall_return - 1
+    def get_monthly_total_market_value_for_year(self, year):
+        total_monthly_market_value = []
+        for current_holding in self._current_holdings.values():
+            for historical_data_point in current_holding._historical_data.get(year, []):
+                # why round??
+                market_value = round_decimal(historical_data_point.market_value)
+                if historical_data_point.month - 1 >= len(total_monthly_market_value):
+                    total_monthly_market_value.append(market_value)
+                else:
+                    total_monthly_market_value[
+                        historical_data_point.month - 1
+                    ] += market_value
+        return total_monthly_market_value
 
 
 class TimePeriodReturn:
+    def __init__(self, starting_balance, cash_flow_store, subperiod_returns=None):
+        self.starting_balance = starting_balance
+        self._cash_flow_store = cash_flow_store
+        self.subperiod_returns = subperiod_returns
+
     @property
     def gain(self):
         return self.ending_balance - self.total_cash_flow_amount - self.starting_balance
 
     @property
     def return_pct(self):
-        return self.gain / (self.starting_balance + self.adjusted_cash_flow_amount)
+        if self.subperiod_returns:
+            returns = [r.return_pct for r in self.subperiod_returns]
+            return self.get_geometrically_linked_return(returns)
+        else:
+            # For MonthlyReturns, use modified dietz
+            return self.gain / (self.starting_balance + self.adjusted_cash_flow_amount)
+
+    @staticmethod
+    def get_geometrically_linked_return(returns):
+        if not returns:
+            return None
+        overall_return = returns[0] + 1
+        if len(returns) > 1:
+            for r in returns[1:]:
+                overall_return *= r + 1
+        return overall_return - 1
 
 
-# How do I handle current month in calculations, since not a full month.
 class MonthlyReturn(TimePeriodReturn):
     def __init__(
         self, month_index, year, starting_balance, ending_balance, cash_flow_store
     ):
         # Month is an integer (ex. 1=January, 2=February...12=December)
-        self.month_index = month_index
+        super().__init__(starting_balance, cash_flow_store)
         self.year = year
-        self.month = calendar.month_name[month_index]
+        self.month = month_index
+        self.month_name = calendar.month_name[month_index]
 
-        # Balances a Decimal
-        self.starting_balance = starting_balance
+        # Balance is a Decimal
         self.ending_balance = ending_balance
-        self._cash_flow_store = cash_flow_store
 
     @property
     def total_cash_flow_amount(self):
         return self._cash_flow_store.get_total_cash_flow_amount_for_month(
-            self.year, self.month_index
+            self.year, self.month
         )
 
     @property
     def adjusted_cash_flow_amount(self):
         return self._cash_flow_store.get_adjusted_cash_flow_amount_for_month(
-            self.year, self.month_index
+            self.year, self.month
         )
 
 
-# Eventually this doesn't need to be a yearly return, but some arbitrary time period
-# Can probably consolidate MonthlyReturn and YearlyReturn into generic time period returns
-class YearlyReturn:
+class YearlyReturn(TimePeriodReturn):
     def __init__(
         self, year, starting_balance, monthly_ending_balances, cash_flow_store
     ):
-        # year is an integer
-        # starging_balance is a Decimal
-        # monthly_ending_balances is a list of Decimals for each month.
-        #   Previous year will have 12, current year will have up to and including current month.
-        self.year = year
-        self.starting_balance = starting_balance
-        self._cash_flow_store = cash_flow_store
-        self.monthly_returns = self._get_monthly_returns(monthly_ending_balances)
-        self.return_pct = self._get_yearly_return()
+        # monthly_ending_balances is a dict key is year,  list of Decimals for each month is value.
+        # Previous year will have 12, current year will have up to and including current month.
 
-    # What to do with remaining months in year???? Just blank
-    def _get_monthly_returns(self, ending_balances):
-        monthly_data = []
-        for i, ending_balance in enumerate(ending_balances):
-            month_index = i + 1
-            starting_balance = (
-                self.starting_balance if i == 0 else ending_balances[i - 1]
-            )
-            monthly_return = MonthlyReturn(
-                month_index,
-                self.year,
-                starting_balance,
-                ending_balance,
-                self._cash_flow_store,
-            )
-            monthly_data.append(monthly_return)
+        self.year = year
+        monthly_returns = self._get_monthly_returns(
+            starting_balance, monthly_ending_balances, cash_flow_store
+        )
+        super().__init__(starting_balance, cash_flow_store, monthly_returns)
+
+    def _get_monthly_returns(self, starting_balance, ending_balances, cash_flow_store):
+        for year, monthly_ending_balances in ending_balances.items():
+            monthly_data = []
+            for month, ending_balance in enumerate(monthly_ending_balances, start=1):
+                monthly_return = MonthlyReturn(
+                    month, year, starting_balance, ending_balance, cash_flow_store
+                )
+                monthly_data.append(monthly_return)
+                starting_balance = ending_balance
         return monthly_data
 
-    def _get_yearly_return(self):
-        returns = [r.return_pct for r in self.monthly_returns]
-        return get_geometrically_linked_return(returns)
 
-
-class MultiYearReturn:
+class MultiYearReturn(TimePeriodReturn):
     def __init__(
         self, start_year, end_year, starting_balance, ending_balances, cash_flow_store
     ):
         self.start_year = start_year
         self.end_year = end_year
-        self.starting_balance = starting_balance
         # ending_balances is a dict of year keys with lists for months
-        self._cash_flow_store = cash_flow_store
-        self.ending_balances = ending_balances
+        yearly_returns = self._get_yearly_returns(
+            starting_balance, ending_balances, cash_flow_store
+        )
+        super().__init__(starting_balance, cash_flow_store, yearly_returns)
 
-    @property
-    def yearly_returns(self):
+    def _get_yearly_returns(self, starting_balance, ending_balances, cash_flow_store):
         # Should this be dict, is ending balances dict in correct order
-        yearly_data = []
-        for year, monthly_ending_balances in self.ending_balances.items():
-            starting_balance = (
-                self.starting_balance
-                if year == self.start_year
-                else self.ending_balances[year - 1][-1]
-            )
+        yearly_returns = []
+        # make sure keys are sorted
+        for year, monthly_ending_balances in ending_balances.items():
+            monthly_ending_balances_dict = {year: monthly_ending_balances}
             yearly_return = YearlyReturn(
-                year, starting_balance, monthly_ending_balances, self._cash_flow_store
+                year, starting_balance, monthly_ending_balances_dict, cash_flow_store
             )
-            yearly_data.append(yearly_return)
-        return yearly_data
-
-    @property
-    def return_pct(self):
-        returns = [r.return_pct for r in self.yearly_returns]
-        return get_geometrically_linked_return(returns)
+            yearly_returns.append(yearly_return)
+            starting_balance = monthly_ending_balances[-1]
+        return yearly_returns
 
     @property
     def annualized_return(self):

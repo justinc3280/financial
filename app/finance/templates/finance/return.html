@@ -2,15 +2,14 @@
 
 {% block content %}
 
-<h4>{{ year }} Return On Investments</h4>
+<h4>Return On Investments</h4>
 
-{% if multi_year_return %}
 <table class="table">
     <tr>
         <th>Year</th>
         <th>Return</th>
     </tr>
-    {% for yearly_return in multi_year_return.yearly_returns %}
+    {% for yearly_return in multi_year_return.subperiod_returns %}
         <tr>
             <td><a class="text-dark" href="{{ url_for('finance.stocks_return_data', year=yearly_return.year) }}">{{ yearly_return.year }}</a></td>
             <td>{{ yearly_return.return_pct | percentage }}</td>
@@ -25,8 +24,5 @@
         <td>{{ multi_year_return.annualized_return | percentage }}</td>
     </tr>
 </table>
-{% else %}
-    No data to display
-{% endif %}
 
 {% endblock content %}

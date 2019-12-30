@@ -2,7 +2,7 @@
 
 {% block content %}
 
-<h4>{{ year }} Return On Investments</h4>
+<h4>{{ annual_return.year }} Return On Investments</h4>
 
 <table class="table">
     <tr>
@@ -14,15 +14,15 @@
         <th>Ending Value</th>
         <th>Return (%)</th>
     </tr>
-    {% for values in data %}
+    {% for monthly_return in annual_return.subperiod_returns %}
         <tr>
-            <td>{{ values.month }}</td>
-            <td>{{ values.starting_balance | money }}</td>
-            <td>{{ values.total_cash_flow_amount | money }}</td>
-            <td>{{ values.adjusted_cash_flow_amount | money }}</td>
-            <td>{{ values.gain | money }}</td>
-            <td>{{ values.ending_balance | money }}</td>
-            <td>{{ values.return_pct | percentage }}</td>
+            <td>{{ monthly_return.month_name }}</td>
+            <td>{{ monthly_return.starting_balance | money }}</td>
+            <td>{{ monthly_return.total_cash_flow_amount | money }}</td>
+            <td>{{ monthly_return.adjusted_cash_flow_amount | money }}</td>
+            <td>{{ monthly_return.gain | money }}</td>
+            <td>{{ monthly_return.ending_balance | money }}</td>
+            <td>{{ monthly_return.return_pct | percentage }}</td>
         </tr>
     {% endfor %}
     <tr class="font-weight-bold">
@@ -32,7 +32,7 @@
         <td></td>
         <td></td>
         <td></td>
-        <td>{{ annual_return | percentage }}</td>
+        <td>{{ annual_return.return_pct | percentage }}</td>
     </tr>
 </table>
 
