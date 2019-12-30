@@ -42,6 +42,7 @@ class Stocks:
         self._transactions.extend(account.transactions)
 
         # maybe pass in a cash_balance store from account manager???
+        # Or make cash a current holding object
         account_monthly_balances = account.get_monthly_ending_balances()
         self._total_brokerage_cash_balances = merge_dict_of_lists(
             self._total_brokerage_cash_balances, account_monthly_balances
