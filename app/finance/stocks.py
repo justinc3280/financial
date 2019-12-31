@@ -7,6 +7,7 @@ import logging
 
 from app.caching import cached
 from app.finance.stock_data_api import get_historical_monthly_prices, get_latest_price
+from app.finance.returns import MultiYearReturn, YearlyReturn
 from app.finance.utils import (
     current_date,
     get_decimal,
@@ -65,7 +66,7 @@ class Stocks:
         self._initialized = True
 
     def get_current_holdings(self):
-        return self._holdings  # ???
+        return self._holdings.render_current_holdings()
 
     def _get_monthly_total_market_value_for_year(self, year):
         return self._holdings.get_monthly_total_market_value_for_year(year)
@@ -90,21 +91,23 @@ class Stocks:
         ending_balances, starting_balance = self._get_total_ending_balances_for_years(
             year, year
         )
-        return YearlyReturn(
+        yearly_return = YearlyReturn(
             year, starting_balance, ending_balances, self._cash_flow_store
         )
+        return yearly_return.render()
 
     def get_compounded_roi(self, start_year, end_year):
         ending_balances, starting_balance = self._get_total_ending_balances_for_years(
             start_year, end_year
         )
-        return MultiYearReturn(
+        multi_year_return = MultiYearReturn(
             start_year,
             end_year,
             starting_balance,
             ending_balances,
             self._cash_flow_store,
         )
+        return multi_year_return.render()
 
 
 class CashFlowStore:
@@ -293,6 +296,17 @@ class Holding:
     def set_percentage(self, total_portfolio_market_value):
         self.portfolio_percentage = self.market_value / total_portfolio_market_value
 
+    def render(self):
+        return {
+            'symbol': self.symbol,
+            'quantity': self.quantity,
+            'cost_basis': self.cost_basis,
+            'cost_per_share': self.cost_per_share,
+            'latest_price': self.latest_price,
+            'market_value': self.market_value,
+            'portfolio_percentage': self.portfolio_percentage,
+        }
+
 
 class HoldingsManager:
     def __init__(self):
@@ -380,115 +394,11 @@ class HoldingsManager:
                     ] += market_value
         return total_monthly_market_value
 
-
-class TimePeriodReturn:
-    def __init__(self, starting_balance, cash_flow_store):
-        self.starting_balance = starting_balance
-        self._cash_flow_store = cash_flow_store
-
-        self._generate_subperiod_returns()
-
-    # Abstract method
-    def _generate_subperiod_returns(self):
-        raise NotImplementedError
-
-    @property
-    def gain(self):
-        return self.ending_balance - self.total_cash_flow_amount - self.starting_balance
-
-    @property
-    def return_pct(self):
-        if self.subperiod_returns:
-            returns = [r.return_pct for r in self.subperiod_returns]
-            return self.get_geometrically_linked_return(returns)
-        else:
-            # For MonthlyReturns, use modified dietz
-            return self.gain / (self.starting_balance + self.adjusted_cash_flow_amount)
-
-    @staticmethod
-    def get_geometrically_linked_return(returns):
-        if not returns:
-            return None
-        overall_return = returns[0] + 1
-        if len(returns) > 1:
-            for r in returns[1:]:
-                overall_return *= r + 1
-        return overall_return - 1
-
-
-class MonthlyReturn(TimePeriodReturn):
-    def __init__(self, month, year, starting_balance, ending_balance, cash_flow_store):
-        self.year = year
-        self.month = month
-        self.month_name = calendar.month_name[month]
-        self.ending_balance = ending_balance
-
-        self.total_cash_flow_amount, self.adjusted_cash_flow_amount = cash_flow_store.get_cash_flow_amount_for_month(
-            year, month
-        )
-
-        super().__init__(starting_balance, cash_flow_store)
-
-    def _generate_subperiod_returns(self):
-        self.subperiod_returns = None
-
-
-class YearlyReturn(TimePeriodReturn):
-    def __init__(self, year, starting_balance, ending_balances, cash_flow_store):
-        self.year = year
-        self.ending_balances = ending_balances
-        super().__init__(starting_balance, cash_flow_store)
-
-    def _generate_subperiod_returns(self):
-        monthly_returns = []
-        starting_balance = self.starting_balance
-
-        for year, monthly_ending_balances in self.ending_balances.items():
-            for month, ending_balance in enumerate(monthly_ending_balances, start=1):
-                monthly_return = MonthlyReturn(
-                    month, year, starting_balance, ending_balance, self._cash_flow_store
-                )
-                monthly_returns.append(monthly_return)
-                starting_balance = ending_balance
-        self.subperiod_returns = monthly_returns
-
-
-class MultiYearReturn(TimePeriodReturn):
-    def __init__(
-        self, start_year, end_year, starting_balance, ending_balances, cash_flow_store
-    ):
-        self.start_year = start_year
-        self.end_year = end_year
-        self.ending_balances = ending_balances
-        super().__init__(starting_balance, cash_flow_store)
-
-    def _generate_subperiod_returns(self):
-        yearly_returns = []
-        starting_balance = self.starting_balance
-
-        # make sure keys are sorted
-        for year, monthly_ending_balances in self.ending_balances.items():
-            monthly_ending_balances_dict = {year: monthly_ending_balances}
-            yearly_return = YearlyReturn(
-                year,
-                starting_balance,
-                monthly_ending_balances_dict,
-                self._cash_flow_store,
-            )
-            yearly_returns.append(yearly_return)
-            starting_balance = monthly_ending_balances[-1]
-        self.subperiod_returns = yearly_returns
-
-    @property
-    def annualized_return(self):
-        num_months = 0
-        for year in range(self.start_year, self.end_year + 1):
-            if year == current_date.year:
-                num_months += current_date.month - 1
-                days_in_month = calendar.monthrange(year, current_date.month)[1]
-                percent_of_month = round(current_date.day / days_in_month, 4)
-                num_months += percent_of_month
-            else:
-                num_months += 12
-        num_years = num_months / 12
-        return (self.return_pct + 1) ** get_decimal((1 / num_years)) - 1
+    def render_current_holdings(self):
+        current_holdings = {}
+        current_holdings['holdings'] = [
+            holding.render() for holding in self.get_current_holdings()
+        ]
+        current_holdings['total_cost_basis'] = self.total_cost_basis
+        current_holdings['total_market_value'] = self.total_market_value
+        return current_holdings
