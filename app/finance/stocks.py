@@ -7,7 +7,12 @@ import logging
 
 from app.caching import cached
 from app.finance.stock_data_api import get_historical_monthly_prices, get_latest_price
-from app.finance.utils import get_decimal, round_decimal, merge_dict_of_lists
+from app.finance.utils import (
+    current_date,
+    get_decimal,
+    round_decimal,
+    merge_dict_of_lists,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +90,6 @@ class Stocks:
         ending_balances, starting_balance = self._get_total_ending_balances_for_years(
             year, year
         )
-
         return YearlyReturn(
             year, starting_balance, ending_balances, self._cash_flow_store
         )
@@ -94,7 +98,6 @@ class Stocks:
         ending_balances, starting_balance = self._get_total_ending_balances_for_years(
             start_year, end_year
         )
-
         return MultiYearReturn(
             start_year,
             end_year,
@@ -178,21 +181,6 @@ class HistoricalDataPoint:
         self.market_value = round_decimal(self.quantity * price_per_share)
 
 
-class HistoricalData:
-    def __init__(self, symbol):
-        self.symbol = symbol
-
-    def update_data(
-        self,
-        transaction_date,
-        previous_quantity,
-        new_quantity,
-        previous_cost_basis,
-        new_cost_basis,
-    ):
-        pass
-
-
 class Holding:
     def __init__(self, symbol):
         self.symbol = symbol
@@ -201,6 +189,8 @@ class Holding:
         self.portfolio_percentage = None
         self._historical_data = {}  # (dict): year to list of HistoricalDataPoint
 
+    # This function relies on it being called for transactions that have been sorted somewhere else
+    # Make more robust.
     def update_holding(self, transaction_date, quantity, cost_basis):
         previous_quantity = self.quantity
         new_quantity = previous_quantity + quantity
@@ -225,7 +215,7 @@ class Holding:
             historical_data_point.update(new_quantity, new_cost_basis)
 
         # update all future years with new values up until end_date
-        for year in range(transaction_year + 1, date.today().year + 1):
+        for year in range(transaction_year + 1, current_date.year + 1):
             if new_quantity == 0:
                 self._historical_data.pop(year, None)
             elif year not in self._historical_data:
@@ -237,7 +227,6 @@ class Holding:
                     historical_data_point.update(new_quantity, new_cost_basis)
 
     def _generate_historical_data_points_for_year(self, year, quantity, cost_basis):
-        current_date = date.today()
         num_months = 12 if year < current_date.year else current_date.month
         year_historical_data = []
         for month in range(1, num_months + 1):
@@ -249,7 +238,7 @@ class Holding:
 
     @staticmethod
     @cached
-    def _get_stock_monthly_close_prices(symbol, start_date, end_date=str(date.today())):
+    def _get_stock_monthly_close_prices(symbol, start_date, end_date=str(current_date)):
         monthly_prices = get_historical_monthly_prices(symbol, start_date, end_date)
         if not monthly_prices:
             logger.warning('No monthly prices found for symbol %s', symbol)
@@ -277,6 +266,9 @@ class Holding:
 
                 close_price = get_decimal(close_price)
                 historical_data_point.set_market_value(close_price)
+
+    def get_monthly_historical_market_values(self, year):
+        return self._historical_data.get(year, [])
 
     @staticmethod
     @cached
@@ -376,9 +368,10 @@ class HoldingsManager:
     def get_monthly_total_market_value_for_year(self, year):
         total_monthly_market_value = []
         for holding in self._holdings.values():
-            for historical_data_point in holding._historical_data.get(year, []):
-                # why round??
-                market_value = round_decimal(historical_data_point.market_value)
+            for historical_data_point in holding.get_monthly_historical_market_values(
+                year
+            ):
+                market_value = historical_data_point.market_value
                 if historical_data_point.month - 1 >= len(total_monthly_market_value):
                     total_monthly_market_value.append(market_value)
                 else:
@@ -488,7 +481,6 @@ class MultiYearReturn(TimePeriodReturn):
 
     @property
     def annualized_return(self):
-        current_date = date.today()
         num_months = 0
         for year in range(self.start_year, self.end_year + 1):
             if year == current_date.year:
