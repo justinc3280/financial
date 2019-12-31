@@ -2,6 +2,8 @@ import calendar
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 
+current_date = date.today()
+
 
 def get_ending_month_date(year, month_num):
     ending_day = calendar.monthrange(year, month_num)[1]

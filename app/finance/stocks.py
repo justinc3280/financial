@@ -7,12 +7,26 @@ import logging
 
 from app.caching import cached
 from app.finance.stock_data_api import get_historical_monthly_prices, get_latest_price
-from app.finance.utils import get_decimal, round_decimal, merge_dict_of_lists
+from app.finance.returns import MultiYearReturn, YearlyReturn
+from app.finance.utils import (
+    current_date,
+    get_decimal,
+    round_decimal,
+    merge_dict_of_lists,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class Stocks:
+    stock_transaction_categories = [
+        'Buy',
+        'Sell',
+        'Dividend Reinvest',
+        'Transfer Stock In',
+        'Transfer Stock Out',
+    ]
+
     def __init__(self, accounts=[]):
         self._accounts = []
         self._transactions = []
@@ -30,6 +44,8 @@ class Stocks:
         self._accounts.append(account)
         self._transactions.extend(account.transactions)
 
+        # maybe pass in a cash_balance store from account manager???
+        # Or make cash a current holding object
         account_monthly_balances = account.get_monthly_ending_balances()
         self._total_brokerage_cash_balances = merge_dict_of_lists(
             self._total_brokerage_cash_balances, account_monthly_balances
@@ -38,337 +54,351 @@ class Stocks:
         self._initialized = False
 
     def _initialize(self):
-        transactions = sorted(self._transactions, key=lambda x: x.date)
-        stock_transaction_categories = [
-            'Buy',
-            'Sell',
-            'Dividend Reinvest',
-            'Transfer Stock In',
-            'Transfer Stock Out',
-        ]
+        self._holdings = HoldingsManager()
+        self._cash_flow_store = CashFlowStore()
 
-        current_data = {}
-        current_date = date.today()
-        stocks_data = defaultdict(lambda: defaultdict(list))
-        cash_flow_transactions = defaultdict(lambda: defaultdict(list))
-        for transaction in transactions:
-            cash_flow_amount = None
-            if transaction.category.name in stock_transaction_categories:
-                properties = transaction.get_properties()
-                symbol = properties.get('symbol')
-                quantity = get_decimal(properties.get('quantity'))
-                if symbol and quantity:
-                    data = stocks_data[symbol]
-                    buy_or_sell = (
-                        1
-                        if transaction.category.name
-                        in ['Buy', 'Dividend Reinvest', 'Transfer Stock In']
-                        else -1
-                    )
-                    quantity = (
-                        quantity
-                        * get_decimal(properties.get('split_adjustment', 1))
-                        * buy_or_sell
-                    )
-                    if buy_or_sell > 0:
-                        cost_basis = get_decimal(abs(transaction.amount) * buy_or_sell)
-                    else:
-                        cost_basis = get_decimal(
-                            abs(properties.get('cost_basis', 0)) * buy_or_sell
-                        )
+        for transaction in sorted(self._transactions, key=lambda x: x.date):
+            self._cash_flow_store.add_transaction(transaction)
+            if transaction.category.name in self.stock_transaction_categories:
+                self._holdings.add_transaction(transaction)
 
-                    if symbol not in current_data:
-                        previous_quantity = 0
-                        new_quantity = quantity
-                        previous_cost_basis = 0
-                        new_cost_basis = cost_basis
-                        current_data[symbol] = {
-                            'quantity': new_quantity,
-                            'cost_basis': new_cost_basis,
-                        }
-                    else:
-                        previous_quantity = current_data[symbol].get('quantity')
-                        new_quantity = previous_quantity + quantity
-                        previous_cost_basis = current_data[symbol].get('cost_basis')
-                        new_cost_basis = previous_cost_basis + cost_basis
-                        current_data[symbol]['quantity'] = new_quantity
-                        current_data[symbol]['cost_basis'] = new_cost_basis
-
-                    transaction_year = transaction.date.year
-                    num_months = (
-                        12
-                        if transaction_year < current_date.year
-                        else current_date.month
-                    )
-
-                    # add year and use previous values for entire year
-                    if transaction_year not in data:
-                        data[transaction_year] = [
-                            {
-                                'quantity': previous_quantity,
-                                'cost_basis': previous_cost_basis,
-                            }
-                            for _ in range(0, num_months)
-                        ]
-
-                    # overwrite the values for the remainder of the year after transaction
-                    for month_index in range(transaction.date.month - 1, num_months):
-                        data[transaction_year][month_index]['quantity'] = new_quantity
-                        data[transaction_year][month_index][
-                            'cost_basis'
-                        ] = new_cost_basis
-
-                    # update all future years with new values up until end_date
-                    for i in range(transaction_year + 1, current_date.year + 1):
-                        if new_quantity != 0:
-                            num_months = (
-                                12 if i < current_date.year else current_date.month
-                            )
-                            data[i] = [
-                                {'quantity': new_quantity, 'cost_basis': new_cost_basis}
-                                for _ in range(0, num_months)
-                            ]
-                        else:
-                            data.pop(i, None)
-
-                if transaction.category.name == 'Transfer Stock In':
-                    cash_flow_amount = transaction.get_property('market_value', 0)
-                elif transaction.category.name == 'Transfer Stock Out':
-                    cash_flow_amount = -transaction.get_property('market_value', 0)
-            elif transaction.category.name in [
-                'Transfer In',
-                'Transfer Out',
-                'Brokerage Fee',
-                'Refund',
-            ]:
-                cash_flow_amount = transaction.amount
-
-            if cash_flow_amount:
-                cash_flow_transactions[transaction.date.year][
-                    transaction.date.month
-                ].append((transaction.date, cash_flow_amount))
-
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future_to_symbol = {}
-            for symbol, yearly_data in stocks_data.items():
-                start_date = str(date(min(yearly_data.keys()), 1, 1))
-                end_date = str(date(max(yearly_data.keys()), 12, 31))
-                future_obj = executor.submit(
-                    self._get_stock_monthly_close_prices, symbol, start_date, end_date
-                )
-                future_to_symbol.update({future_obj: symbol})
-
-            for future in concurrent.futures.as_completed(future_to_symbol):
-                symbol = future_to_symbol[future]
-                try:
-                    monthly_price_data = future.result()
-                except Exception as e:
-                    logger.exception(e)
-                    continue
-
-                if monthly_price_data:
-                    yearly_data = stocks_data[symbol]
-                    for year, monthly_data in yearly_data.items():
-                        for month_num, month_data in enumerate(monthly_data, start=1):
-                            date_str = '{}-{:02d}'.format(year, month_num)
-                            prev_month_date_str = '{}-{:02d}'.format(
-                                year, month_num - 1
-                            )
-                            # if current month hasen't had a trading day there will be no close price yet.
-                            # so use the previous month close price as a default
-                            close_price = get_decimal(
-                                monthly_price_data.get(
-                                    date_str,
-                                    monthly_price_data.get(prev_month_date_str, 0),
-                                )
-                            )
-                            month_data['price'] = close_price
-                            quantity = month_data.get('quantity')
-                            month_data['market_value'] = (
-                                round_decimal(quantity * close_price)
-                                if quantity > 0
-                                else 0
-                            )
-
-        self._current_data = current_data
-        self._stocks_data = stocks_data
-        self._cash_flow_transactions = cash_flow_transactions
+        self._holdings.set_market_values()  # make lazy??
         self._initialized = True
+
+    def get_current_holdings(self):
+        return self._holdings.render_current_holdings()
+
+    def _get_monthly_total_market_value_for_year(self, year):
+        return self._holdings.get_monthly_total_market_value_for_year(year)
+
+    def _get_total_ending_balances_for_years(self, start_year, end_year):
+        ending_balances = {}
+        for year in range(start_year - 1, end_year + 1):
+            market_values = self._get_monthly_total_market_value_for_year(year)
+            cash_values = self._total_brokerage_cash_balances.get(year)
+
+            month_end_balances = []
+            for i, amount in enumerate(market_values):
+                cash = cash_values[i]
+                month_end_balances.append(amount + cash)
+            if year < start_year:
+                starting_balance = month_end_balances[-1] if month_end_balances else 0
+            else:
+                ending_balances[year] = month_end_balances
+        return ending_balances, starting_balance
+
+    def get_monthly_roi_data(self, year):
+        ending_balances, starting_balance = self._get_total_ending_balances_for_years(
+            year, year
+        )
+        yearly_return = YearlyReturn(
+            year, starting_balance, ending_balances, self._cash_flow_store
+        )
+        return yearly_return.render()
+
+    def get_compounded_roi(self, start_year, end_year):
+        ending_balances, starting_balance = self._get_total_ending_balances_for_years(
+            start_year, end_year
+        )
+        multi_year_return = MultiYearReturn(
+            start_year,
+            end_year,
+            starting_balance,
+            ending_balances,
+            self._cash_flow_store,
+        )
+        return multi_year_return.render()
+
+
+class CashFlowStore:
+
+    CASH_FLOW_CATEGORIES = [
+        'Transfer Stock In',
+        'Transfer Stock Out',
+        'Transfer In',
+        'Transfer Out',
+        'Brokerage Fee',
+        'Refund',
+    ]
+
+    def __init__(self):
+        self._transactions = []  # list of tuples [(date, amount), ...]
+
+    def add_transaction(self, transaction):
+        cash_flow_amount = self._get_transaction_cash_flow_amount(transaction)
+
+        if cash_flow_amount:  # don't need to include 0 or None
+            self._transactions.append((transaction.date, cash_flow_amount))
+
+    def _get_transaction_cash_flow_amount(self, transaction):
+        if transaction.category.name not in self.CASH_FLOW_CATEGORIES:
+            cash_flow_amount = None
+        elif transaction.category.name == 'Transfer Stock In':
+            cash_flow_amount = transaction.get_property('market_value', 0)
+        elif transaction.category.name == 'Transfer Stock Out':
+            cash_flow_amount = -transaction.get_property('market_value', 0)
+        else:
+            cash_flow_amount = transaction.amount
+
+        if cash_flow_amount is not None:
+            cash_flow_amount = get_decimal(cash_flow_amount)
+        return cash_flow_amount
+
+    def get_cash_flow_amount_for_month(self, year, month):
+        start_date = date(year, month, 1)
+        days_in_month = calendar.monthrange(year, month)[1]
+        end_date = date(year, month, days_in_month)
+
+        total_amount = 0
+        adjusted_amount = 0
+        for transaction in self._transactions:
+            transaction_date = transaction[0]
+            if start_date <= transaction_date <= end_date:
+                amount = transaction[1]
+                total_amount += amount
+
+                days_remaining_in_month = days_in_month - transaction_date.day
+                adjustment_ratio = get_decimal(days_remaining_in_month / days_in_month)
+                adjusted_amount += amount * adjustment_ratio
+
+        return total_amount, adjusted_amount
+
+
+class HistoricalDataPoint:
+    # Stores the ending data for given month, cash too??
+    def __init__(self, month, year, symbol, quantity, cost_basis):
+        self.month = month
+        self.year = year
+        self.symbol = symbol
+        self.quantity = quantity
+        self.cost_basis = cost_basis
+        self.price_per_share = 0
+        self.market_value = 0
+
+    def update(self, new_quantity, new_cost_basis):
+        self.quantity = new_quantity
+        self.cost_basis = new_cost_basis
+
+    def set_market_value(self, price_per_share):
+        self.price_per_share = price_per_share
+        self.market_value = round_decimal(self.quantity * price_per_share)
+
+
+class Holding:
+    def __init__(self, symbol):
+        self.symbol = symbol
+        self.quantity = 0
+        self.cost_basis = 0
+        self.portfolio_percentage = None
+        self._historical_data = {}  # (dict): year to list of HistoricalDataPoint
+
+    # This function relies on it being called for transactions that have been sorted somewhere else
+    # Make more robust.
+    def update_holding(self, transaction_date, quantity, cost_basis):
+        previous_quantity = self.quantity
+        new_quantity = previous_quantity + quantity
+        self.quantity = new_quantity
+
+        previous_cost_basis = self.cost_basis
+        new_cost_basis = previous_cost_basis + cost_basis
+        self.cost_basis = new_cost_basis
+
+        transaction_year = transaction_date.year
+
+        # add year and use previous values for entire year
+        if transaction_year not in self._historical_data:
+            self._generate_historical_data_points_for_year(
+                transaction_year, previous_quantity, previous_cost_basis
+            )
+
+        # overwrite the values for the remainder of the year after transaction
+        for historical_data_point in self._historical_data[transaction_year][
+            transaction_date.month - 1 :
+        ]:
+            historical_data_point.update(new_quantity, new_cost_basis)
+
+        # update all future years with new values up until end_date
+        for year in range(transaction_year + 1, current_date.year + 1):
+            if new_quantity == 0:
+                self._historical_data.pop(year, None)
+            elif year not in self._historical_data:
+                self._generate_historical_data_points_for_year(
+                    year, new_quantity, new_cost_basis
+                )
+            else:
+                for historical_data_point in self._historical_data[year]:
+                    historical_data_point.update(new_quantity, new_cost_basis)
+
+    def _generate_historical_data_points_for_year(self, year, quantity, cost_basis):
+        num_months = 12 if year < current_date.year else current_date.month
+        year_historical_data = []
+        for month in range(1, num_months + 1):
+            historical_data_point = HistoricalDataPoint(
+                month, year, self.symbol, quantity, cost_basis
+            )
+            year_historical_data.append(historical_data_point)
+        self._historical_data[year] = year_historical_data
 
     @staticmethod
     @cached
-    def _get_stock_monthly_close_prices(symbol, start_date, end_date=str(date.today())):
+    def _get_stock_monthly_close_prices(symbol, start_date, end_date=str(current_date)):
         monthly_prices = get_historical_monthly_prices(symbol, start_date, end_date)
         if not monthly_prices:
             logger.warning('No monthly prices found for symbol %s', symbol)
         return monthly_prices
+
+    def set_historical_market_values(self):
+        start_date = str(date(min(self._historical_data.keys()), 1, 1))
+        end_date = str(date(max(self._historical_data.keys()), 12, 31))
+        monthly_price_data = self._get_stock_monthly_close_prices(
+            self.symbol, start_date, end_date
+        )
+
+        for year, monthly_historical_data in self._historical_data.items():
+            for historical_data_point in monthly_historical_data:
+                date_str = '{}-{:02d}'.format(year, historical_data_point.month)
+                close_price = monthly_price_data.get(date_str)
+
+                # if current month hasen't had a trading day there will be no close price yet.
+                # so use the previous month close price as a default
+                if close_price is None:
+                    prev_month_date_str = '{}-{:02d}'.format(
+                        year, historical_data_point.month - 1
+                    )
+                    close_price = monthly_price_data.get(prev_month_date_str, 0)
+
+                close_price = get_decimal(close_price)
+                historical_data_point.set_market_value(close_price)
+
+    def get_monthly_historical_market_values(self, year):
+        return self._historical_data.get(year, [])
 
     @staticmethod
     @cached
     def _get_latest_stock_price(symbol):
         return get_latest_price(symbol)
 
-    def get_monthly_data_for_year(self, year):
-        monthly_data = {}
-        for symbol, data in self._stocks_data.items():
-            if year in data:
-                monthly_data[symbol] = data.get(year)
-        return monthly_data
+    @property
+    def latest_price(self):
+        return get_decimal(self._get_latest_stock_price(self.symbol))
+
+    @property
+    def market_value(self):
+        return round_decimal(self.quantity * self.latest_price)
+
+    @property
+    def cost_per_share(self):
+        if self.quantity > 0:
+            return self.cost_basis / self.quantity
+        else:
+            return 0
+
+    def set_percentage(self, total_portfolio_market_value):
+        self.portfolio_percentage = self.market_value / total_portfolio_market_value
+
+    def render(self):
+        return {
+            'symbol': self.symbol,
+            'quantity': self.quantity,
+            'cost_basis': self.cost_basis,
+            'cost_per_share': self.cost_per_share,
+            'latest_price': self.latest_price,
+            'market_value': self.market_value,
+            'portfolio_percentage': self.portfolio_percentage,
+        }
+
+
+class HoldingsManager:
+    def __init__(self):
+        self._holdings = {}  # (dict): symbols to Holding object
+        # self._total_cost_basis = 0
+
+    def add_transaction(self, transaction):
+        symbol, date, quantity, cost_basis = self._get_transaction_data(transaction)
+        if symbol and symbol not in self._holdings:
+            self._holdings[symbol] = Holding(symbol)
+        self._holdings[symbol].update_holding(date, quantity, cost_basis)
+
+        # cost basis is constant so it can be pre-calculated
+        # self._total_cost_basis += cost_basis  # not working
+
+    def _get_transaction_data(self, transaction):
+        properties = transaction.get_properties()
+        symbol = properties.get('symbol')
+        quantity = get_decimal(properties.get('quantity'))
+        if symbol and quantity:
+            buy_or_sell = (
+                1
+                if transaction.category.name
+                in ['Buy', 'Dividend Reinvest', 'Transfer Stock In']
+                else -1
+            )
+            quantity = (
+                quantity
+                * get_decimal(properties.get('split_adjustment', 1))
+                * buy_or_sell
+            )
+            if buy_or_sell > 0:
+                cost_basis = get_decimal(abs(transaction.amount) * buy_or_sell)
+            else:
+                cost_basis = get_decimal(
+                    abs(properties.get('cost_basis', 0)) * buy_or_sell
+                )
+            return symbol, transaction.date, quantity, cost_basis
+        return None, None, None, None
+
+    def set_market_values(self):
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            for holding in self._holdings.values():
+                executor.submit(holding.set_historical_market_values)
+
+    @property
+    def total_cost_basis(self):
+        # precalc not working because cost basis for qty 0 is off for some reason
+        # return self._total_cost_basis
+        total = 0
+        for holding in self.get_current_holdings():
+            total += holding.cost_basis
+        return total
+
+    @property
+    def total_market_value(self):
+        # market value fluctuates so it is calculated on the fly
+        total = 0
+        for holding in self._holdings.values():
+            # Protect against iex 'Unknown Symbol' error (ex. ALOG)
+            if holding.quantity > 0:
+                total += holding.market_value
+        return total
+
+    def get_current_holdings(self):
+        current_holdings = []
+        for holding in self._holdings.values():
+            if holding.quantity > 0:
+                holding.set_percentage(self.total_market_value)
+                current_holdings.append(holding)
+        return current_holdings
 
     def get_monthly_total_market_value_for_year(self, year):
         total_monthly_market_value = []
-        for symbol, data in self._stocks_data.items():
-            for month_index, month_data in enumerate(data.get(year, [])):
-                market_value = round_decimal(month_data.get('market_value', 0))
-                if month_index >= len(total_monthly_market_value):
+        for holding in self._holdings.values():
+            for historical_data_point in holding.get_monthly_historical_market_values(
+                year
+            ):
+                market_value = historical_data_point.market_value
+                if historical_data_point.month - 1 >= len(total_monthly_market_value):
                     total_monthly_market_value.append(market_value)
                 else:
-                    total_monthly_market_value[month_index] += market_value
+                    total_monthly_market_value[
+                        historical_data_point.month - 1
+                    ] += market_value
         return total_monthly_market_value
 
-    def get_current_holdings(self):
+    def render_current_holdings(self):
         current_holdings = {}
-        total_cost_basis = 0
-        total_market_value = 0
-        for symbol, data in self._current_data.items():
-            if data.get('quantity', 0) > 0:
-                current_data = dict(data)
-                current_data['cost_per_share'] = data.get('cost_basis') / data.get(
-                    'quantity'
-                )
-                current_data['latest_price'] = latest_price = get_decimal(
-                    self._get_latest_stock_price(symbol)
-                )
-                current_data['market_value'] = market_value = round_decimal(
-                    data.get('quantity') * latest_price
-                )
-                current_holdings[symbol] = current_data
-
-                total_cost_basis += data.get('cost_basis', 0)
-                total_market_value += market_value
-
-        if total_market_value > 0:
-            current_holdings['Total'] = {
-                'cost_basis': total_cost_basis,
-                'market_value': total_market_value,
-            }
-
-            for symbol in current_holdings:
-                if symbol != 'Total':
-                    current_holdings[symbol]['portfolio_percentage'] = (
-                        current_holdings[symbol].get('market_value')
-                        / total_market_value
-                    )
-
+        current_holdings['holdings'] = [
+            holding.render() for holding in self.get_current_holdings()
+        ]
+        current_holdings['total_cost_basis'] = self.total_cost_basis
+        current_holdings['total_market_value'] = self.total_market_value
         return current_holdings
-
-    def _get_total_ending_balances_for_year(self, year):
-        market_values = self.get_monthly_total_market_value_for_year(year)
-        cash_values = self._total_brokerage_cash_balances.get(year)
-
-        data = []
-        for i, amount in enumerate(market_values):
-            cash = cash_values[i]
-            data.append(amount + cash)
-        return data
-
-    def _get_cash_flows(self, year, month):
-        cash_flows = {}
-        total_value = 0
-        adj_value = 0
-
-        yearly_cash_flow_transactions = self._cash_flow_transactions.get(year)
-        if yearly_cash_flow_transactions:
-            month_cash_flow_transactions = yearly_cash_flow_transactions.get(month, [])
-            for date, amount in month_cash_flow_transactions:
-                amount = get_decimal(amount)
-                total_value += amount
-                days_in_month = calendar.monthrange(year, month)[1]
-                num_days = days_in_month - date.day
-                adj_value += amount * get_decimal(num_days / days_in_month)
-
-        cash_flows['total'] = total_value
-        cash_flows['adjusted'] = adj_value
-
-        return cash_flows
-
-    @staticmethod
-    def get_geometrically_linked_return(returns):
-        overall_return = returns[0] + 1
-        if len(returns) > 1:
-            for r in returns[1:]:
-                overall_return *= r + 1
-        return overall_return - 1
-
-    @staticmethod
-    def get_compounded_annual_return(overall_return, num_months):
-        num_years = num_months / 12
-        return (overall_return + 1) ** get_decimal((1 / num_years)) - 1
-
-    def get_monthly_roi_data(self, year):
-        monthly_ending_values = self._get_total_ending_balances_for_year(year)
-
-        previous_year_data = self._get_total_ending_balances_for_year(year - 1)
-        starting_value = previous_year_data[-1] if previous_year_data else 0
-
-        data = {}
-        monthly_data = []
-        returns = []
-        for i, value in enumerate(monthly_ending_values):
-            month_index = i + 1
-            starting_balance = (
-                starting_value if i == 0 else monthly_ending_values[i - 1]
-            )
-            cash_flows = self._get_cash_flows(year, month_index)
-            total_cash_flows = cash_flows.get('total')
-            adj_cash_flows = cash_flows.get('adjusted')
-            gain = value - total_cash_flows - starting_balance
-            return_pct = gain / (starting_balance + adj_cash_flows)
-            returns.append(return_pct)
-
-            monthly_data.append(
-                {
-                    'month': calendar.month_name[month_index],
-                    'starting_balance': starting_balance,
-                    'cash_flows': total_cash_flows,
-                    'adj_cash_flows': adj_cash_flows,
-                    'ending_balance': value,
-                    'gain': gain,
-                    'return_pct': return_pct,
-                }
-            )
-
-        data['annual_return'] = self.get_geometrically_linked_return(returns)
-        data['monthly_data'] = monthly_data
-
-        return data
-
-    def get_compounded_roi(self, start_year, end_year):
-        data = {}
-        num_months = 0
-        current_date = date.today()
-        annual_returns = []
-        for year in range(start_year, end_year + 1):
-            monthly_data = self.get_monthly_roi_data(year)
-            if monthly_data:
-                if year == current_date.year:
-                    num_months += len(monthly_data.get('monthly_data')) - 1
-                    days_in_month = calendar.monthrange(year, current_date.month)[1]
-                    percent_of_month = round(current_date.day / days_in_month, 4)
-                    num_months += percent_of_month
-                else:
-                    num_months += len(monthly_data.get('monthly_data'))
-                annual_returns.append(
-                    {'year': year, 'annual_return': monthly_data.get('annual_return')}
-                )
-
-        overall_gain = self.get_geometrically_linked_return(
-            [r['annual_return'] for r in annual_returns]
-        )
-        data['overall_gain'] = overall_gain
-        data['compounded_annual_gain'] = self.get_compounded_annual_return(
-            overall_gain, num_months
-        )
-        data['annual_returns'] = annual_returns
-        return data
-

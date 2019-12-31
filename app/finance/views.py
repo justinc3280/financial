@@ -43,16 +43,6 @@ def account_details(account_id):
     return render_template('finance/account_details.html', account=account)
 
 
-@finance.route('/stocks')
-@login_required
-def stocks():
-
-    account_manager = AccountManager(get_accounts())
-    stocks_data = account_manager.get_current_stock_holdings()
-
-    return render_template("finance/stocks.html", stock_data=stocks_data)
-
-
 @finance.route('/stock_transactions')
 @login_required
 def stock_transactions():
@@ -477,33 +467,36 @@ def charts(category_name=None):
     return render_template('finance/charts.html', charts=charts)
 
 
+@finance.route('/stocks')
+@login_required
+def stocks():
+
+    account_manager = AccountManager(get_accounts())
+    current_holdings = account_manager.get_current_stock_holdings()
+    return render_template("finance/stocks.html", current_holdings=current_holdings)
+
+
 @finance.route('/stocks/return/data')
 @login_required
 def stocks_return_data():
     year = int(request.args.get('year', date.today().year))
 
     account_manager = AccountManager(get_accounts())
+    annual_return = account_manager.get_brokerage_roi_data(year)
 
-    data = account_manager.get_brokerage_roi_data(year)
-    monthly_data = data.get('monthly_data')
-    annual_return = data.get('annual_return')
-
-    return render_template(
-        'finance/return_data.html',
-        year=year,
-        data=monthly_data,
-        annual_return=annual_return,
-    )
+    return render_template('finance/return_data.html', annual_return=annual_return)
 
 
 @finance.route('/stocks/return/')
 @login_required
 def stocks_return():
-    year = int(request.args.get('year', date.today().year))
+    start_year = 2011
+    end_year = int(request.args.get('year', date.today().year))
 
     account_manager = AccountManager(get_accounts())
+    multi_year_return = account_manager.get_brokerage_compounded_roi(
+        start_year, end_year
+    )
 
-    total_roi_data = account_manager.get_brokerage_compounded_roi(2011, year)
-
-    return render_template('finance/return.html', year=year, data=total_roi_data)
+    return render_template('finance/return.html', multi_year_return=multi_year_return)
 

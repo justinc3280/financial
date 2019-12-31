@@ -5,39 +5,38 @@
 	<h4>Stocks</h4>
 	<a class="btn btn-primary" href="{{ url_for('finance.stock_transactions') }}">View Stock Transactions</a>
 	<a class="btn btn-primary" href="{{ url_for('finance.stocks_return') }}">ROI</a>
-	{% if stock_data %}
 	<div class="row">
-		{% for stock_symbol, data in stock_data.items() if stock_symbol != 'Total' %}
+		{% for holding in current_holdings.holdings %}
 			<div class="col-md-6">
 				<div class="card my-2">
 					<div class="card-header">
-						<h5 class="text-center">{{ stock_symbol }}</h5>
+						<h5 class="text-center">{{ holding.symbol }}</h5>
 					</div>
 					<div class="card-body">
 						<div class="row">
 							<div class="col-sm-4 mb-4">
 								<p class="font-weight-bold mb-1">Quantity</p>
-								{{ data.quantity }}
+								{{ holding.quantity }}
 							</div>
 							<div class="col-sm-4 mb-4">
 								<p class="font-weight-bold mb-1">Cost Per Share</p>
-								{{ data.cost_per_share | money }}
+								{{ holding.cost_per_share | money }}
 							</div>
 							<div class="col-sm-4 mb-4">
 								<p class="font-weight-bold mb-1">Cost</p>
-								{{ data.cost_basis | money }}
+								{{ holding.cost_basis | money }}
 							</div>
 							<div class="col-sm-4 mb-4">
 								<p class="font-weight-bold mb-1">Portfolio %</p>
-								{{ data.portfolio_percentage  | percentage }}
+								{{ holding.portfolio_percentage  | percentage }}
 							</div>
 							<div class="col-sm-4 mb-4">
 								<p class="font-weight-bold mb-1">Price Per Share</p>
-								{{ data.latest_price | money }}
+								{{ holding.latest_price | money }}
 							</div>
 							<div class="col-sm-4 mb-4">
 								<p class="font-weight-bold mb-1">Market Value</p>
-								{{ data.market_value | money }}
+								{{ holding.market_value | money }}
 							</div>
 						</div>
 					</div>
@@ -53,17 +52,16 @@
 					<div class="row">
 						<div class="col-sm-6 mb-4">
 							<p class="font-weight-bold mb-1">Cost</p>
-							{{ stock_data.get('Total').get('cost_basis') | money }}
+							{{ current_holdings.total_cost_basis | money }}
 						</div>
 						<div class="col-sm-6 mb-4">
 							<p class="font-weight-bold mb-1">Market Value</p>
-							{{ stock_data.get('Total').get('market_value') | money }}
+							{{ current_holdings.total_market_value | money }}
 						</div>
 					</div>
 				</div>
 			</div>
 		</div>
 	</div>
-	{% endif %}
 </div>
 {% endblock content %}
