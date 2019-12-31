@@ -27,12 +27,9 @@ class Stocks:
         self._total_brokerage_cash_balances = {}
         for account in accounts:
             self.add_account(account)
-        self._current_holdings = CurrentHoldings()
-        self._cash_flow_store = CashFlowStore()
         self._initialized = False
 
     def __getattr__(self, name):
-        # does this work on methods?
         if not self._initialized:
             self._initialize()
         return getattr(self, name)
@@ -51,30 +48,21 @@ class Stocks:
         self._initialized = False
 
     def _initialize(self):
-        transactions = sorted(self._transactions, key=lambda x: x.date)
+        self._current_holdings = HoldingsManager()
+        self._cash_flow_store = CashFlowStore()
 
-        for transaction in transactions:
+        for transaction in sorted(self._transactions, key=lambda x: x.date):
             self._cash_flow_store.add_transaction(transaction)
             if transaction.category.name in self.stock_transaction_categories:
                 self._current_holdings.add_transaction(transaction)
 
-        self._current_holdings.set_market_values()
+        self._current_holdings.set_market_values()  # make lazy??
         self._initialized = True
 
-    @staticmethod
-    @cached
-    def _get_latest_stock_price(symbol):
-        return get_latest_price(symbol)
-
     def get_current_holdings(self):
-        if not self._initialized:
-            self._initialize()
-        current_holdings = self._current_holdings
-        return current_holdings
+        return self._current_holdings
 
     def _get_monthly_total_market_value_for_year(self, year):
-        if not self._initialized:
-            self._initialize()
         return self._current_holdings.get_monthly_total_market_value_for_year(year)
 
     def _get_total_ending_balances_for_years(self, start_year, end_year):
@@ -117,7 +105,8 @@ class Stocks:
 
 
 class CashFlowStore:
-    cash_flow_categories = [
+
+    CASH_FLOW_CATEGORIES = [
         'Transfer Stock In',
         'Transfer Stock Out',
         'Transfer In',
@@ -127,10 +116,16 @@ class CashFlowStore:
     ]
 
     def __init__(self):
-        self._transactions = []  # list of tuples, [(date, amount)], or object?
+        self._transactions = []  # list of tuples [(date, amount), ...]
 
-    def _get_cash_flow_amount(self, transaction):
-        if transaction.category.name not in self.cash_flow_categories:
+    def add_transaction(self, transaction):
+        cash_flow_amount = self._get_transaction_cash_flow_amount(transaction)
+
+        if cash_flow_amount:  # don't need to include 0 or None
+            self._transactions.append((transaction.date, cash_flow_amount))
+
+    def _get_transaction_cash_flow_amount(self, transaction):
+        if transaction.category.name not in self.CASH_FLOW_CATEGORIES:
             cash_flow_amount = None
         elif transaction.category.name == 'Transfer Stock In':
             cash_flow_amount = transaction.get_property('market_value', 0)
@@ -140,55 +135,27 @@ class CashFlowStore:
             cash_flow_amount = transaction.amount
 
         if cash_flow_amount is not None:
-            cash_flow_amount = get_decimal(cash_flow_amount)  # why?
+            cash_flow_amount = get_decimal(cash_flow_amount)
         return cash_flow_amount
 
-    def add_transaction(self, transaction):
-        cash_flow_amount = self._get_cash_flow_amount(transaction)
-
-        if cash_flow_amount:  # don't need to include 0 or None
-            self._transactions.append((transaction.date, cash_flow_amount))
-
-    def get_transactions_in_range(self, start_date, end_date):
-        return [
-            transaction
-            for transaction in self._transactions
-            if start_date <= transaction[0] <= end_date  # ????
-        ]
-
-    def get_transactions_for_year(self, year):
-        start_date = date(year, 1, 1)
-        end_date = date(year, 12, 31)
-        return self.get_transactions_in_range(start_date, end_date)
-
-    def get_total_cash_flow_amount_for_month(self, year, month):
+    def get_cash_flow_amount_for_month(self, year, month):
         start_date = date(year, month, 1)
         days_in_month = calendar.monthrange(year, month)[1]
         end_date = date(year, month, days_in_month)
-        cash_flow_transactions = self.get_transactions_in_range(
-            start_date, end_date
-        )  # first loop
 
-        total_value = 0
-        for _, amount in cash_flow_transactions:  # second loop
-            total_value += amount
-        return total_value
+        total_amount = 0
+        adjusted_amount = 0
+        for transaction in self._transactions:
+            transaction_date = transaction[0]
+            if start_date <= transaction_date <= end_date:
+                amount = transaction[1]
+                total_amount += amount
 
-    def get_adjusted_cash_flow_amount_for_month(self, year, month):
-        start_date = date(year, month, 1)
-        days_in_month = calendar.monthrange(year, month)[1]
-        end_date = date(year, month, days_in_month)
-        cash_flow_transactions = self.get_transactions_in_range(
-            start_date, end_date
-        )  # first loop
+                days_remaining_in_month = days_in_month - transaction_date.day
+                adjustment_ratio = get_decimal(days_remaining_in_month / days_in_month)
+                adjusted_amount += amount * adjustment_ratio
 
-        adjusted_value = 0
-        for transaction_date, amount in cash_flow_transactions:  # second loop
-            num_days_remaining_in_month = days_in_month - transaction_date.day
-            adjusted_value += amount * get_decimal(
-                num_days_remaining_in_month / days_in_month
-            )
-        return adjusted_value
+        return total_amount, adjusted_amount
 
 
 class HistoricalDataPoint:
@@ -324,7 +291,7 @@ class CurrentHolding:
         self.portfolio_percentage = self.market_value / total_portfolio_market_value
 
 
-class CurrentHoldings:
+class HoldingsManager:
     def __init__(self):
         # Current data to be a dict symbols of CurrentHolding obj ...
         self._current_holdings = {}
@@ -415,10 +382,15 @@ class CurrentHoldings:
 
 
 class TimePeriodReturn:
-    def __init__(self, starting_balance, cash_flow_store, subperiod_returns=None):
+    def __init__(self, starting_balance, cash_flow_store):
         self.starting_balance = starting_balance
         self._cash_flow_store = cash_flow_store
-        self.subperiod_returns = subperiod_returns
+
+        self._generate_subperiod_returns()
+
+    # Abstract method
+    def _generate_subperiod_returns(self):
+        raise NotImplementedError
 
     @property
     def gain(self):
@@ -445,80 +417,66 @@ class TimePeriodReturn:
 
 
 class MonthlyReturn(TimePeriodReturn):
-    def __init__(
-        self, month_index, year, starting_balance, ending_balance, cash_flow_store
-    ):
-        # Month is an integer (ex. 1=January, 2=February...12=December)
+    def __init__(self, month, year, starting_balance, ending_balance, cash_flow_store):
         super().__init__(starting_balance, cash_flow_store)
         self.year = year
-        self.month = month_index
-        self.month_name = calendar.month_name[month_index]
-
-        # Balance is a Decimal
+        self.month = month
+        self.month_name = calendar.month_name[month]
         self.ending_balance = ending_balance
 
-    @property
-    def total_cash_flow_amount(self):
-        return self._cash_flow_store.get_total_cash_flow_amount_for_month(
-            self.year, self.month
+        self.total_cash_flow_amount, self.adjusted_cash_flow_amount = cash_flow_store.get_cash_flow_amount_for_month(
+            year, month
         )
 
-    @property
-    def adjusted_cash_flow_amount(self):
-        return self._cash_flow_store.get_adjusted_cash_flow_amount_for_month(
-            self.year, self.month
-        )
+    def _generate_subperiod_returns(self):
+        self.subperiod_returns = None
 
 
 class YearlyReturn(TimePeriodReturn):
-    def __init__(
-        self, year, starting_balance, monthly_ending_balances, cash_flow_store
-    ):
-        # monthly_ending_balances is a dict key is year,  list of Decimals for each month is value.
-        # Previous year will have 12, current year will have up to and including current month.
-
+    def __init__(self, year, starting_balance, ending_balances, cash_flow_store):
+        super().__init__(starting_balance, cash_flow_store)
         self.year = year
-        monthly_returns = self._get_monthly_returns(
-            starting_balance, monthly_ending_balances, cash_flow_store
-        )
-        super().__init__(starting_balance, cash_flow_store, monthly_returns)
+        self.ending_balances = ending_balances
 
-    def _get_monthly_returns(self, starting_balance, ending_balances, cash_flow_store):
-        for year, monthly_ending_balances in ending_balances.items():
-            monthly_data = []
+    def _generate_subperiod_returns(self):
+        monthly_returns = []
+        starting_balance = self.starting_balance
+
+        for year, monthly_ending_balances in self.ending_balances.items():
             for month, ending_balance in enumerate(monthly_ending_balances, start=1):
                 monthly_return = MonthlyReturn(
-                    month, year, starting_balance, ending_balance, cash_flow_store
+                    month, year, starting_balance, ending_balance, self._cash_flow_store
                 )
-                monthly_data.append(monthly_return)
+                monthly_returns.append(monthly_return)
                 starting_balance = ending_balance
-        return monthly_data
+        self.subperiod_returns = monthly_returns
 
 
 class MultiYearReturn(TimePeriodReturn):
     def __init__(
         self, start_year, end_year, starting_balance, ending_balances, cash_flow_store
     ):
+        super().__init__(starting_balance, cash_flow_store)
         self.start_year = start_year
         self.end_year = end_year
-        # ending_balances is a dict of year keys with lists for months
-        yearly_returns = self._get_yearly_returns(
-            starting_balance, ending_balances, cash_flow_store
-        )
-        super().__init__(starting_balance, cash_flow_store, yearly_returns)
+        self.ending_balances = ending_balances
 
-    def _get_yearly_returns(self, starting_balance, ending_balances, cash_flow_store):
-        # Should this be dict, is ending balances dict in correct order
+    def _generate_subperiod_returns(self):
         yearly_returns = []
+        starting_balance = self.starting_balance
+
         # make sure keys are sorted
-        for year, monthly_ending_balances in ending_balances.items():
+        for year, monthly_ending_balances in self.ending_balances.items():
             monthly_ending_balances_dict = {year: monthly_ending_balances}
             yearly_return = YearlyReturn(
-                year, starting_balance, monthly_ending_balances_dict, cash_flow_store
+                year,
+                starting_balance,
+                monthly_ending_balances_dict,
+                self._cash_flow_store,
             )
             yearly_returns.append(yearly_return)
             starting_balance = monthly_ending_balances[-1]
-        return yearly_returns
+        self.subperiod_returns = yearly_returns
 
     @property
     def annualized_return(self):
