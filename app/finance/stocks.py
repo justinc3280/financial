@@ -48,22 +48,22 @@ class Stocks:
         self._initialized = False
 
     def _initialize(self):
-        self._current_holdings = HoldingsManager()
+        self._holdings = HoldingsManager()
         self._cash_flow_store = CashFlowStore()
 
         for transaction in sorted(self._transactions, key=lambda x: x.date):
             self._cash_flow_store.add_transaction(transaction)
             if transaction.category.name in self.stock_transaction_categories:
-                self._current_holdings.add_transaction(transaction)
+                self._holdings.add_transaction(transaction)
 
-        self._current_holdings.set_market_values()  # make lazy??
+        self._holdings.set_market_values()  # make lazy??
         self._initialized = True
 
     def get_current_holdings(self):
-        return self._current_holdings
+        return self._holdings  # ???
 
     def _get_monthly_total_market_value_for_year(self, year):
-        return self._current_holdings.get_monthly_total_market_value_for_year(year)
+        return self._holdings.get_monthly_total_market_value_for_year(year)
 
     def _get_total_ending_balances_for_years(self, start_year, end_year):
         ending_balances = {}
@@ -178,13 +178,28 @@ class HistoricalDataPoint:
         self.market_value = round_decimal(self.quantity * price_per_share)
 
 
-class CurrentHolding:
+class HistoricalData:
+    def __init__(self, symbol):
+        self.symbol = symbol
+
+    def update_data(
+        self,
+        transaction_date,
+        previous_quantity,
+        new_quantity,
+        previous_cost_basis,
+        new_cost_basis,
+    ):
+        pass
+
+
+class Holding:
     def __init__(self, symbol):
         self.symbol = symbol
         self.quantity = 0
         self.cost_basis = 0
         self.portfolio_percentage = None
-        self._historical_data = {}
+        self._historical_data = {}  # (dict): year to list of HistoricalDataPoint
 
     def update_holding(self, transaction_date, quantity, cost_basis):
         previous_quantity = self.quantity
@@ -241,9 +256,7 @@ class CurrentHolding:
         return monthly_prices
 
     def set_historical_market_values(self):
-        # Round to beginning of year ??
         start_date = str(date(min(self._historical_data.keys()), 1, 1))
-        # Round to end of year ??
         end_date = str(date(max(self._historical_data.keys()), 12, 31))
         monthly_price_data = self._get_stock_monthly_close_prices(
             self.symbol, start_date, end_date
@@ -280,9 +293,7 @@ class CurrentHolding:
 
     @property
     def cost_per_share(self):
-        if (
-            self.quantity > 0
-        ):  # can assume > 0? will cost_basis always be 0 if quantity is 0?
+        if self.quantity > 0:
             return self.cost_basis / self.quantity
         else:
             return 0
@@ -293,15 +304,14 @@ class CurrentHolding:
 
 class HoldingsManager:
     def __init__(self):
-        # Current data to be a dict symbols of CurrentHolding obj ...
-        self._current_holdings = {}
+        self._holdings = {}  # (dict): symbols to Holding object
         # self._total_cost_basis = 0
 
     def add_transaction(self, transaction):
         symbol, date, quantity, cost_basis = self._get_transaction_data(transaction)
-        if symbol and symbol not in self._current_holdings:
-            self._current_holdings[symbol] = CurrentHolding(symbol)
-        self._current_holdings[symbol].update_holding(date, quantity, cost_basis)
+        if symbol and symbol not in self._holdings:
+            self._holdings[symbol] = Holding(symbol)
+        self._holdings[symbol].update_holding(date, quantity, cost_basis)
 
         # cost basis is constant so it can be pre-calculated
         # self._total_cost_basis += cost_basis  # not working
@@ -333,8 +343,8 @@ class HoldingsManager:
 
     def set_market_values(self):
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            for current_holding in self._current_holdings.values():
-                executor.submit(current_holding.set_historical_market_values)
+            for holding in self._holdings.values():
+                executor.submit(holding.set_historical_market_values)
 
     @property
     def total_cost_basis(self):
@@ -349,7 +359,7 @@ class HoldingsManager:
     def total_market_value(self):
         # market value fluctuates so it is calculated on the fly
         total = 0
-        for holding in self._current_holdings.values():
+        for holding in self._holdings.values():
             # Protect against iex 'Unknown Symbol' error (ex. ALOG)
             if holding.quantity > 0:
                 total += holding.market_value
@@ -357,19 +367,16 @@ class HoldingsManager:
 
     def get_current_holdings(self):
         current_holdings = []
-        for holding in self._current_holdings.values():
+        for holding in self._holdings.values():
             if holding.quantity > 0:
                 holding.set_percentage(self.total_market_value)
                 current_holdings.append(holding)
         return current_holdings
 
-    def get_holding(self, symbol):
-        return self._current_holdings.get(symbol)
-
     def get_monthly_total_market_value_for_year(self, year):
         total_monthly_market_value = []
-        for current_holding in self._current_holdings.values():
-            for historical_data_point in current_holding._historical_data.get(year, []):
+        for holding in self._holdings.values():
+            for historical_data_point in holding._historical_data.get(year, []):
                 # why round??
                 market_value = round_decimal(historical_data_point.market_value)
                 if historical_data_point.month - 1 >= len(total_monthly_market_value):
@@ -418,7 +425,6 @@ class TimePeriodReturn:
 
 class MonthlyReturn(TimePeriodReturn):
     def __init__(self, month, year, starting_balance, ending_balance, cash_flow_store):
-        super().__init__(starting_balance, cash_flow_store)
         self.year = year
         self.month = month
         self.month_name = calendar.month_name[month]
@@ -428,15 +434,17 @@ class MonthlyReturn(TimePeriodReturn):
             year, month
         )
 
+        super().__init__(starting_balance, cash_flow_store)
+
     def _generate_subperiod_returns(self):
         self.subperiod_returns = None
 
 
 class YearlyReturn(TimePeriodReturn):
     def __init__(self, year, starting_balance, ending_balances, cash_flow_store):
-        super().__init__(starting_balance, cash_flow_store)
         self.year = year
         self.ending_balances = ending_balances
+        super().__init__(starting_balance, cash_flow_store)
 
     def _generate_subperiod_returns(self):
         monthly_returns = []
@@ -456,10 +464,10 @@ class MultiYearReturn(TimePeriodReturn):
     def __init__(
         self, start_year, end_year, starting_balance, ending_balances, cash_flow_store
     ):
-        super().__init__(starting_balance, cash_flow_store)
         self.start_year = start_year
         self.end_year = end_year
         self.ending_balances = ending_balances
+        super().__init__(starting_balance, cash_flow_store)
 
     def _generate_subperiod_returns(self):
         yearly_returns = []
