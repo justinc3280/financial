@@ -7,7 +7,10 @@
 <table class="table">
     <tr>
         <th>Year</th>
-        <th>Return</th>
+        <th>Return (%)</th>
+        {% if 'benchmark_return_pct' in multi_year_return_return %}
+        <th>Benchmark Return (%)</th>
+        {% endif %}
     </tr>
     {% for yearly_return in multi_year_return.subperiod_returns %}
         <tr>

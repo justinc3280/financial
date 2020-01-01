@@ -13,6 +13,9 @@
         <th>Gains (Losses)</th>
         <th>Ending Value</th>
         <th>Return (%)</th>
+        {% if 'benchmark_return_pct' in annual_return %}
+        <th>Benchmark Return (%)</th>
+        {% endif %}
     </tr>
     {% for monthly_return in annual_return.subperiod_returns %}
         <tr>
@@ -23,6 +26,9 @@
             <td>{{ monthly_return.gain | money }}</td>
             <td>{{ monthly_return.ending_balance | money }}</td>
             <td>{{ monthly_return.return_pct | percentage }}</td>
+            {% if 'benchmark_return_pct' in monthly_return %}
+            <td>{{ monthly_return.benchmark_return_pct | percentage }}</td>
+            {% endif %}
         </tr>
     {% endfor %}
     <tr class="font-weight-bold">
@@ -33,6 +39,9 @@
         <td></td>
         <td></td>
         <td>{{ annual_return.return_pct | percentage }}</td>
+        {% if 'benchmark_return_pct' in annual_return %}
+        <td>{{ annual_return.benchmark_return_pct | percentage }}</td>
+        {% endif %}
     </tr>
 </table>
 
