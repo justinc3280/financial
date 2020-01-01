@@ -62,28 +62,26 @@ class Stocks:
             if transaction.category.name in self.stock_transaction_categories:
                 self._holdings.add_transaction(transaction)
 
-        self._holdings.set_market_values()  # make lazy??
+        self._holdings.set_market_prices()  # make lazy??
         self._initialized = True
 
     def get_current_holdings(self):
         return self._holdings.render_current_holdings()
 
-    def _get_monthly_total_market_value_for_year(self, year):
-        return self._holdings.get_monthly_total_market_value_for_year(year)
-
     def _get_total_ending_balances_for_years(self, start_year, end_year):
         ending_balances = {}
         for year in range(start_year - 1, end_year + 1):
-            market_values = self._get_monthly_total_market_value_for_year(year)
+            market_values = self._holdings.get_monthly_total_market_value_for_year(year)
             cash_values = self._total_brokerage_cash_balances.get(year)
 
             month_end_balances = []
             for i, amount in enumerate(market_values):
                 cash = cash_values[i]
                 month_end_balances.append(amount + cash)
+
             if year < start_year:
                 starting_balance = month_end_balances[-1] if month_end_balances else 0
-            else:
+            elif month_end_balances:
                 ending_balances[year] = month_end_balances
         return ending_balances, starting_balance
 
@@ -172,16 +170,33 @@ class HistoricalDataPoint:
         self.symbol = symbol
         self.quantity = quantity
         self.cost_basis = cost_basis
-        self.price_per_share = 0
-        self.market_value = 0
+        self.price_per_share = None
 
     def update(self, new_quantity, new_cost_basis):
         self.quantity = new_quantity
         self.cost_basis = new_cost_basis
 
-    def set_market_value(self, price_per_share):
+    def set_market_price(self, price_per_share):
         self.price_per_share = price_per_share
-        self.market_value = round_decimal(self.quantity * price_per_share)
+
+    @property
+    def market_value(self):
+        return (
+            round_decimal(self.quantity * self.price_per_share)
+            if self.price_per_share
+            else None
+        )
+
+    def render(self):
+        return {
+            'symbol': self.symbol,
+            'month': self.month,
+            'year': self.year,
+            'quantity': self.quantity,
+            'cost_basis': self.cost_basis,
+            'price_per_share': self.price_per_share,
+            'market_value': self.market_value,
+        }
 
 
 class Holding:
@@ -260,18 +275,18 @@ class Holding:
                 close_price = monthly_price_data.get(date_str)
 
                 # if current month hasen't had a trading day there will be no close price yet.
-                # so use the previous month close price as a default
                 if close_price is None:
-                    prev_month_date_str = '{}-{:02d}'.format(
-                        year, historical_data_point.month - 1
-                    )
-                    close_price = monthly_price_data.get(prev_month_date_str, 0)
+                    continue
 
                 close_price = get_decimal(close_price)
-                historical_data_point.set_market_value(close_price)
+                historical_data_point.set_market_price(close_price)
 
     def get_monthly_historical_market_values(self, year):
-        return self._historical_data.get(year, [])
+        return [
+            historical_data_point
+            for historical_data_point in self._historical_data.get(year, [])
+            if historical_data_point.market_value is not None
+        ]
 
     @staticmethod
     @cached
@@ -347,7 +362,7 @@ class HoldingsManager:
             return symbol, transaction.date, quantity, cost_basis
         return None, None, None, None
 
-    def set_market_values(self):
+    def set_market_prices(self):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             for holding in self._holdings.values():
                 executor.submit(holding.set_historical_market_values)
