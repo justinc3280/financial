@@ -62,7 +62,7 @@ class Stocks:
             if transaction.category.name in self.stock_transaction_categories:
                 self._holdings.add_transaction(transaction)
 
-        self._holdings.set_market_values()  # make lazy??
+        self._holdings.set_market_prices()  # make lazy??
         self._initialized = True
 
     def get_current_holdings(self):
@@ -176,7 +176,7 @@ class HistoricalDataPoint:
         self.quantity = new_quantity
         self.cost_basis = new_cost_basis
 
-    def set_market_value(self, price_per_share):
+    def set_market_price(self, price_per_share):
         self.price_per_share = price_per_share
 
     @property
@@ -279,7 +279,7 @@ class Holding:
                     continue
 
                 close_price = get_decimal(close_price)
-                historical_data_point.set_market_value(close_price)
+                historical_data_point.set_market_price(close_price)
 
     def get_monthly_historical_market_values(self, year):
         return [
@@ -362,7 +362,7 @@ class HoldingsManager:
             return symbol, transaction.date, quantity, cost_basis
         return None, None, None, None
 
-    def set_market_values(self):
+    def set_market_prices(self):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             for holding in self._holdings.values():
                 executor.submit(holding.set_historical_market_values)
