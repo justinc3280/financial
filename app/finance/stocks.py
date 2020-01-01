@@ -100,6 +100,7 @@ class Stocks:
         ending_balances, starting_balance = self._get_total_ending_balances_for_years(
             year, year
         )
+
         benchmark_ending_balances, benchmark_start_balance = self._get_total_ending_balances_for_years(
             year, year, self._benchmark
         )
@@ -118,12 +119,17 @@ class Stocks:
         ending_balances, starting_balance = self._get_total_ending_balances_for_years(
             start_year, end_year
         )
+        benchmark_ending_balances, benchmark_start_balance = self._get_total_ending_balances_for_years(
+            start_year, end_year, self._benchmark
+        )
         multi_year_return = MultiYearReturn(
             start_year,
             end_year,
             starting_balance,
             ending_balances,
             self._cash_flow_store,
+            benchmark_start_balance,
+            benchmark_ending_balances,
         )
         return multi_year_return.render()
 
@@ -352,7 +358,8 @@ class HoldingsManager:
         if benchmark:
             benchmark_holding = Holding(benchmark)
             # fix date, once pass in all transactions and set date to min date
-            benchmark_holding.update_holding(date(2011, 1, 1), 1, 0)
+            # minus one year so starting balance isn't 0
+            benchmark_holding.update_holding(date(2010, 1, 1), 1, 0)
             self._benchmark_holdings[benchmark] = benchmark_holding
 
     def add_transaction(self, transaction):

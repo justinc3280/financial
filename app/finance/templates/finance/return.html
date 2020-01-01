@@ -8,7 +8,7 @@
     <tr>
         <th>Year</th>
         <th>Return (%)</th>
-        {% if 'benchmark_return_pct' in multi_year_return_return %}
+        {% if 'benchmark_return_pct' in multi_year_return %}
         <th>Benchmark Return (%)</th>
         {% endif %}
     </tr>
@@ -16,15 +16,24 @@
         <tr>
             <td><a class="text-dark" href="{{ url_for('finance.stocks_return_data', year=yearly_return.year) }}">{{ yearly_return.year }}</a></td>
             <td>{{ yearly_return.return_pct | percentage }}</td>
+            {% if 'benchmark_return_pct' in yearly_return %}
+            <td>{{ yearly_return.benchmark_return_pct | percentage }}</td>
+            {% endif %}
         </tr>
     {% endfor %}
     <tr class="font-weight-bold">
         <td>Overall Return</td>
         <td>{{ multi_year_return.return_pct | percentage }}</td>
+        {% if 'benchmark_return_pct' in multi_year_return %}
+        <td>{{ multi_year_return.benchmark_return_pct | percentage }}</td>
+        {% endif %}
     </tr>
     <tr class="font-weight-bold">
         <td>Compounded Annual Return</td>
         <td>{{ multi_year_return.annualized_return | percentage }}</td>
+        {% if 'benchmark_annualized_return' in multi_year_return %}
+        <td>{{ multi_year_return.benchmark_annualized_return | percentage }}</td>
+        {% endif %}
     </tr>
 </table>
 

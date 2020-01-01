@@ -79,7 +79,7 @@ class MonthlyReturn(TimePeriodReturn):
             self.adjusted_cash_flow_amount = 0
 
         if benchmark_start and benchmark_end:
-            benchmark_return = self.create_benchmark_return(
+            benchmark_return = self.__class__(
                 month, year, benchmark_start, benchmark_end
             )
         else:
@@ -91,10 +91,6 @@ class MonthlyReturn(TimePeriodReturn):
 
     def _generate_subperiod_returns(self):
         self.subperiod_returns = None
-
-    @classmethod
-    def create_benchmark_return(cls, month, year, benchmark_start, benchmark_end):
-        return cls(month, year, benchmark_start, benchmark_end)
 
     @property
     def gain(self):
@@ -132,7 +128,7 @@ class YearlyReturn(TimePeriodReturn):
         self.benchmark_ending_balances = benchmark_ending_balances
 
         if benchmark_start and benchmark_ending_balances:
-            benchmark_return = self.create_benchmark_return(
+            benchmark_return = self.__class__(
                 year, benchmark_start, benchmark_ending_balances
             )
         else:
@@ -168,10 +164,6 @@ class YearlyReturn(TimePeriodReturn):
                 benchmark_start = benchmark_end
         self.subperiod_returns = monthly_returns
 
-    @classmethod
-    def create_benchmark_return(cls, year, benchmark_start, benchmark_ending_balances):
-        return cls(year, benchmark_start, benchmark_ending_balances)
-
     def render(self):
         render = super().render()
         render['year'] = self.year
@@ -185,7 +177,7 @@ class MultiYearReturn(TimePeriodReturn):
         end_year,
         starting_balance,
         ending_balances,
-        cash_flow_store,
+        cash_flow_store=None,
         benchmark_start=None,
         benchmark_ending_balances=None,
     ):
@@ -195,23 +187,48 @@ class MultiYearReturn(TimePeriodReturn):
 
         max_year = max(ending_balances.keys())
         ending_balance = ending_balances[max_year][-1]
-        super().__init__(starting_balance, ending_balance, cash_flow_store)
+
+        self.benchmark_start = benchmark_start
+        self.benchmark_ending_balances = benchmark_ending_balances
+
+        if benchmark_start and benchmark_ending_balances:
+            benchmark_return = self.__class__(
+                start_year, end_year, benchmark_start, benchmark_ending_balances
+            )
+        else:
+            benchmark_return = None
+        super().__init__(
+            starting_balance, ending_balance, cash_flow_store, benchmark_return
+        )
 
     def _generate_subperiod_returns(self):
         yearly_returns = []
         starting_balance = self.starting_balance
+        benchmark_start = self.benchmark_start
 
         # make sure keys are sorted
         for year, monthly_ending_balances in self.ending_balances.items():
             monthly_ending_balances_dict = {year: monthly_ending_balances}
+            benchmark_ending_balances = (
+                {year: self.benchmark_ending_balances[year]}
+                if hasattr(self, 'benchmark_return')
+                else None
+            )
             yearly_return = YearlyReturn(
                 year,
                 starting_balance,
                 monthly_ending_balances_dict,
                 self._cash_flow_store,
+                benchmark_start,
+                benchmark_ending_balances,
             )
             yearly_returns.append(yearly_return)
             starting_balance = monthly_ending_balances[-1]
+            benchmark_start = (
+                benchmark_ending_balances[year][-1]
+                if benchmark_ending_balances and benchmark_ending_balances.get(year)
+                else None
+            )
         self.subperiod_returns = yearly_returns
 
     @property
@@ -231,4 +248,9 @@ class MultiYearReturn(TimePeriodReturn):
     def render(self):
         render = super().render()
         render['annualized_return'] = self.annualized_return
+        if hasattr(self, 'benchmark_return'):
+            render[
+                'benchmark_annualized_return'
+            ] = self.benchmark_return.annualized_return
         return render
+
