@@ -26,13 +26,14 @@ class Stocks:
         'Transfer Stock In',
         'Transfer Stock Out',
     ]
-
-    def __init__(self, accounts=[]):
+    # S&P 500 (TR)
+    def __init__(self, accounts=[], benchmark='VFINX'):
         self._accounts = []
         self._transactions = []
         self._total_brokerage_cash_balances = {}
         for account in accounts:
             self.add_account(account)
+        self._benchmark = benchmark
         self._initialized = False
 
     def __getattr__(self, name):
@@ -54,7 +55,7 @@ class Stocks:
         self._initialized = False
 
     def _initialize(self):
-        self._holdings = HoldingsManager()
+        self._holdings = HoldingsManager(benchmark=self._benchmark)
         self._cash_flow_store = CashFlowStore()
 
         for transaction in sorted(self._transactions, key=lambda x: x.date):
@@ -68,14 +69,21 @@ class Stocks:
     def get_current_holdings(self):
         return self._holdings.render_current_holdings()
 
-    def get_monthly_total_market_value_for_year(self, year):
+    def get_monthly_total_market_value_for_year(self, year, benchmark=None):
         return self._holdings.get_monthly_total_market_value_for_year(year)
 
-    def _get_total_ending_balances_for_years(self, start_year, end_year):
+    def _get_total_ending_balances_for_years(
+        self, start_year, end_year, benchmark=None
+    ):
         ending_balances = {}
         for year in range(start_year - 1, end_year + 1):
-            market_values = self.get_monthly_total_market_value_for_year(year)
-            cash_values = self._total_brokerage_cash_balances.get(year)
+            market_values = self.get_monthly_total_market_value_for_year(
+                year, benchmark
+            )
+            if benchmark:
+                cash_values = [0] * len(market_values)
+            else:
+                cash_values = self._total_brokerage_cash_balances.get(year)
 
             month_end_balances = []
             for i, amount in enumerate(market_values):
@@ -92,8 +100,18 @@ class Stocks:
         ending_balances, starting_balance = self._get_total_ending_balances_for_years(
             year, year
         )
+
+        benchmark_ending_balances, benchmark_start_balance = self._get_total_ending_balances_for_years(
+            year, year, self._benchmark
+        )
+
         yearly_return = YearlyReturn(
-            year, starting_balance, ending_balances, self._cash_flow_store
+            year,
+            starting_balance,
+            ending_balances,
+            self._cash_flow_store,
+            benchmark_start_balance,
+            benchmark_ending_balances,
         )
         return yearly_return.render()
 
@@ -101,12 +119,17 @@ class Stocks:
         ending_balances, starting_balance = self._get_total_ending_balances_for_years(
             start_year, end_year
         )
+        benchmark_ending_balances, benchmark_start_balance = self._get_total_ending_balances_for_years(
+            start_year, end_year, self._benchmark
+        )
         multi_year_return = MultiYearReturn(
             start_year,
             end_year,
             starting_balance,
             ending_balances,
             self._cash_flow_store,
+            benchmark_start_balance,
+            benchmark_ending_balances,
         )
         return multi_year_return.render()
 
@@ -327,9 +350,17 @@ class Holding:
 
 
 class HoldingsManager:
-    def __init__(self):
+    def __init__(self, benchmark=None):
         self._holdings = {}  # (dict): symbols to Holding object
         # self._total_cost_basis = 0
+
+        self._benchmark_holdings = {}
+        if benchmark:
+            benchmark_holding = Holding(benchmark)
+            # fix date, once pass in all transactions and set date to min date
+            # minus one year so starting balance isn't 0
+            benchmark_holding.update_holding(date(2010, 1, 1), 1, 0)
+            self._benchmark_holdings[benchmark] = benchmark_holding
 
     def add_transaction(self, transaction):
         symbol, date, quantity, cost_basis = self._get_transaction_data(transaction)
@@ -366,8 +397,11 @@ class HoldingsManager:
         return None, None, None, None
 
     def set_market_prices(self):
+        holdings = list(self._holdings.values()) + list(
+            self._benchmark_holdings.values()
+        )
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            for holding in self._holdings.values():
+            for holding in holdings:
                 executor.submit(holding.set_historical_market_values)
 
     @property
@@ -397,9 +431,13 @@ class HoldingsManager:
                 current_holdings.append(holding)
         return current_holdings
 
-    def get_monthly_total_market_value_for_year(self, year):
+    def get_monthly_total_market_value_for_year(self, year, benchmark=None):
         total_monthly_market_value = []
-        for holding in self._holdings.values():
+        if benchmark:
+            holdings = [self._benchmark_holdings[benchmark]]
+        else:
+            holdings = self._holdings.values()
+        for holding in holdings:
             for historical_data_point in holding.get_monthly_historical_market_values(
                 year
             ):
