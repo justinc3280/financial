@@ -68,10 +68,13 @@ class Stocks:
     def get_current_holdings(self):
         return self._holdings.render_current_holdings()
 
+    def get_monthly_total_market_value_for_year(self, year):
+        return self._holdings.get_monthly_total_market_value_for_year(year)
+
     def _get_total_ending_balances_for_years(self, start_year, end_year):
         ending_balances = {}
         for year in range(start_year - 1, end_year + 1):
-            market_values = self._holdings.get_monthly_total_market_value_for_year(year)
+            market_values = self.get_monthly_total_market_value_for_year(year)
             cash_values = self._total_brokerage_cash_balances.get(year)
 
             month_end_balances = []
