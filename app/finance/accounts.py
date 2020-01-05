@@ -6,7 +6,7 @@ from app.finance.utils import get_decimal, merge_dict_of_lists
 class AccountData:
     def __init__(self, account):
         self.name = account.name
-        self._starting_balance = account.starting_balance
+        self._starting_balance = get_decimal(account.starting_balance)
         self._category = account.category
         self._is_brokerage_account = (
             True if account.category.name == 'Brokerage Account' else False
@@ -19,7 +19,7 @@ class AccountData:
 
     def _generate_monthly_ending_balances(self):
         ending_monthly_balances = {}
-        current_balance = get_decimal(self._starting_balance)
+        current_balance = self._starting_balance
 
         for transaction in self.transactions:
             previous_balance = current_balance
@@ -52,6 +52,9 @@ class AccountData:
 
     def get_monthly_ending_balances(self):
         return self._ending_monthly_balances
+
+    def get_starting_balance(self):
+        return self._starting_balance
 
 
 class AccountManager:
