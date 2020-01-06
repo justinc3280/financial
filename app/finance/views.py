@@ -1,16 +1,14 @@
 import calendar
-from collections import defaultdict
 from datetime import date
 import json
 
 from flask import redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app import db
 from app.finance import finance
 from app.finance.accounts import AccountManager
-from app.finance.stocks import StocksManager
 from app.models import Account, Category, Paycheck, Transaction
+from app.stocks.stock import StocksManager
 
 
 @finance.route('/')
@@ -32,33 +30,6 @@ def accounts():
 def account_details(account_id):
     account = Account.query.filter_by(id=account_id).first_or_404()
     return render_template('finance/account_details.html', account=account)
-
-
-@finance.route('/stock_transactions')
-@login_required
-def stock_transactions():
-    stock_transactions = (
-        Transaction.query.join(Transaction.category)
-        .join(Transaction.account)
-        .filter(
-            Category.name.in_(
-                [
-                    'Buy',
-                    'Sell',
-                    'Dividend Reinvest',
-                    'Transfer Stock In',
-                    'Transfer Stock Out',
-                ]
-            ),
-            Account.user == current_user,
-        )
-        .order_by(Transaction.date)
-        .all()
-    )
-
-    return render_template(
-        "finance/stock_transactions.html", stock_transactions=stock_transactions
-    )
 
 
 @finance.route('/account/<int:account_id>/view_transactions')
@@ -458,35 +429,4 @@ def charts(category_name=None):
             }
         )
     return render_template('finance/charts.html', charts=charts)
-
-
-@finance.route('/stocks')
-@login_required
-def stocks():
-    brokerage_accounts = Account.get_brokerage_accounts(user_id=current_user.id)
-    stocks_manager = StocksManager(accounts=brokerage_accounts)
-    current_holdings = stocks_manager.get_current_holdings()
-    return render_template("finance/stocks.html", current_holdings=current_holdings)
-
-
-@finance.route('/stocks/return/data')
-@login_required
-def stocks_return_data():
-    year = int(request.args.get('year', date.today().year))
-    brokerage_accounts = Account.get_brokerage_accounts(user_id=current_user.id)
-    stocks_manager = StocksManager(accounts=brokerage_accounts)
-    annual_return = stocks_manager.get_monthly_roi_data(year)
-    return render_template('finance/return_data.html', annual_return=annual_return)
-
-
-@finance.route('/stocks/return/')
-@login_required
-def stocks_return():
-    start_year = 2011
-    end_year = int(request.args.get('year', date.today().year))
-
-    brokerage_accounts = Account.get_brokerage_accounts(user_id=current_user.id)
-    stocks_manager = StocksManager(accounts=brokerage_accounts)
-    multi_year_return = stocks_manager.get_compounded_roi(start_year, end_year)
-    return render_template('finance/return.html', multi_year_return=multi_year_return)
 

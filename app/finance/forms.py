@@ -1,4 +1,5 @@
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileAllowed, FileRequired
 from wtforms import (
     BooleanField,
     DateField,
@@ -8,7 +9,6 @@ from wtforms import (
     StringField,
     SubmitField,
 )
-from flask_wtf.file import FileAllowed, FileRequired
 from wtforms.validators import DataRequired, Optional
 
 
@@ -74,12 +74,3 @@ class PaychecksForm(FlaskForm):
                     self.roth_retirement
                 )
     '''
-
-
-class StockTransactionForm(FlaskForm):
-    symbol = StringField('Symbol', validators=[DataRequired()])
-    quantity = FloatField('Quantity', validators=[DataRequired()])
-    cost_basis = FloatField('Cost Basis', validators=[DataRequired()])
-    transaction_fee = FloatField('Fee', validators=[DataRequired()])
-    split_adjustment = FloatField('Stock Split Adjustment', validators=[Optional()])
-    market_value = FloatField('Market Value', validators=[Optional()])

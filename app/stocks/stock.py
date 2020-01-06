@@ -6,14 +6,9 @@ import json
 import logging
 
 from app.caching import cached
-from app.finance.stock_data_api import get_historical_monthly_prices, get_latest_price
-from app.finance.returns import MultiYearReturn, YearlyReturn
-from app.finance.utils import (
-    current_date,
-    get_decimal,
-    round_decimal,
-    merge_dict_of_lists,
-)
+from app.stocks.stock_data_api import get_historical_monthly_prices, get_latest_price
+from app.stocks.returns import MultiYearReturn, YearlyReturn
+from app.utils import current_date, get_decimal, round_decimal, merge_dict_of_lists
 
 logger = logging.getLogger(__name__)
 

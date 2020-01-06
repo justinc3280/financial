@@ -30,7 +30,7 @@
         <td>{{ properties.get('cost_basis', 0) | money }}</td>
         <td>{{ stock_transaction.description }}</td>
         <td>
-          <a href="#" data-modal-url="{{ url_for('finance.edit_stock_transaction', transaction_id=stock_transaction.id) }}"><i class="fa fa-pencil-square-o" aria-hidden="true"></i></a>
+          <a href="#" data-modal-url="{{ url_for('stocks.edit_stock_transaction', transaction_id=stock_transaction.id) }}"><i class="fa fa-pencil-square-o" aria-hidden="true"></i></a>
         </td>
       </tr>
     {% endfor %}

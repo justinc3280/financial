@@ -20,6 +20,7 @@ from app.auth import auth as auth_bp
 from app.caching import cache
 from app.errors import errors as errors_bp
 from app.finance import finance as finance_bp
+from app.stocks import stocks as stocks_bp
 from app.jinja import register_jinja_filters
 
 
@@ -38,6 +39,7 @@ def create_app(config_object=Config):
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(errors_bp)
     app.register_blueprint(finance_bp)
+    app.register_blueprint(stocks_bp)
 
     register_jinja_filters(app.jinja_env)
 
