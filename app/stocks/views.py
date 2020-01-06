@@ -46,7 +46,7 @@ def current_holdings():
 @stocks.route('/stocks/return/data')
 @login_required
 def stocks_return_data():
-    year = int(request.args.get('year', date.today().year))
+    year = int(request.args.get('year', current_date.year))
     brokerage_accounts = Account.get_brokerage_accounts(user_id=current_user.id)
     stocks_manager = StocksManager(accounts=brokerage_accounts)
     annual_return = stocks_manager.get_monthly_roi_data(year)
