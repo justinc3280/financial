@@ -1,7 +1,7 @@
 import calendar
 import logging
 
-from app.finance.utils import current_date, get_decimal
+from app.utils import current_date, get_decimal
 
 logger = logging.getLogger(__name__)
 

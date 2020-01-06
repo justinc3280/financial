@@ -3,8 +3,8 @@
 {% block content %}
 <div class="container-fluid">
 	<h4>Stocks</h4>
-	<a class="btn btn-primary" href="{{ url_for('finance.stock_transactions') }}">View Stock Transactions</a>
-	<a class="btn btn-primary" href="{{ url_for('finance.stocks_return') }}">ROI</a>
+	<a class="btn btn-primary" href="{{ url_for('stocks.stock_transactions') }}">View Stock Transactions</a>
+	<a class="btn btn-primary" href="{{ url_for('stocks.stocks_return') }}">ROI</a>
 	<div class="row">
 		{% for holding in current_holdings.holdings %}
 			<div class="col-md-6">

@@ -1,5 +1,5 @@
 from datetime import date
-from app.finance.utils import get_decimal, merge_dict_of_lists
+from app.utils import get_decimal, merge_dict_of_lists
 
 
 class AccountData:

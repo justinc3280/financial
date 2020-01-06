@@ -14,7 +14,7 @@
     </tr>
     {% for yearly_return in multi_year_return.subperiod_returns %}
         <tr>
-            <td><a class="text-dark" href="{{ url_for('finance.stocks_return_data', year=yearly_return.year) }}">{{ yearly_return.year }}</a></td>
+            <td><a class="text-dark" href="{{ url_for('stocks.stocks_return_data', year=yearly_return.year) }}">{{ yearly_return.year }}</a></td>
             <td>{{ yearly_return.return_pct | percentage }}</td>
             {% if 'benchmark_return_pct' in yearly_return %}
             <td>{{ yearly_return.benchmark_return_pct | percentage }}</td>
