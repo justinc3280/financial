@@ -18,42 +18,26 @@ from app.finance.utils import (
 logger = logging.getLogger(__name__)
 
 
-class Stocks:
+class StocksManager:
     # S&P 500 (TR)
-    def __init__(self, accounts=[], benchmark='VFINX'):
-        self._accounts = []
+    def __init__(self, accounts, benchmark='VFINX'):
+        self._accounts = accounts
         self._transactions = []
-        for account in accounts:
-            self.add_account(account)
-        self._benchmark = benchmark
-        self._initialized = False
-
         self._cash_starting_balance = 0
         # starting holdings??
 
-    def __getattr__(self, name):
-        if not self._initialized:
-            self._initialize()
-        return getattr(self, name)
+        for account in accounts:
+            self._transactions.extend(account.transactions)
+            self._cash_starting_balance += get_decimal(account.starting_balance)
 
-    def add_account(self, account):
-        self._accounts.append(account)
-        self._transactions.extend(account.transactions)
-        self._cash_starting_balance += account.get_starting_balance()
-        self._initialized = False
+        self._benchmark = benchmark
 
-    def _initialize(self):
+        self._cash_flow_store = CashFlowStore(transactions=self._transactions)
         self._holdings = HoldingsManager(
-            starting_cash_balance=self._cash_starting_balance, benchmark=self._benchmark
-        )
-        self._cash_flow_store = CashFlowStore()
-
-        for transaction in sorted(self._transactions, key=lambda x: x.date):
-            self._cash_flow_store.add_transaction(transaction)
-            self._holdings.add_transaction(transaction)
-
-        self._holdings.set_market_prices()  # make lazy??
-        self._initialized = True
+            transactions=self._transactions,
+            starting_cash_balance=self._cash_starting_balance,
+            benchmark=self._benchmark,
+        )  # make separate holdings manager for benchmark??
 
     def get_current_holdings(self):
         return self._holdings.render_current_holdings()
@@ -134,14 +118,12 @@ class CashFlowStore:
         'Refund',
     ]
 
-    def __init__(self):
+    def __init__(self, transactions):
         self._transactions = []  # list of tuples [(date, amount), ...]
-
-    def add_transaction(self, transaction):
-        cash_flow_amount = self._get_transaction_cash_flow_amount(transaction)
-
-        if cash_flow_amount:  # don't need to include 0 or None
-            self._transactions.append((transaction.date, cash_flow_amount))
+        for transaction in sorted(transactions, key=lambda x: x.date):
+            cash_flow_amount = self._get_transaction_cash_flow_amount(transaction)
+            if cash_flow_amount:  # don't need to include 0 or None
+                self._transactions.append((transaction.date, cash_flow_amount))
 
     def _get_transaction_cash_flow_amount(self, transaction):
         if transaction.category.name not in self.CASH_FLOW_CATEGORIES:
@@ -364,7 +346,11 @@ class HoldingsManager:
     ]
 
     def __init__(
-        self, starting_cash_balance=0, benchmark=None, start_date=date(2010, 1, 1)
+        self,
+        transactions,
+        starting_cash_balance=0,
+        benchmark=None,
+        start_date=date(2010, 1, 1),
     ):
         self._holdings = {}  # (dict): symbols to Holding object
         # self._total_cost_basis = 0
@@ -375,6 +361,19 @@ class HoldingsManager:
         )
         self._cash_holding = cash_holding
 
+        for transaction in sorted(transactions, key=lambda x: x.date):
+            cash_amount = get_decimal(transaction.amount)
+            self._cash_holding.update_holding(
+                transaction.date, cash_amount, cash_amount
+            )
+            if transaction.category.name in self.STOCK_TRANSACTION_CATEGORIES:
+                symbol, quantity, cost_basis = self._get_transaction_data(transaction)
+                if symbol and symbol not in self._holdings:
+                    self._holdings[symbol] = Holding(symbol)
+                self._holdings[symbol].update_holding(
+                    transaction.date, quantity, cost_basis
+                )
+
         self._benchmark_holdings = {}
         if benchmark:
             benchmark_holding = Holding(benchmark)
@@ -383,19 +382,7 @@ class HoldingsManager:
             benchmark_holding.update_holding(start_date, 1, 0)
             self._benchmark_holdings[benchmark] = benchmark_holding
 
-    def add_transaction(self, transaction):
-        cash_amount = get_decimal(transaction.amount)
-        self._cash_holding.update_holding(transaction.date, cash_amount, cash_amount)
-        if transaction.category.name in self.STOCK_TRANSACTION_CATEGORIES:
-            symbol, quantity, cost_basis = self._get_transaction_data(transaction)
-            if symbol and symbol not in self._holdings:
-                self._holdings[symbol] = Holding(symbol)
-            self._holdings[symbol].update_holding(
-                transaction.date, quantity, cost_basis
-            )
-
-        # cost basis is constant so it can be pre-calculated
-        # self._total_cost_basis += cost_basis  # not working
+        self._set_market_prices()
 
     def _get_transaction_data(self, transaction):
         properties = transaction.get_properties()
@@ -422,7 +409,7 @@ class HoldingsManager:
             return symbol, quantity, cost_basis
         return None, None, None
 
-    def set_market_prices(self):
+    def _set_market_prices(self):
         holdings = list(self._holdings.values()) + list(
             self._benchmark_holdings.values()
         )

@@ -5,21 +5,12 @@ import json
 
 from flask import redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy.orm import aliased, joinedload
 
 from app import db
 from app.finance import finance
 from app.finance.accounts import AccountManager
-from app.finance.stocks import Stocks
+from app.finance.stocks import StocksManager
 from app.models import Account, Category, Paycheck, Transaction
-
-
-def get_accounts():
-    return (
-        Account.query.filter(Account.user == current_user)
-        .options(joinedload(Account.transactions), joinedload(Account.category))
-        .all()
-    )
 
 
 @finance.route('/')
@@ -193,7 +184,9 @@ def get_accounts_category_monthly_balances(year):
     for account_name, ending_balances in account_ending_balances.items():
         accounts_monthly_ending_balance[account_name] = list_to_dict(ending_balances)
 
-    stock_monthly_values = account_manager.get_stocks_monthly_market_values(year)
+    brokerage_accounts = Account.get_brokerage_accounts(user_id=current_user.id)
+    stocks_manager = StocksManager(accounts=brokerage_accounts)
+    stock_monthly_values = stocks_manager.get_monthly_total_market_value_for_year(year)
     accounts_monthly_ending_balance['Stocks (Market Value)'] = (
         list_to_dict(stock_monthly_values) if stock_monthly_values else None
     )
@@ -470,9 +463,9 @@ def charts(category_name=None):
 @finance.route('/stocks')
 @login_required
 def stocks():
-
-    account_manager = AccountManager(get_accounts())
-    current_holdings = account_manager.get_current_stock_holdings()
+    brokerage_accounts = Account.get_brokerage_accounts(user_id=current_user.id)
+    stocks_manager = StocksManager(accounts=brokerage_accounts)
+    current_holdings = stocks_manager.get_current_holdings()
     return render_template("finance/stocks.html", current_holdings=current_holdings)
 
 
@@ -480,10 +473,9 @@ def stocks():
 @login_required
 def stocks_return_data():
     year = int(request.args.get('year', date.today().year))
-
-    account_manager = AccountManager(get_accounts())
-    annual_return = account_manager.get_brokerage_roi_data(year)
-
+    brokerage_accounts = Account.get_brokerage_accounts(user_id=current_user.id)
+    stocks_manager = StocksManager(accounts=brokerage_accounts)
+    annual_return = stocks_manager.get_monthly_roi_data(year)
     return render_template('finance/return_data.html', annual_return=annual_return)
 
 
@@ -493,10 +485,8 @@ def stocks_return():
     start_year = 2011
     end_year = int(request.args.get('year', date.today().year))
 
-    account_manager = AccountManager(get_accounts())
-    multi_year_return = account_manager.get_brokerage_compounded_roi(
-        start_year, end_year
-    )
-
+    brokerage_accounts = Account.get_brokerage_accounts(user_id=current_user.id)
+    stocks_manager = StocksManager(accounts=brokerage_accounts)
+    multi_year_return = stocks_manager.get_compounded_roi(start_year, end_year)
     return render_template('finance/return.html', multi_year_return=multi_year_return)
 

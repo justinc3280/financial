@@ -72,13 +72,13 @@ def get_user_accounts(user_id):
     return response(payload)
 
 
-@api.route('/user/<int:user_id>/stocks')
-def get_user_current_stocks(user_id):
-    user = (
-        User.query.filter(User.id == user_id)
-        .options(joinedload(User.accounts))
-        .first_or_404()
-    )
-    account_manager = AccountManager(user.accounts)
-    stocks_data = account_manager.get_current_stock_holdings()
-    return response(stocks_data)
+# @api.route('/user/<int:user_id>/stocks')
+# def get_user_current_stocks(user_id):
+#     user = (
+#         User.query.filter(User.id == user_id)
+#         .options(joinedload(User.accounts))
+#         .first_or_404()
+#     )
+#     account_manager = AccountManager(user.accounts)
+#     stocks_data = account_manager.get_current_stock_holdings()
+#     return response(stocks_data)
