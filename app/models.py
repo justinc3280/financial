@@ -2,10 +2,10 @@ from datetime import date
 import json
 
 from flask_login import UserMixin
+from sqlalchemy.orm import joinedload
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app import db, login
-from sqlalchemy.orm import joinedload
 
 
 @login.user_loader
@@ -125,7 +125,7 @@ class Account(db.Model, Properties):
         return ending_balance
 
     @classmethod
-    def get_brokerage_accounts(cls, user_id):  # session??
+    def get_brokerage_accounts(cls, user_id):
         return (
             cls.query.filter(cls.user_id == user_id)
             .join(cls.category)
