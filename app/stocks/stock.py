@@ -445,9 +445,7 @@ class HoldingsManager:
             year - 1, 12, include_cash=include_cash
         )
 
-    def get_total_holdings_starting_market_value_for_month(
-        self, year, month, include_cash=True
-    ):
+    def get_starting_total_market_value_for_month(self, year, month, include_cash=True):
         prev_year, prev_month = get_previous_month_and_year(year, month)
         return self.get_total_holdings_market_value_for_month(
             prev_year, prev_month, include_cash

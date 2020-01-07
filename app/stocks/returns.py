@@ -76,7 +76,7 @@ class MonthlyReturn(TimePeriodReturn):
             self.total_cash_flow_amount = 0
             self.adjusted_cash_flow_amount = 0
 
-        starting_balance = holdings_manager.get_total_holdings_starting_market_value_for_month(
+        starting_balance = holdings_manager.get_starting_total_market_value_for_month(
             year, month
         )
         ending_balance = holdings_manager.get_total_holdings_market_value_for_month(
