@@ -1,103 +1,63 @@
-import calendar
-from collections import defaultdict
 import concurrent.futures
 from datetime import date
-import json
 import logging
 
 from app.caching import cached
 from app.stocks.stock_data_api import get_historical_monthly_prices, get_latest_price
 from app.stocks.returns import MultiYearReturn, YearlyReturn
-from app.utils import current_date, get_decimal, round_decimal, merge_dict_of_lists
+from app.utils import (
+    current_date,
+    get_decimal,
+    get_num_days_in_month,
+    get_previous_month_and_year,
+    round_decimal,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class StocksManager:
     # S&P 500 (TR)
-    def __init__(self, accounts, benchmark='VFINX'):
+    def __init__(self, accounts, starting_cash_balance=0, benchmark='VFINX'):
         self._accounts = accounts
         self._transactions = []
-        self._cash_starting_balance = 0
+        self._starting_cash_balance = starting_cash_balance
         # starting holdings??
 
         for account in accounts:
             self._transactions.extend(account.transactions)
-            self._cash_starting_balance += get_decimal(account.starting_balance)
+            self._starting_cash_balance += get_decimal(account.starting_balance)
 
         self._benchmark = benchmark
+        self._benchmark_holdings = HoldingsManager(
+            transactions=[], starting_holdings={benchmark: (1, 0)}
+        )
 
         self._cash_flow_store = CashFlowStore(transactions=self._transactions)
         self._holdings = HoldingsManager(
             transactions=self._transactions,
-            starting_cash_balance=self._cash_starting_balance,
-            benchmark=self._benchmark,
-        )  # make separate holdings manager for benchmark??
+            starting_cash_balance=self._starting_cash_balance,
+        )
 
     def get_current_holdings(self):
         return self._holdings.render_current_holdings()
 
-    def get_monthly_total_market_value_for_year(self, year, benchmark=None):
+    def get_monthly_total_market_value_for_year(self, year):
         return self._holdings.get_monthly_total_market_value_for_year(year)
 
     def get_monthly_roi_data(self, year):
-        monthly_ending_balances = self._holdings.get_monthly_total_market_value_for_year(
-            year, include_cash=True
-        )
-        ending_balances = {year: monthly_ending_balances}
-        starting_balance = self._holdings.get_starting_total_market_value_for_year(
-            year, include_cash=True
-        )
-
-        benchmark_month_ending_balances = self._holdings.get_benchmark_monthly_market_value_for_year(
-            year, benchmark=self._benchmark
-        )
-        benchmark_ending_balances = {year: benchmark_month_ending_balances}
-        benchmark_start_balance = self._holdings.get_starting_benchmark_value_for_year(
-            year, self._benchmark
-        )
-
         yearly_return = YearlyReturn(
-            year,
-            starting_balance,
-            ending_balances,
-            self._cash_flow_store,
-            benchmark_start_balance,
-            benchmark_ending_balances,
+            year, self._holdings, self._cash_flow_store, self._benchmark_holdings
         )
         return yearly_return.render()
 
     def get_compounded_roi(self, start_year, end_year):
-        ending_balances = {}
-        benchmark_ending_balances = {}
-        for year in range(start_year, end_year + 1):
-            month_end_balances = self._holdings.get_monthly_total_market_value_for_year(
-                year, include_cash=True
-            )
-            if month_end_balances:
-                ending_balances[year] = month_end_balances
-
-            benchmark_month_end_balances = self._holdings.get_benchmark_monthly_market_value_for_year(
-                year, benchmark=self._benchmark
-            )
-            if benchmark_month_end_balances:
-                benchmark_ending_balances[year] = benchmark_month_end_balances
-
-        starting_balance = self._holdings.get_starting_total_market_value_for_year(
-            start_year, include_cash=True
-        )
-        benchmark_start_balance = self._holdings.get_starting_benchmark_value_for_year(
-            start_year, self._benchmark
-        )
-
         multi_year_return = MultiYearReturn(
             start_year,
             end_year,
-            starting_balance,
-            ending_balances,
+            self._holdings,
             self._cash_flow_store,
-            benchmark_start_balance,
-            benchmark_ending_balances,
+            self._benchmark_holdings,
         )
         return multi_year_return.render()
 
@@ -136,7 +96,7 @@ class CashFlowStore:
 
     def get_cash_flow_amount_for_month(self, year, month):
         start_date = date(year, month, 1)
-        days_in_month = calendar.monthrange(year, month)[1]
+        days_in_month = get_num_days_in_month(year, month)
         end_date = date(year, month, days_in_month)
 
         total_amount = 0
@@ -344,7 +304,7 @@ class HoldingsManager:
         self,
         transactions,
         starting_cash_balance=0,
-        benchmark=None,
+        starting_holdings={},
         start_date=date(2010, 1, 1),
     ):
         self._holdings = {}  # (dict): symbols to Holding object
@@ -355,6 +315,11 @@ class HoldingsManager:
             start_date, starting_cash_balance, starting_cash_balance
         )
         self._cash_holding = cash_holding
+
+        for symbol, holding_data in starting_holdings.items():
+            holding = Holding(symbol)
+            holding.update_holding(start_date, holding_data[0], holding_data[1])
+            self._holdings[symbol] = holding
 
         for transaction in sorted(transactions, key=lambda x: x.date):
             cash_amount = get_decimal(transaction.amount)
@@ -368,14 +333,6 @@ class HoldingsManager:
                 self._holdings[symbol].update_holding(
                     transaction.date, quantity, cost_basis
                 )
-
-        self._benchmark_holdings = {}
-        if benchmark:
-            benchmark_holding = Holding(benchmark)
-            # fix date, once pass in all transactions and set date to min date
-            # minus one year so starting balance isn't 0
-            benchmark_holding.update_holding(start_date, 1, 0)
-            self._benchmark_holdings[benchmark] = benchmark_holding
 
         self._set_market_prices()
 
@@ -405,11 +362,8 @@ class HoldingsManager:
         return None, None, None
 
     def _set_market_prices(self):
-        holdings = list(self._holdings.values()) + list(
-            self._benchmark_holdings.values()
-        )
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            for holding in holdings:
+            for holding in self._holdings.values():
                 executor.submit(holding.set_historical_market_values)
 
     @property
@@ -439,42 +393,7 @@ class HoldingsManager:
                 current_holdings.append(holding)
         return current_holdings
 
-    def _get_monthly_market_value_for_year(
-        self, year, benchmark=None, include_cash=False
-    ):
-        num_months = 12 if year < current_date.year else current_date.month
-        monthly_market_values = []
-        for month in range(1, num_months + 1):
-            if benchmark:
-                total_month_market_value = self._get_benchmark_market_value_by_month(
-                    year, month, benchmark
-                )
-            else:
-                total_month_market_value = self._get_total_holdings_market_value_by_month(
-                    year, month, include_cash
-                )
-
-            if total_month_market_value is not None:
-                monthly_market_values.append(total_month_market_value)
-            else:
-                # Once you find month without market_values set, no futures months will have market values set
-                # This shouldn't really be necessary because the only time this should hit is on the current_date.month
-                # where there hasn't been a day where the stock market was open.
-                break
-        return monthly_market_values
-
-    def _get_benchmark_market_value_by_month(self, year, month, benchmark):
-        benchmark_holding = self._benchmark_holdings[benchmark]
-        month_data = benchmark_holding.get_historical_data_for_month(year, month)
-        return (
-            month_data.market_value
-            if month_data and month_data.market_value is not None
-            else None
-        )
-
-    def _get_total_holdings_market_value_by_month(
-        self, year, month, include_cash=False
-    ):
+    def get_total_holdings_market_value_for_month(self, year, month, include_cash=True):
         found_market_value = False
         total_value = 0
         for holding in self._holdings.values():
@@ -502,19 +421,35 @@ class HoldingsManager:
 
         return total_value if found_market_value or year < current_date.year else None
 
-    def get_benchmark_monthly_market_value_for_year(self, year, benchmark):
-        return self._get_monthly_market_value_for_year(year, benchmark)
+    def get_monthly_total_market_value_for_year(self, year, include_cash=True):
+        num_months = 12 if year < current_date.year else current_date.month
+        monthly_market_values = []
+        for month in range(1, num_months + 1):
+            total_month_market_value = self.get_total_holdings_market_value_for_month(
+                year, month, include_cash
+            )
 
-    def get_monthly_total_market_value_for_year(self, year, include_cash=False):
-        return self._get_monthly_market_value_for_year(year, include_cash=include_cash)
+            if total_month_market_value is not None:
+                monthly_market_values.append(total_month_market_value)
+            else:
+                # Once you find month without market_values set, no futures months will have market values set
+                # This shouldn't really be necessary because the only time this should hit is on the current_date.month
+                # where there hasn't been a day where the stock market was open.
+                break
+        return monthly_market_values
 
-    def get_starting_total_market_value_for_year(self, year, include_cash=False):
-        return self._get_total_holdings_market_value_by_month(
+    def get_starting_total_market_value_for_year(self, year, include_cash=True):
+        return self.get_total_holdings_market_value_for_month(
             year - 1, 12, include_cash=include_cash
         )
 
-    def get_starting_benchmark_value_for_year(self, year, benchmark):
-        return self._get_benchmark_market_value_by_month(year - 1, 12, benchmark)
+    def get_total_holdings_starting_market_value_for_month(
+        self, year, month, include_cash=True
+    ):
+        prev_year, prev_month = get_previous_month_and_year(year, month)
+        return self.get_total_holdings_market_value_for_month(
+            prev_year, prev_month, include_cash
+        )
 
     def render_current_holdings(self):
         current_holdings = {}

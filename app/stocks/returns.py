@@ -1,23 +1,23 @@
-import calendar
-import logging
-
-from app.utils import current_date, get_decimal
-
-logger = logging.getLogger(__name__)
+from app.utils import current_date, get_decimal, get_month_name, get_num_days_in_month
 
 
 class TimePeriodReturn:
     def __init__(
-        self, starting_balance, ending_balance, cash_flow_store, benchmark_return=None
+        self,
+        starting_balance,
+        ending_balance,
+        holdings_manager,
+        cash_flow_store,
+        benchmark_holdings_manager,
+        benchmark_return,
     ):
-        # Make better by passing in balance manager and benchmark balance manager
-        # instead of hassle of dealing with ending balances dict
         self.starting_balance = starting_balance
         self.ending_balance = ending_balance
+        self._holdings_manager = holdings_manager
         self._cash_flow_store = cash_flow_store
 
-        if benchmark_return:
-            self.benchmark_return = benchmark_return
+        self._benchmark_holdings_manager = benchmark_holdings_manager
+        self._benchmark_return = benchmark_return
 
         self._generate_subperiod_returns()
 
@@ -46,8 +46,8 @@ class TimePeriodReturn:
             'ending_balance': self.ending_balance,
             'return_pct': self.return_pct,
         }
-        if hasattr(self, 'benchmark_return'):
-            render['benchmark_return_pct'] = self.benchmark_return.return_pct
+        if self._benchmark_return is not None:
+            render['benchmark_return_pct'] = self._benchmark_return.return_pct
         if self.subperiod_returns:
             render['subperiod_returns'] = [
                 period.render() for period in self.subperiod_returns
@@ -58,17 +58,15 @@ class TimePeriodReturn:
 class MonthlyReturn(TimePeriodReturn):
     def __init__(
         self,
-        month,
         year,
-        starting_balance,
-        ending_balance,
+        month,
+        holdings_manager,
         cash_flow_store=None,
-        benchmark_start=None,
-        benchmark_end=None,
+        benchmark_holdings_manager=None,
     ):
         self.year = year
         self.month = month
-        self.month_name = calendar.month_name[month]
+        self.month_name = get_month_name(month)
 
         if cash_flow_store:
             self.total_cash_flow_amount, self.adjusted_cash_flow_amount = cash_flow_store.get_cash_flow_amount_for_month(
@@ -78,15 +76,27 @@ class MonthlyReturn(TimePeriodReturn):
             self.total_cash_flow_amount = 0
             self.adjusted_cash_flow_amount = 0
 
-        if benchmark_start and benchmark_end:
+        starting_balance = holdings_manager.get_total_holdings_starting_market_value_for_month(
+            year, month
+        )
+        ending_balance = holdings_manager.get_total_holdings_market_value_for_month(
+            year, month
+        )
+
+        if benchmark_holdings_manager:
             benchmark_return = self.__class__(
-                month, year, benchmark_start, benchmark_end
+                year, month, holdings_manager=benchmark_holdings_manager
             )
         else:
             benchmark_return = None
 
         super().__init__(
-            starting_balance, ending_balance, cash_flow_store, benchmark_return
+            starting_balance,
+            ending_balance,
+            holdings_manager,
+            cash_flow_store,
+            benchmark_holdings_manager,
+            benchmark_return,
         )
 
     def _generate_subperiod_returns(self):
@@ -114,54 +124,48 @@ class YearlyReturn(TimePeriodReturn):
     def __init__(
         self,
         year,
-        starting_balance,
-        ending_balances,
+        holdings_manager,
         cash_flow_store=None,
-        benchmark_start=None,
-        benchmark_ending_balances=None,
+        benchmark_holdings_manager=None,
     ):
         self.year = year
-        self.ending_balances = ending_balances
-        ending_balance = ending_balances[year][-1]
+        starting_balance = holdings_manager.get_starting_total_market_value_for_year(
+            year
+        )
+        ending_balance = holdings_manager.get_monthly_total_market_value_for_year(year)[
+            -1
+        ]
 
-        self.benchmark_start = benchmark_start
-        self.benchmark_ending_balances = benchmark_ending_balances
-
-        if benchmark_start and benchmark_ending_balances:
+        if benchmark_holdings_manager:
             benchmark_return = self.__class__(
-                year, benchmark_start, benchmark_ending_balances
+                year, holdings_manager=benchmark_holdings_manager
             )
         else:
             benchmark_return = None
 
         super().__init__(
-            starting_balance, ending_balance, cash_flow_store, benchmark_return
+            starting_balance,
+            ending_balance,
+            holdings_manager,
+            cash_flow_store,
+            benchmark_holdings_manager,
+            benchmark_return,
         )
 
     def _generate_subperiod_returns(self):
         monthly_returns = []
-        starting_balance = self.starting_balance
-        benchmark_start = self.benchmark_start
-        for year, monthly_ending_balances in self.ending_balances.items():
-            for month, ending_balance in enumerate(monthly_ending_balances, start=1):
-                benchmark_end = (
-                    self.benchmark_ending_balances[year][month - 1]
-                    if hasattr(self, 'benchmark_return')
-                    else None
-                )
-
-                monthly_return = MonthlyReturn(
-                    month,
-                    year,
-                    starting_balance,
-                    ending_balance,
-                    self._cash_flow_store,
-                    benchmark_start,
-                    benchmark_end,
-                )
-                monthly_returns.append(monthly_return)
-                starting_balance = ending_balance
-                benchmark_start = benchmark_end
+        monthly_ending_balances = self._holdings_manager.get_monthly_total_market_value_for_year(
+            self.year
+        )
+        for month, ending_balance in enumerate(monthly_ending_balances, start=1):
+            monthly_return = MonthlyReturn(
+                self.year,
+                month,
+                self._holdings_manager,
+                self._cash_flow_store,
+                self._benchmark_holdings_manager,
+            )
+            monthly_returns.append(monthly_return)
         self.subperiod_returns = monthly_returns
 
     def render(self):
@@ -175,60 +179,50 @@ class MultiYearReturn(TimePeriodReturn):
         self,
         start_year,
         end_year,
-        starting_balance,
-        ending_balances,
+        holdings_manager,
         cash_flow_store=None,
-        benchmark_start=None,
-        benchmark_ending_balances=None,
+        benchmark_holdings_manager=None,
     ):
         self.start_year = start_year
         self.end_year = end_year
-        self.ending_balances = ending_balances
 
-        max_year = max(ending_balances.keys())
-        ending_balance = ending_balances[max_year][-1]
+        starting_balance = holdings_manager.get_starting_total_market_value_for_year(
+            start_year
+        )
+        ending_balance = holdings_manager.get_monthly_total_market_value_for_year(
+            end_year
+        )[-1]
 
-        self.benchmark_start = benchmark_start
-        self.benchmark_ending_balances = benchmark_ending_balances
-
-        if benchmark_start and benchmark_ending_balances:
+        if benchmark_holdings_manager:
             benchmark_return = self.__class__(
-                start_year, end_year, benchmark_start, benchmark_ending_balances
+                start_year, end_year, holdings_manager=benchmark_holdings_manager
             )
         else:
             benchmark_return = None
+
         super().__init__(
-            starting_balance, ending_balance, cash_flow_store, benchmark_return
+            starting_balance,
+            ending_balance,
+            holdings_manager,
+            cash_flow_store,
+            benchmark_holdings_manager,
+            benchmark_return,
         )
 
     def _generate_subperiod_returns(self):
         yearly_returns = []
-        starting_balance = self.starting_balance
-        benchmark_start = self.benchmark_start
+        for year in range(self.start_year, self.end_year + 1):
 
-        # make sure keys are sorted
-        for year, monthly_ending_balances in self.ending_balances.items():
-            monthly_ending_balances_dict = {year: monthly_ending_balances}
-            benchmark_ending_balances = (
-                {year: self.benchmark_ending_balances[year]}
-                if hasattr(self, 'benchmark_return')
-                else None
+            monthly_ending_balances = self._holdings_manager.get_monthly_total_market_value_for_year(
+                year
             )
             yearly_return = YearlyReturn(
                 year,
-                starting_balance,
-                monthly_ending_balances_dict,
+                self._holdings_manager,
                 self._cash_flow_store,
-                benchmark_start,
-                benchmark_ending_balances,
+                self._benchmark_holdings_manager,
             )
             yearly_returns.append(yearly_return)
-            starting_balance = monthly_ending_balances[-1]
-            benchmark_start = (
-                benchmark_ending_balances[year][-1]
-                if benchmark_ending_balances and benchmark_ending_balances.get(year)
-                else None
-            )
         self.subperiod_returns = yearly_returns
 
     @property
@@ -237,7 +231,7 @@ class MultiYearReturn(TimePeriodReturn):
         for year in range(self.start_year, self.end_year + 1):
             if year == current_date.year:
                 num_months += current_date.month - 1
-                days_in_month = calendar.monthrange(year, current_date.month)[1]
+                days_in_month = get_num_days_in_month(year, current_date.month)
                 percent_of_month = round(current_date.day / days_in_month, 4)
                 num_months += percent_of_month
             else:
@@ -248,9 +242,9 @@ class MultiYearReturn(TimePeriodReturn):
     def render(self):
         render = super().render()
         render['annualized_return'] = self.annualized_return
-        if hasattr(self, 'benchmark_return'):
+        if self._benchmark_return is not None:
             render[
                 'benchmark_annualized_return'
-            ] = self.benchmark_return.annualized_return
+            ] = self._benchmark_return.annualized_return
         return render
 

@@ -5,16 +5,22 @@ from decimal import Decimal, ROUND_HALF_UP
 current_date = date.today()
 
 
-def get_ending_month_date(year, month_num):
-    ending_day = calendar.monthrange(year, month_num)[1]
-    return date(year, month_num, ending_day)
+def get_month_name(month_num):
+    return calendar.month_name[month_num]
 
 
-def get_ending_month_dates_for_year(year):
-    ending_dates = []
-    for month_num in range(1, 13):
-        ending_dates.append(get_ending_month_date(year, month_num))
-    return ending_dates
+def get_num_days_in_month(year, month):
+    return calendar.monthrange(year, month)[1]
+
+
+def get_previous_month_and_year(year, month_num):
+    if month_num == 1:
+        prev_year = year - 1
+        prev_month_num = 12
+    else:
+        prev_year = year
+        prev_month_num = month_num - 1
+    return prev_year, prev_month_num
 
 
 def merge_lists(x, y):
