@@ -29,8 +29,10 @@ class StocksManager:
             self._starting_cash_balance += get_decimal(account.starting_balance)
 
         self._benchmark = benchmark
-        self._benchmark_holdings = HoldingsManager(
-            transactions=[], starting_holdings={benchmark: (1, 0)}
+        self._benchmark_holdings = (
+            HoldingsManager(transactions=[], starting_holdings={benchmark: (1, 0)})
+            if benchmark
+            else None
         )
 
         self._cash_flow_store = CashFlowStore(transactions=self._transactions)
