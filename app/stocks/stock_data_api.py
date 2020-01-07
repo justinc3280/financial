@@ -1,17 +1,18 @@
 from datetime import datetime
 import logging
+import os
 import requests
 
 logger = logging.getLogger(__name__)
 
 base_url = 'https://cloud.iexapis.com/v1'
-token = 'pk_6f63e0a751884d75b526ca178528e749'
+token = os.environ.get('IEX_CLOUD_API_KEY')
 
 w_url = 'https://www.worldtradingdata.com/api/v1'
-w_api_key = 'FDfrcOUb2rDUPTmA70vJuLXCi5PSLox3khlXfG8HQ6PaAMcqD3bWjp8gs7pW'
+w_api_key = os.environ.get('WORLD_TRADING_DATA_API_KEY')
 
 alpha_url = 'https://www.alphavantage.co'
-alpha_key = 'S2IEL3KQTDWBOU86'
+alpha_key = os.environ.get('ALPHA_VANTAGE_API_KEY')
 
 # need exceptions if apis return errors
 def _get_iex_latest_price(symbol):
