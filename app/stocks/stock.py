@@ -3,7 +3,7 @@ from datetime import date
 import logging
 
 from app.caching import cached
-from app.stocks.stock_data_api import get_historical_monthly_prices, get_latest_price
+from app.stocks.stock_data_api import stock_data_api
 from app.stocks.returns import MultiYearReturn, YearlyReturn
 from app.utils import (
     current_date,
@@ -214,7 +214,9 @@ class Holding:
     @staticmethod
     @cached
     def _get_stock_monthly_close_prices(symbol, start_date, end_date=str(current_date)):
-        monthly_prices = get_historical_monthly_prices(symbol, start_date, end_date)
+        monthly_prices = stock_data_api.get_historical_monthly_prices(
+            symbol, start_date, end_date
+        )
         if not monthly_prices:
             logger.warning('No monthly prices found for symbol %s', symbol)
         return monthly_prices
@@ -258,7 +260,7 @@ class Holding:
     @staticmethod
     @cached
     def _get_latest_stock_price(symbol):
-        return get_latest_price(symbol)
+        return stock_data_api.get_latest_price(symbol)
 
     @property
     def latest_price(self):
