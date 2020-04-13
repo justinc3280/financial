@@ -86,6 +86,8 @@ def paycheck_col_to_category_name(col_name):
         'net_pay': 'Net Pay',
         'expense_reimbursement': 'Expense Reimbursement',
         'espp': 'ESPP Refunded',
+        'std': 'Short Term Disability',
+        'transit': 'Transit - Pretax',
     }
     return translation[col_name]
 
