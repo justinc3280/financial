@@ -18,10 +18,8 @@ login.login_view = 'auth.login'
 
 from app.api import api as api_bp
 from app.auth import auth as auth_bp
-from app.caching import cache
 from app.errors import errors as errors_bp
 from app.finance import finance as finance_bp
-from app.stocks import stocks as stocks_bp
 from app.jinja import register_jinja_filters
 
 
@@ -40,7 +38,6 @@ def create_app(config_object=Config):
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(errors_bp)
     app.register_blueprint(finance_bp)
-    app.register_blueprint(stocks_bp)
 
     register_jinja_filters(app.jinja_env)
 
@@ -64,7 +61,6 @@ def create_app(config_object=Config):
         log_file_handler.setLevel(logging.INFO)
         logger.addHandler(log_file_handler)
 
-    cache.connect(app.config['REDIS_HOST'], app.config['REDIS_PORT'])
     logger.info('Financial App initialized, Debug=%s', app.debug)
 
     return app

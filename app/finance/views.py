@@ -8,7 +8,6 @@ from flask_login import current_user, login_required
 from app.finance import finance
 from app.finance.accounts import AccountManager
 from app.models import Account, Category, Paycheck, Transaction
-from app.stocks.stock import StocksManager
 
 
 @finance.route('/')
@@ -156,13 +155,6 @@ def get_accounts_category_monthly_balances(year):
 
     for account_name, ending_balances in account_ending_balances.items():
         accounts_monthly_ending_balance[account_name] = list_to_dict(ending_balances)
-
-    brokerage_accounts = Account.get_brokerage_accounts(user_id=current_user.id)
-    stocks_manager = StocksManager(accounts=brokerage_accounts)
-    stock_monthly_values = stocks_manager.get_monthly_total_market_value_for_year(year)
-    accounts_monthly_ending_balance['Stocks (Market Value)'] = (
-        list_to_dict(stock_monthly_values) if stock_monthly_values else None
-    )
 
     for (
         account
