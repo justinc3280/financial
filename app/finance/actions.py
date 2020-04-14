@@ -250,10 +250,12 @@ def add_paycheck():
     roth_ret_col = 12
     net_pay_col = 13
     ret_match_col = 14
-    gtl_col = 15
-    gym_reimbursement_col = 16
-    expense_reimbursement_col = 17
-    company_col = 18
+    std_col = 15
+    transit_col = 16
+    company_col = 17
+    gtl_col = None
+    gym_reimbursement_col = None
+    expense_reimbursement_col = None
     espp_col = None
 
     if form.validate_on_submit():
@@ -275,9 +277,11 @@ def add_paycheck():
             roth_retirement = row[roth_ret_col - 1]
             net_pay = row[net_pay_col - 1]
             retirement_match = row[ret_match_col - 1]
-            gtl = float(row[gtl_col - 1])
-            gym_reimbursement = float(row[gym_reimbursement_col - 1])
-            expense_reimbursement = float(row[expense_reimbursement_col - 1])
+            std = float(row[std_col - 1])
+            transit = float(row[transit_col - 1])
+            gtl = float(row[gtl_col - 1]) if gtl_col else None
+            gym_reimbursement = float(row[gym_reimbursement_col - 1]) if gym_reimbursement_col else None
+            expense_reimbursement = float(row[expense_reimbursement_col - 1]) if expense_reimbursement_col else None
             company_name = row[company_col - 1]
             espp = float(row[espp_col - 1]) if espp_col else None
 
@@ -317,6 +321,10 @@ def add_paycheck():
                     other_fields['fsa'] = fsa
                 if ma_pfml_tax:
                     other_fields['ma_pfml_tax'] = ma_pfml_tax
+                if std:
+                    other_fields['std'] = std
+                if transit:
+                    other_fields['transit'] = transit
                 paycheck.update_properties(other_fields)
                 db.session.add(paycheck)
 

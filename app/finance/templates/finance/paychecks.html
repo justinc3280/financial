@@ -23,6 +23,8 @@
     <th>Expense Reimbursement</th>
     <th>FSA Contribution</th>
     <th>ESPP</th>
+    <th>STD</th>
+    <th>Transit</th>
     <th>Net Pay</th>
   </tr>
   {% for paycheck in paychecks | sort(attribute='date') %}
@@ -46,6 +48,8 @@
       <td>{{ paycheck_properties.get('expense_reimbursement', 0) | money }}</td>
       <td>{{ paycheck_properties.get('fsa', 0) | money }}</td>
       <td>{{ paycheck_properties.get('espp', 0) | money }}</td>
+      <td>{{ paycheck_properties.get('std', 0) | money }}</td>
+      <td>{{ paycheck_properties.get('transit', 0) | money }}</td>
       <td>{{ paycheck.net_pay | money }}</td>
     </tr>
   {% endfor %}
