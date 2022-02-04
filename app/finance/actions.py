@@ -110,24 +110,68 @@ def transactions(account_id):
                 Category.name == "Other Income"
             ).first()
 
+            if account_id == 10:
+                options_premium_received_category = Category.query.filter(
+                    Category.name == "Options Premium"
+                ).first()
+                options_premium_paid_category = Category.query.filter(
+                    Category.name == "Options Premium Paid"
+                ).first()
+
             for row in data[account_file_format['header_rows'] :]:
-                date_data = row[account_file_format['date_column'] - 1]
-                if date_data in [
-                    '** No Record found for the given criteria ** ',
-                    '***END OF FILE***',
-                ]:
+                if not row:
                     continue
+
+                date_data = row[account_file_format['date_column'] - 1]
+                date_data = date_data.strip()
+                if date_data in [
+                    '',
+                    '** No Record found for the given criteria **',
+                    '***END OF FILE***',
+                ] or date_data.startswith('Total activity from'):
+                    continue
+
                 date = datetime.strptime(
                     date_data, account_file_format['date_format']
                 ).date()
 
+                # TODO: make this configurable in DB
+                amount_needs_invert = False
+                if account_id in [14, 15]:
+                    # American Express and Capital One accounts needs amount inverted
+                    amount_needs_invert = True
+
                 amount_data = row[account_file_format['amount_column'] - 1]
+                if account_id == 14 and amount_data is '':
+                    # Capital Ones credit column is after the debit column
+                    amount_data = row[account_file_format['amount_column']]
+                    # Credits don't need to be inverted
+                    amount_needs_invert = False
+
                 amount_data = amount_data.replace('$', '')
                 amount_data = amount_data.replace('+', '')
                 amount_data = amount_data.replace(' ', '')
                 amount_data = amount_data.replace(',', '')
+                amount_data = float(amount_data)
+
+                if amount_needs_invert:
+                    amount_data = -amount_data
 
                 description = row[account_file_format['description_column'] - 1]
+                description = description.strip()
+
+                # Merrill Edge ignore cash sweeps
+                if account_id == 12 and (description.startswith('Deposit ML') or description.startswith('Withdrawal ML')):
+                    continue
+
+                # TD Ameritrade ignore cash sweeps
+                if account_id == 10:
+                    if description.startswith('CASH ALTERNATIVES PURCHASE') or description.startswith('CASH ALTERNATIVES REDEMPTION'):
+                        continue
+                    elif description.startswith('CASH ALTERNATIVES INTEREST'):
+                        # Interest amount is in the quantity column to the right of the description column
+                        amount_data = float(row[account_file_format['description_column']])
+
                 if (
                     len(data[account_file_format['header_rows']])
                     >= account_file_format['category_column']
@@ -141,16 +185,24 @@ def transactions(account_id):
                         if category_obj
                         else (
                             uncategorized_expense_category
-                            if float(amount_data) < 0
+                            if amount_data < 0
                             else uncategorized_income_category
                         )
                     )
                 else:
-                    category = (
-                        uncategorized_expense_category
-                        if float(amount_data) < 0
-                        else uncategorized_income_category
-                    )
+                    category = None
+                    if account_id == 10:
+                        if description.startswith('Sold'):
+                            category = options_premium_received_category
+                        elif description.startswith('Bought'):
+                            category = options_premium_paid_category
+
+                    if category is None:
+                        category = (
+                            uncategorized_expense_category
+                            if amount_data < 0
+                            else uncategorized_income_category
+                        )
 
                 transaction = Transaction.query.filter(
                     Transaction.date == date,

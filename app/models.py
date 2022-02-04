@@ -70,8 +70,8 @@ class Transaction(db.Model, Properties):
     account_id = db.Column(db.Integer, db.ForeignKey("account.id"))
 
     def __repr__(self):
-        return '<Transaction- date: {}, amount: {}, description: {}>'.format(
-            self.date, self.amount, self.description
+        return '<Transaction- date: {}, amount: {}, description: {}, category: {}>'.format(
+            self.date, self.amount, self.description, self.category.name
         )
 
 
