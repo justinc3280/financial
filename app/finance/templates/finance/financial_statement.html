@@ -7,7 +7,7 @@
       <a id="income_statement_link" href="{{ url_for('finance.income_statement') }}">Income Statement</a> |
       <a id="cash_flow_link" href="{{ url_for('finance.cash_flow') }}">Statement of Cash Flow</a>
       <select id="select-year" class="ml-5">
-        {% for year_choice in [2020, 2019, 2018, 2017, 2016, 2015] %}
+        {% for year_choice in [2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015] %}
           <option value="{{year_choice}}" {% if year_choice==year %}selected{% endif %}>{{ year_choice }}</option>
         {% endfor %}
       </select>
@@ -51,13 +51,14 @@
           <tr class="{{row_class}}">
               <td><a class="text-dark" href="{{ url_for('finance.charts', category_name=category.name) }}">{{ category.name }}</a></td>
               {% for month, total in category_data.items() %}
+                  {% set show_as_positive = category.top_level_parent().name == 'Expense' %}
                   <td>
                     <a
                       href="#"
                       class="text-dark"
                       data-modal-url="{{ url_for('finance.get_transactions_for_category', category_id=category.id, month=month, year=year) }}"
                       data-get="true">
-                      {{ total | money(show_as_positive=True) }}
+                      {{ total | money(show_as_positive=show_as_positive) }}
                     </a>
                   </td>
               {% endfor %}
