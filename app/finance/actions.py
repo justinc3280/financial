@@ -246,7 +246,8 @@ def edit_transaction_category(transaction_id):
         if category.is_transaction_level
         and category.top_level_parent().name
         in [
-            ('Expense' if transaction.amount < 0 else 'Income'),
+            'Expense',
+            'Income',
             'Transfer',
             'Investment',
         ]
