@@ -3,6 +3,7 @@
 .env
 .flaskenv
 .vscode
+venv/
 Categories.csv
 dump.rdb
 __pycache__/
