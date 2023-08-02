@@ -137,8 +137,8 @@ def transactions(account_id):
 
                 # TODO: make this configurable in DB
                 amount_needs_invert = False
-                if account_id in [14, 15]:
-                    # American Express and Capital One accounts needs amount inverted
+                if account_id in [14, 15, 16]:
+                    # American Express, Apple Card, and Capital One accounts needs amount inverted
                     amount_needs_invert = True
 
                 amount_data = row[account_file_format['amount_column'] - 1]
